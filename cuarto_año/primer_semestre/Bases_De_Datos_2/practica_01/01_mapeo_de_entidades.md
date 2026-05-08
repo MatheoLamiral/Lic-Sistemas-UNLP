@@ -206,6 +206,8 @@ Siguiendo las decisiones discutidas en los ejercicios 16–19, se mapearon las s
 
 Siguiendo la recomendación discutida en el ejercicio 22, se declaran **todas las relaciones como `LAZY`**, incluso aquellas que por defecto serían `EAGER` (`@ManyToOne` y `@OneToOne`). El razonamiento es: *la estrategia de carga debe ser una decisión de cada caso de uso, no del mapeo*. Si un caso particular necesita traer la asociación, se usa `JOIN FETCH` en el HQL del repositorio correspondiente.
 
+> En la implementación final, las relaciones que serían `LAZY` por default (`@OneToMany`, `@ManyToMany`) se dejan sin declarar (default explícito), y las que serían `EAGER` por default (`@ManyToOne`, `@OneToOne`) llevan `fetch = FetchType.LAZY` declarado expresamente sobre la anotación. Concretamente: `Service.supplier`, `Purchase.user`, `Purchase.route`, `Purchase.review` (lado inverso), `ItemService.purchase`, `ItemService.service` y `Review.purchase` (lado dueño) todas con `fetch = FetchType.LAZY`.
+
 | Relación | Tipo de anotación | FetchType elegido | Justificación |
 | --- | --- | --- | --- |
 | `Purchase` → `User` | `@ManyToOne` | `LAZY` | Aunque el default es `EAGER`, no todos los casos de uso sobre `Purchase` necesitan el `User` (listar compras por fecha, calcular totales, etc.). Forzar la carga siempre es un costo que se paga sin retorno garantizado. |
@@ -558,11 +560,11 @@ private List<Stop> stops = new ArrayList<>();
 
 @ManyToMany(cascade = {})
 @JoinTable(name = "route_driver", /* ... */)
-private List<DriverUser> drivers = new ArrayList<>();
+private List<DriverUser> driverList = new ArrayList<>();
 
 @ManyToMany(cascade = {})
 @JoinTable(name = "route_tour_guide", /* ... */)
-private List<TourGuideUser> tourGuides = new ArrayList<>();
+private List<TourGuideUser> tourGuideList = new ArrayList<>();
 
 // User
 @OneToMany(mappedBy = "user", cascade = {})
@@ -574,12 +576,12 @@ private List<Purchase> purchases = new ArrayList<>();
 private Purchase purchase;
 
 // DriverUser, TourGuideUser (lado inverso de las @ManyToMany con Route)
-@ManyToMany(mappedBy = "drivers", cascade = {})       // o "tourGuides"
+@ManyToMany(mappedBy = "driverList")       // o mappedBy = "tourGuideList" en TourGuideUser
 private List<Route> routes = new ArrayList<>();
 ```
 
 > [!NOTE]
-> Las cascadas declaradas explícitamente como `cascade = {}` no son redundantes en el sentido del default JPA (que también es vacío), pero **sí son una decisión documentada**: dejan visible en el código que se evaluó qué cascada correspondía y se resolvió no propagar nada. Esto sigue el criterio de la cátedra (ejercicio 20) de declarar la intención antes que confiar en defaults. Además, si después el estándar cambiara su default, el código seguiría siendo correcto.
+> Las cascadas declaradas explícitamente como `cascade = {}` no son redundantes en el sentido del default JPA (que también es vacío), pero **sí son una decisión documentada**: dejan visible en el código que se evaluó qué cascada correspondía y se resolvió no propagar nada. En la **implementación final**, esa explicitación está aplicada de forma parcial: aparece en `Supplier.services` y en las tres `@ManyToMany` de `Route` (`stops`, `driverList`, `tourGuideList`). Las demás asociaciones (`Service.supplier`, `Service.itemServiceList`, `User.purchaseList`, `Purchase.user`, `Purchase.route`, `ItemService.purchase`, `ItemService.service`, `Review.purchase`) usan el default JPA, que es funcionalmente idéntico (`cascade = {}`). Es una inconsistencia estética entre lugares del modelo, no un cambio de comportamiento.
 
 > [!NOTE]
 > Las dos únicas relaciones con cascadas activas en todo el modelo son las que parten de `Purchase` (`itemServiceList` y `review`), porque son **los únicos casos de composición real** del diagrama. Todo el resto son asociaciones — usuarios, rutas, paradas, choferes, guías, servicios y proveedores son entidades autónomas — y por lo tanto no llevan cascada de baja, ni `orphanRemoval`. La integridad ante eliminaciones de esas entidades se resuelve en la capa de servicio, no en el mapeo (ejercicios 30 y 31).

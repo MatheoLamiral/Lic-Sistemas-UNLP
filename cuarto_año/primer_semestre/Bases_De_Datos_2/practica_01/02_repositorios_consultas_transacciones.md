@@ -193,16 +193,17 @@ public class ReviewRepository extends AbstractRepository<Review> {
 public class StopRepository extends AbstractRepository<Stop> {
     public StopRepository() { super(Stop.class); }
 }
+
+@Repository
+public class ItemServiceRepository extends AbstractRepository<ItemService> {
+    public ItemServiceRepository() { super(ItemService.class); }
+}
 ```
 
-Con esto, cada repositorio del modelo expone las cuatro operaciones básicas pedidas por el enunciado (`save`, `findById`, `findAll`, `delete`) usando la `Session` actual de Hibernate vía `getCurrentSession()`. Aunque el enunciado original lista seis repositorios, en la implementación final se incluye también `StopRepository` porque varios casos de uso (creación de rutas, finders por nombre de parada) lo requieren.
+Con esto, cada repositorio del modelo expone las cuatro operaciones básicas pedidas por el enunciado (`save`, `findById`, `findAll`, `delete`) usando la `Session` actual de Hibernate vía `getCurrentSession()`. Aunque el enunciado original lista seis repositorios, la implementación final incluye también `StopRepository` e `ItemServiceRepository` porque varios casos de uso (creación de rutas, finders por nombre de parada, persistencia explícita del ítem desde el servicio) los requieren.
 
 > [!NOTE]
-> **Doble capa de repositorios en la implementación final**. Conviven dos arquitecturas de acceso a datos:
-> - Los **siete repositorios granulares** (`AbstractRepository<T>` + las seis subclases listadas + `StopRepository`) que se acaban de mostrar — anotados con `@Repository`, consumidos por los servicios granulares del ejercicio 44.
-> - Una **facade legacy** `ToursRepository` (interface) + `ToursRepositoryImpl` que existe para satisfacer los tests provistos del proyecto base (`ToursApplicationTests`, `ToursQuerysTests`). Inyecta directamente `SessionFactory` y reimplementa internamente todas las consultas HQL del ejercicio 46, además de finders auxiliares (`findUserByUsername`, `findStopsByNameStart`, `findRoutesBelowPrice`, `findSupplierByAuthorizationNumber`, `findServiceByNameAndSupplierId`, `findPurchaseByCode`, `countPurchasesByRoute`) y un `evict<T>` usado por `updateUser` (ver ejercicio 44).
->
-> Las dos capas funcionan en paralelo: la granular es la "buena práctica" para código nuevo, la facade existe para no romper la compatibilidad con los tests que ya estaban escritos. Las consultas se duplican deliberadamente entre ambas — el costo de mantenimiento se acepta a cambio de mantener los tests pasando.
+> Además de los CRUD básicos, `AbstractRepository` expone también `merge(T entity)` (delegando en `session.merge`). Lo usa `ToursServiceImpl.updateUser` para reasociar entidades detached que llegan desde los tests, y se discute con más detalle en el ejercicio 44.
 
 > [!NOTE]
 > Detalles de diseño relevantes:
@@ -284,19 +285,15 @@ La transacción debe gestionarse en la **capa de servicio**, nunca en el reposit
 
 ### Ejercicio 44: ​Implementar una capa de servicio que coordine las operaciones del modelo usando transacciones correctamente. Como mínimo implementar:​
 
-Siguiendo el criterio del ejercicio 43 (transacción en la capa de servicio, no en el repositorio), la capa se organiza en clases `@Service` que inyectan los repositorios necesarios y exponen métodos `@Transactional`. Los repositorios usados son exactamente los del ejercicio 41 (con sus cuatro operaciones básicas: `save`, `findById`, `findAll`, `delete`); las consultas HQL específicas se incorporan recién en el ejercicio 46.
-
-A continuación se muestra una organización típica con un servicio por agregado, más un servicio orquestador para operaciones que cruzan agregados.
+Siguiendo el criterio del ejercicio 43 (transacción en la capa de servicio, no en el repositorio), la capa de servicio se materializa en una única clase `ToursServiceImpl` (anotada con `@Service`) que implementa la interfaz `ToursService`. Esta clase inyecta por constructor los ocho repositorios granulares del ejercicio 41 y anota cada método público con `@Transactional`. Los snippets que aparecen abajo (un "servicio por agregado") son una **vista didáctica**: el código real consolida todo en `ToursServiceImpl` para satisfacer el contrato `ToursService` que consumen los tests provistos (`ToursApplicationTests`, `ToursQuerysTests`).
 
 > [!NOTE]
-> **Doble capa de servicios en la implementación final**. Igual que con los repositorios (ejercicio 41), conviven dos capas:
-> - Los **servicios granulares** (`UserService`, `RouteService`, `SupplierService`, `ServiceService`, `StopService`, `PurchaseService`) que se muestran en este ejercicio: clases `@Service` con `@Autowired` de los repositorios granulares, `@Transactional` por método. Es la "buena práctica" para código nuevo.
-> - Un **facade legacy** `ToursServiceImpl implements ToursService` (cableado en `AppConfig`) que satisface la interfaz que consumen los tests provistos (`ToursApplicationTests`, `ToursQuerysTests`). Se inyecta vía constructor con un único `ToursRepository` y centraliza todas las operaciones del TP en un solo objeto.
+> **Traducción de excepciones**. `ToursServiceImpl` envuelve cada `create*`/`update*`/`delete*` en `try { ... } catch (RuntimeException e) { throw new ToursException("Constraint Violation"); }`. Esto traduce las violaciones de constraint de Hibernate (username/email/code duplicados, etc.) al tipo de excepción que los tests esperan capturar (los `assertThrows(ToursException.class, ...)` de `ToursApplicationTests`). En una arquitectura Spring "ortodoxa" lo idiomático sería propagar la `RuntimeException` original (`PersistenceException`, `DataIntegrityViolationException`, etc.) y dejar que el caller decida; aquí se hace la traducción en el servicio para no tocar la firma esperada por los tests.
+
+> [!NOTE]
+> **`updateUser` y `merge`**. El método `updateUser` recibe una entidad que puede llegar **detached** desde el test (modificada fuera de la transacción donde se cargó). Por eso el código primero verifica que el `id` existe (`userRepository.findById(...)`) y luego llama a `userRepository.merge(user)` — ese `merge` se delega en `session.merge` de Hibernate, que reasocia los cambios al `PersistenceContext` activo y devuelve la copia managed. Es uno de los casos de uso "canónicos" de `merge` (ver ejercicio 11).
 >
-> Las dos capas conviven: la granular es la organización deseable, la facade existe por contrato con los tests. Las decisiones de cascada, validación y transacción son las mismas en ambos lados — sólo cambia la fachada de acceso.
-
-> [!NOTE]
-> **Traducción de excepciones en la facade**. `ToursServiceImpl` envuelve cada `create*`/`update*`/`delete*` en `try { ... } catch (RuntimeException e) { throw new ToursException("Constraint Violation"); }`. Esto traduce las violaciones de constraint de Hibernate (username/email/code duplicados, etc.) al tipo de excepción que los tests esperan capturar. Los **servicios granulares no hacen esta traducción**: dejan propagar la `RuntimeException` original (`PersistenceException`, `DataIntegrityViolationException`, etc.), que en una arquitectura Spring estándar es lo correcto — el caller decide qué hacer con cada tipo concreto.
+> **`User.username` con `updatable = false`**. La columna `username` en el mapeo de `User` está declarada como `@Column(nullable = false, unique = true, updatable = false)`. Esto la convierte en un campo *inmutable* a nivel JPA: aunque el código de aplicación llame a `setUsername("nuevo")` y luego `updateUser(...)`, Hibernate ignorará ese cambio en el `UPDATE` generado y la fila en la base preservará el valor original. El test `updateUserTest` valida exactamente este comportamiento: setea un nuevo username, hace `updateUser`, busca por el nuevo username y verifica que **no** existe (porque el cambio se descartó). Es una decisión de modelado: el `username` actúa como identificador de negocio estable a lo largo del ciclo de vida de la cuenta.
 
 #### a) Creación de todas las entidades persistentes.
 
@@ -466,7 +463,7 @@ public class PurchaseService {
 
 #### d) Eliminar una ruta existente siempre que no tenga compras asociadas.
 
-La verificación se resuelve con una consulta HQL específica `countByRoute(route)` que cuenta sin cargar entidades — más eficiente que recorrer en memoria con `findAll().stream()`. Esta consulta vive en `PurchaseRepository` (es del ejercicio 46 en espíritu, pero también la replica `ToursRepository.countPurchasesByRoute(routeId)` para la facade legacy).
+La verificación se resuelve con una consulta HQL específica `countPurchasesByRoute(routeId)` que cuenta sin cargar entidades — más eficiente que recorrer en memoria con `findAll().stream()`. Esta consulta vive en `PurchaseRepository` y la consume directamente `ToursServiceImpl.deleteRoute`.
 
 ```java
 @Service
@@ -554,10 +551,7 @@ public class RouteService {
 
 ### Ejercicio 46: ​Implementar las siguientes consultas en los repositorios correspondientes:​
 
-Cada consulta se agrega al repositorio que devuelve su tipo principal (la entidad listada). Se asume el helper `session()` definido en el `AbstractRepository` del ejercicio 41 (`return sessionFactory.getCurrentSession();`).
-
-> [!NOTE]
-> Por la doble arquitectura descripta en el ejercicio 41 (granular + facade), **estas consultas se duplican deliberadamente**: las que se muestran abajo viven en los repositorios granulares (`PurchaseRepository`, `RouteRepository`, etc.) y las consume la capa de servicios granular del ejercicio 44; la facade `ToursRepositoryImpl` reimplementa las mismas queries internamente para servir a `ToursServiceImpl` (consumido por los tests del proyecto base). El costo de mantenerlas en dos lugares se asume como precio de mantener ambas arquitecturas conviviendo.
+Cada consulta se agrega al repositorio que devuelve su tipo principal (la entidad listada). Se asume el helper `session()` definido en el `AbstractRepository` del ejercicio 41 (`return sessionFactory.getCurrentSession();`). En la implementación final cada consulta vive **una sola vez** en el repositorio granular correspondiente y la expone `ToursServiceImpl` con un método `@Transactional` que delega directamente.
 
 #### a) List<Purchase> getAllPurchasesOfUsername(String username) — Obtiene y retorna el listado de compras realizadas por el usuario con el nombre de usuario especificado por parámetro.
 
@@ -614,7 +608,7 @@ public List<Supplier> getTopNSuppliersInPurchases(int n) {
 
 ```java
 // PurchaseRepository
-public int getCountOfPurchasesBetweenDates(Date start, Date end) {
+public long getCountOfPurchasesBetweenDates(Date start, Date end) {
     Long count = session()
         .createQuery(
             "select count(p) from Purchase p where p.date between :start and :end",
@@ -622,11 +616,11 @@ public int getCountOfPurchasesBetweenDates(Date start, Date end) {
         .setParameter("start", start)
         .setParameter("end", end)
         .uniqueResult();
-    return count.intValue();
+    return count == null ? 0L : count;
 }
 ```
 
-> `count(...)` en HQL devuelve `Long`; se convierte a `int` para respetar la firma pedida. `between` incluye los extremos.
+> `count(...)` en HQL devuelve `Long`. **Desviación respecto al enunciado**: la práctica pide `int`, pero el contrato `ToursService` y los tests provistos (`getCountOfPurchasesBetweenDatesTest`) usan `long` como tipo de retorno (`long countOfPurchasesBetweenDates1 = this.service.getCountOfPurchasesBetweenDates(...)`). Para no romper los tests se mantiene `long` en toda la cadena (repositorio → servicio → interfaz). `between` incluye los extremos.
 
 #### e) List<Route> getRoutesWithStop(Stop stop) — Listado de rutas que incluyen una parada especificada.
 
@@ -648,17 +642,17 @@ public List<Route> getRoutesWithStop(Stop stop) {
 
 ```java
 // RouteRepository
-public int getMaxStopOfRoutes() {
-    Long max = session()
+public Long getMaxStopOfRoutes() {
+    Integer max = session()
         .createQuery(
             "select max(size(r.stops)) from Route r",
-            Long.class)
+            Integer.class)
         .uniqueResult();
-    return max == null ? 0 : max.intValue();
+    return max == null ? null : max.longValue();
 }
 ```
 
-> `size(r.stops)` es la función HQL que devuelve la cardinalidad de la colección. El `max(...)` global ya devuelve un único número, sin necesidad de `group by`. Se contempla `null` para el caso "no hay rutas".
+> `size(r.stops)` es la función HQL que devuelve la cardinalidad de la colección. El `max(...)` global ya devuelve un único número, sin necesidad de `group by`. **Desviación respecto al enunciado**: la práctica pide `int`, pero el contrato `ToursService` y el test provisto (`getMaxStopOfRoutesTest`) usan `Long`. Se mantiene `Long` en toda la cadena para no romper los tests; el `null` se preserva para el caso "no hay rutas" (el test asume que sí hay).
 
 #### g) List<Route> getRoutesNotSell() — Listado de recorridos que no fueron vendidos.
 
@@ -737,7 +731,9 @@ public List<TourGuideUser> getTourGuidesWithRating1() {
 
 > Para que esto compile, `TourGuideUser` debe declarar `routes` como lado inverso de la `@ManyToMany` con `Route` (consistente con el ejercicio 17). El `exists` filtra rutas que tengan al menos una compra con review de 1 estrella, y se proyecta el guía con `distinct` para no repetirlo si participa en varias rutas mal calificadas.
 
-#### k) List<User> getUsersWithMoreThanNPurchases(int n) — Listado de usuarios que hayan realizado más de n compras.
+<!-- Nota: el ítem k) `getUsersWithMoreThanNPurchases` no aparece en la lista a)–j) del enunciado. Quedó como consulta extra en el `UserRepository` durante el desarrollo y se documenta a continuación por completitud, aunque no es parte de lo pedido por la cátedra. -->
+
+#### Extra (no pedido por el enunciado): List<User> getUsersWithMoreThanNPurchases(int n)
 
 ```java
 // UserRepository
@@ -754,7 +750,7 @@ public List<User> getUsersWithMoreThanNPurchases(int n) {
 }
 ```
 
-> `having` permite filtrar después del `group by` con la función agregada `count(p)`. El parámetro se castea a `long` para alinearse con el tipo que retorna `count` en HQL.
+> Esta consulta **no aparece en la lista a)–j) del ejercicio 46**, pero quedó implementada en el repositorio durante el desarrollo. `having` permite filtrar después del `group by` con la función agregada `count(p)`. El parámetro se castea a `long` para alinearse con el tipo que retorna `count` en HQL.
 
 > [!NOTE]
 > Patrones que se repiten en este ejercicio:
