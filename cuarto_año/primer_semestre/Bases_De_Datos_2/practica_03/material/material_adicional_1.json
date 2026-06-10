@@ -1,0 +1,189 @@
+[{
+  "nombre": "Historical Adventure",
+  "precio": 30000,
+  "stops": [
+    "Avenida de Mayo",
+    "Plaza del Congreso",
+    "Río de la Plata",
+    "Teatro Colón",
+    "Av 9 de Julio",
+    "Plaza Italia"
+  ],
+  "totalKm": 10
+},
+{
+  "nombre": "Architectural Expedition",
+  "precio": 50000,
+  "stops": [
+    "Usina del Arte",
+    "Puerto Madero",
+    "Museo Nacional de Bellas Artes",
+    "Museo Moderno", 
+    "Museo de Arte Latinoamericano",
+    "Teatro Colón",
+    "San Telmo",
+    "Recoleta"
+  ],
+  "totalKm": 12
+},
+{
+  "nombre": "Delta Tour",
+  "precio": 80000,
+  "stops": [
+    "Río de la Plata",
+    "Bosques de Palermo",
+    "Delta"
+  ],
+  "totalKm": 8
+},
+{
+  "nombre": "Nature Escape",
+  "precio": 40000,
+  "stops": [
+    "Delta",
+    "Río de la Plata",
+    "Av 9 de Julio",
+    "Puerto Madero"
+  ]
+},
+{
+  "nombre": "Artistic Journey",
+  "precio": 60000,
+  "stops": [
+    "Museo Nacional de Bellas Artes",
+    "Teatro Colón",
+    "Usina del Arte",
+    "Planetario",
+    "San Telmo",
+    "La Boca - Caminito",
+    "Belgrano - Barrio Chino",
+    "Av 9 de Julio"
+  ],
+  "totalKm": 15
+},
+{
+  "nombre": "Tango Experience",
+  "precio": 35000,
+  "stops": [
+    "Avenida de Mayo",
+    "Plaza del Congreso",
+    "Paseo de la Historieta",
+    "San Telmo",
+    "La Boca - Caminito",
+    "Recoleta"
+  ],
+  "totalKm": 10
+},
+{
+  "nombre": "Gastronomic Delight",
+  "precio": 70000,
+  "stops": [
+    "San Telmo",
+    "La Boca - Caminito",
+    "Belgrano - Barrio Chino",
+    "Recoleta",
+    "Costanera Sur"
+  ],
+  "totalKm": 9
+},
+{
+  "nombre": "Urban Exploration",
+  "precio": 45000,
+  "stops": [
+    "Avenida de Mayo",
+    "Museo Moderno", 
+    "Paseo de la Historieta",
+    "Usina del Arte",
+    "San Telmo",
+    "La Boca - Caminito",
+    "Belgrano - Barrio Chino",
+    "Recoleta",
+    "El Monumental (Estadio River Plate)",
+    "Costanera Sur",
+    "Plaza Italia"
+  ],
+  "totalKm": 14
+},
+{
+  "nombre": "Museum Tour",
+  "precio": 55000,
+  "stops": [
+    "Museo Nacional de Bellas Artes",
+    "Teatro Colón",
+    "Planetario",
+    "Bosques de Palermo",
+    "San Telmo",
+    "La Boca - Caminito",
+    "Recoleta",
+    "El Monumental (Estadio River Plate)",
+    "Av 9 de Julio"
+  ],
+  "totalKm": 13
+},
+{
+  "nombre": "Historic Landmarks",
+  "precio": 25000,
+  "stops": [
+    "Avenida de Mayo",
+    "Plaza del Congreso",
+    "Usina del Arte",
+    "San Telmo",
+    "La Boca - Caminito",
+    "Belgrano - Barrio Chino",
+    "Recoleta",
+    "El Monumental (Estadio River Plate)",
+    "Costanera Sur",
+    "Plaza Italia"
+  ],
+  "totalKm": 23
+},
+{
+  "nombre": "Temporal Route",
+  "precio": 50000,
+  "stops":[
+    "Av 9 de Julio",
+    "Avenida de Mayo",
+    "Planetario"
+  ],
+  "totalKm": 5
+},
+{
+  "nombre": "City Lights",
+  "precio": 50000,
+  "stops": [
+    "Avenida de Mayo",
+    "Paseo de la Historieta",
+    "Usina del Arte",
+    "Recoleta",
+    "El Monumental (Estadio River Plate)",
+    "Costanera Sur",
+    "Plaza Italia",
+    "Museo de Arte Latinoamericano"
+  ],
+  "totalKm": 10
+},
+{
+  "nombre": "Cultural Odyssey",
+  "precio": 65000,
+  "stops": [
+    "Bosques de Palermo",
+    "San Telmo",
+    "La Boca - Caminito",
+    "Recoleta",
+    "El Monumental (Estadio River Plate)",
+    "Av 9 de Julio",
+    "Plaza Italia"
+  ],
+  "totalKm": 11
+},
+{
+  "nombre": "Riverfront Ramble",
+  "precio": 35000,
+  "stops": [
+    "Río de la Plata",
+    "Bosques de Palermo",
+    "El Monumental (Estadio River Plate)",
+    "Costanera Sur"
+  ],
+  "totalKm": 6
+}]
