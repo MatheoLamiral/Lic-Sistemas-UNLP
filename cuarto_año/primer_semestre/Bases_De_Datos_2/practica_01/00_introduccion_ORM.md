@@ -10,8 +10,8 @@ El problema concreto que resuelve un ORM (Object-Relational Mapping) es "impedan
   - Falta de portabilidad
   - Complejidad (no nos abstraemos de la capa de persistencia, lo que hace que el código sea más difícil de mantener y entender)
 
->[!NOTE] Impedance Mismatch
-> Impedance mismatch o diferencia de impedancia describe las diferencias estructurales y conceptuales que existen al intentar hacer coexistir el paradigma orientado a objetos (OO) con el paradigma de las bases de datos relacionales (RDBMS)
+>[!NOTE]
+> **Impedance mismatch** o diferencia de impedancia describe las diferencias estructurales y conceptuales que existen al intentar hacer coexistir el paradigma orientado a objetos (OO) con el paradigma de las bases de datos relacionales (RDBMS)
 
 ### Ejercicio 2: El modelo relacional y el modelo OO presentan tensiones conocidas como impedance mismatch. Identificar cómo se manifiesta cada una en el modelo dado:
 
