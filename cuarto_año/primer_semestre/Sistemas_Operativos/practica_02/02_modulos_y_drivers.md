@@ -95,7 +95,7 @@ Cada device file está identificado por dos números:
 - **Major number**: identifica el tipo de dispositivo / driver asociado.
 - **Minor number**: identifica la instancia particular dentro de ese tipo.
 
-> [!NOTA] 
+> [!NOTE] 
 > En `/dev` también pueden encontrarse **enlaces simbólicos** (ej: `/dev/stdin` → `/proc/self/fd/0`) y **sockets/pipes** especiales, aunque no son device files propiamente dichos.
 
 ## Ejercicio 8:​ ¿Para qué sirven el archivo `/lib/modules/<version> modules.dep` utilizado por el comando modprobe?
