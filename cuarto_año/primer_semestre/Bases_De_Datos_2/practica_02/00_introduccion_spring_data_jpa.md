@@ -31,7 +31,7 @@ La diferencia se entiende mejor pensándolos como **dos capas distintas del stac
 
 - **Hibernate** sigue siendo el **ORM** debajo. Es quien interpreta las anotaciones de mapeo (`@Entity`, `@OneToMany`, herencia, cascadas, `FetchType`), administra el `PersistenceContext` (Caché L1, *dirty checking*, *flush*), traduce JPQL a SQL según el dialecto y ejecuta las consultas contra la base.
 
-En resumen, **Spring Data JPA decide *qué* operaciones expone y cómo se invocan, mientras que Hibernate decide *cómo* esas operaciones se traducen a SQL y se aplican sobre las tablas.** Spring Data **no reemplaza al ORM, lo envuelve**.
+En resumen, **Spring Data JPA decide qué operaciones expone y cómo se invocan, mientras que Hibernate decide cómo esas operaciones se traducen a SQL y se aplican sobre las tablas.** Spring Data **no reemplaza al ORM, lo envuelve**.
 
 ### Ejercicio 3:  La siguiente tabla lista tareas relacionadas con la persistencia. Marcar con una X la columna de la tecnología que resuelve ese problema en la nueva implementación con Spring Data JPA:
 
@@ -50,7 +50,7 @@ En resumen, **Spring Data JPA decide *qué* operaciones expone y cómo se invoca
 >[!NOTE]
 > JDBC no aparece porque, una vez que se incorpora un ORM, todo lo que antes se hacía a mano con `Connection`, `PreparedStatement` y `ResultSet` queda absorbido por Hibernate.
 > - **Hibernate** se queda con las tareas propias del ORM, como conexiones, pool, mapeo `ResultSet`→entidad y administración del `PersistenceContext` (ciclo de vida `transient`/`managed`/`detached`/`removed`).
-> - **Spring Data JPA** se queda con todo lo que es *infraestructura de repositorio*, como CRUD listo, *query methods* derivados del nombre, generación del proxy en runtime, paginación con `Pageable` e integración del manejo transaccional declarativo de Spring vía `@Transactional`.
+> - **Spring Data JPA** se queda con todo lo que es infraestructura de repositorio, como CRUD listo, query methods derivados del nombre, generación del proxy en runtime, paginación con `Pageable` e integración del manejo transaccional declarativo de Spring vía `@Transactional`.
 
 ### Ejercicio 4:
 
@@ -93,7 +93,8 @@ public interface StopRepository     extends CrudRepository<Stop, Long>     { …
 public interface ItemServiceRepository extends CrudRepository<ItemService, Long> { … }
 ```
 
-- Por cada método declarado en las interfaces, reemplazarlo por la firma equivalente de Spring Data JPA. Por ejemplo, `findById(Long id)` se reemplaza por el método `findById` que ya provee `CrudRepository`, pero con la firma que devuelve `Optional<T>` en vez de `T` o `null`. Para los que no tengan equivalente directo, usar `@Query` para escribir la consulta JPQL manualmente sobre el método de la interfaz.
+>[!IMPORTANT]
+> Por cada método declarado en las interfaces, reemplazarlo por la firma equivalente de Spring Data JPA. Por ejemplo, `findById(Long id)` se reemplaza por el método `findById` que ya provee `CrudRepository`, pero con la firma que devuelve `Optional<T>` en vez de `T` o `null`. Para los que no tengan equivalente directo, usar `@Query` para escribir la consulta JPQL manualmente sobre el método de la interfaz.
 
 
 #### 5. Capa de servicio (`services/`)
@@ -111,7 +112,7 @@ public interface ItemServiceRepository extends CrudRepository<ItemService, Long>
         User user = userRepository.findById(userId)
                                   .orElseThrow(() -> new NotFoundException("El usuario no existe"));
         ```
-  - Reemplazar `merge()` por  `save()`: `CrudRepository` no expone `merge`. El `save()` de Spring Data decide internamente entre `persist` (si la entidad es nueva) y `merge` (si ya tiene ID), así que es el reemplazo semánticamente equivalente para actualizar entidades detached.
+  - Reemplazar `merge()` por  `save()`: `CrudRepository` no expone `merge`. El `save()` de Spring Data **decide internamente entre `persist` (si la entidad es nueva) y `merge` (si ya tiene ID)**, así que es el reemplazo semánticamente equivalente para actualizar entidades detached.
 - Las anotaciones `@Transactional` ya existentes **se conservan tal cual**. La única mejora opcional es marcar como `@Transactional(readOnly = true)` los métodos que solo leen.
 
 #### 6. Entidades (`model/`)
@@ -156,11 +157,27 @@ Las propiedades se dividen en dos grupos
 - las del **`DataSource`** (cómo se conecta a la base)
 - las del **proveedor JPA/Hibernate** (cómo se mapean las entidades y se gestiona el esquema).
 
-**DataSource:** `spring.datasource.url` define el JDBC URL (motor, host, puerto, base y parámetros), `spring.datasource.username` y `spring.datasource.password` las credenciales, y `spring.datasource.driver-class-name` la clase del driver (en MySQL, `com.mysql.cj.jdbc.Driver`).
+**DataSource:** 
+- `spring.datasource.url` define el JDBC URL (motor, host, puerto, base y parámetros)
+- `spring.datasource.username` las credenciales 
+- `spring.datasource.password` las credenciales
+- `spring.datasource.driver-class-name` la clase del driver (en MySQL, `com.mysql.cj.jdbc.Driver`)
 
-**Hibernate:** `spring.jpa.properties.hibernate.dialect` indica el dialecto SQL a usar (`org.hibernate.dialect.MySQLDialect` en este caso) y `spring.jpa.hibernate.ddl-auto` controla qué hace Hibernate con el esquema al arrancar. Sus valores posibles son `none` (no toca nada), `validate` (verifica que el esquema coincida con las entidades), `update` (aplica cambios incrementales sin borrar datos), `create` (borra y recrea el esquema en cada arranque) y `create-drop` (igual que `create`, pero además borra al apagar). Como propiedades opcionales útiles en desarrollo, `spring.jpa.show-sql=true` y `spring.jpa.properties.hibernate.format_sql=true` imprimen y formatean el SQL generado.
+**Hibernate:** 
+- `spring.jpa.properties.hibernate.dialect` indica el dialecto SQL a usar (`org.hibernate.dialect.MySQLDialect` en este caso)
+- `spring.jpa.hibernate.ddl-auto` controla qué hace Hibernate con el esquema al arrancar. Sus opciones:
+  - `none` (no toca nada)
+  - `validate` (verifica que el esquema coincida con las entidades)
+  - `update` (aplica cambios incrementales sin borrar datos)
+  - `create` (borra y recrea el esquema en cada arranque)
+  - `create-drop` (igual que `create`, pero además borra al apagar). Como propiedades opcionales útiles en desarrollo
+- `spring.jpa.show-sql=true` imprime y formatea el SQL generado
+- `spring.jpa.properties.hibernate.format_sql=true` imprime y formatea el SQL generado
 
-**Qué valor de `ddl-auto` usar en desarrollo:** lo más práctico es **`create`** cuando se itera sobre el mapeo (cada arranque deja la base limpia y consistente, es lo que usa la cátedra en el TP1) o **`update`** cuando se quiere conservar datos de prueba entre arranques. En producción nunca conviene usar ninguno de los dos, lo correcto es **`validate`** (o `none`) y aplicar los cambios de esquema con migraciones explícitas (Flyway, Liquibase).
+**Qué valor conviene usar en desarrollo:** 
+
+Durante la etapa de desarrollo, lo más conveniente suele ser utilizar el valor `update`. Esto permite que el **esquema de la base de datos evolucione a la par de los cambios en el modelo de objetos** (como agregar nuevos atributos a
+`User`) sin perder los datos de prueba ya cargados. Adicionalmente, se recomienda activar la propiedad `spring.jpa.show-sql=true `durante esta etapa para poder **visualizar en la consola las sentencias SQL que Hibernate genera** automáticamente y así facilitar el proceso de depuración.
 
 ## La interfaz `CrudRepository` y la jerarquía de repositorios
 
@@ -180,11 +197,11 @@ Las operaciones que provee automáticamente al extenderla son:
 
 La jerarquía es **acumulativa**, donde cada nivel hereda del anterior y agrega capacidades.
 
-- **`CrudRepository<T, ID>`**: CRUD básico y funciona sobre cualquier *store* de Spring Data (JPA, MongoDB, Redis, etc.).
+- **`CrudRepository<T, ID>`**: **CRUD básico** y funciona sobre cualquier store de Spring Data (JPA, MongoDB, Redis, etc.).
 
-- **`PagingAndSortingRepository<T, ID>`** (extiende `CrudRepository`): agrega `findAll(Sort sort)` para devolver los resultados ordenados según un criterio y `findAll(Pageable pageable)` para paginar (devuelve `Page<T>` con metadatos: cantidad total, página actual, etc.). Útil cuando una colección puede crecer mucho y no se quiere traerla entera a memoria.
+- **`PagingAndSortingRepository<T, ID>`** (extiende `CrudRepository`): agrega `findAll(Sort sort)` para **devolver los resultados ordenados** según un criterio y `findAll(Pageable pageable)` para **paginar** (devuelve `Page<T>` con metadatos: cantidad total, página actual, etc.). Útil cuando una colección puede crecer mucho y no se quiere traerla entera a memoria.
 
-- **`JpaRepository<T, ID>`** (extiende `PagingAndSortingRepository`): incorpora operaciones **específicas de JPA** que no tienen sentido en otros stores, principalmente: `flush()` (forzar el flush del `EntityManager`), `saveAndFlush(entity)`, `deleteInBatch(iterable)` y `deleteAllInBatch()` (borrado en una sola sentencia JPQL, sin cargar entidades), y devuelve `List<T>` en lugar de `Iterable<T>` en los `findAll`, lo cual es más práctico.
+- **`JpaRepository<T, ID>`** (extiende `PagingAndSortingRepository`): incorpora operaciones **específicas de JPA** que no tienen sentido en otros stores, principalmente: `flush()` (forzar el flush del `EntityManager`), `saveAndFlush(entity)`, `deleteInBatch(iterable)` y `deleteAllInBatch()` (borrado en una sola sentencia JPQL, sin cargar entidades), y **devuelve `List<T>` en lugar de `Iterable<T>` en los `findAll`, lo cual es más práctico**.
 
 ### Ejercicio 9:​ Crear las interfaces de repositorio para las entidades del modelo extendiendo `CrudRepository`. Indicar los parámetros de tipo correctos (entidad e ID) para cada una: `PurchaseRepository`, `RouteRepository`, `UserRepository`, `ServiceRepository`, `SupplierRepository` y `ReviewRepository`.
 
@@ -208,9 +225,11 @@ Al arrancar la aplicación, **`@EnableJpaRepositories`** (o la auto-configuraci�
 
 1. Crea un **proxy dinámico de Java** (`java.lang.reflect.Proxy`) que implementa la interfaz declarada.
 2. Conecta cada llamada del proxy a un **`InvocationHandler`** interno (`SimpleJpaRepository` para los métodos heredados de `CrudRepository`, o `RepositoryFactorySupport` que enruta a la implementación correspondiente).
-3. Para los métodos declarados por el usuario, el handler decide en runtime cómo resolverlos: si llevan `@Query` ejecuta esa JPQL; si no, parsea el nombre del método y construye la consulta automáticamente (*query derivation*).
+3. Para los métodos declarados por el usuario, el handler decide en runtime cómo resolverlos: 
+   - si llevan `@Query` ejecuta esa JPQL
+   - si no, parsea el nombre del método y construye la consulta automáticamente (query derivation).
 
-El **proxy dinámico** es la pieza clave porque permite tener una implementación concreta de una interfaz **sin escribir la clase**. Java genera en memoria un objeto que respeta el contrato de la interfaz, y todas las invocaciones se redirigen al `InvocationHandler` que sabe qué hacer con cada método. Ese objeto proxy es el que Spring inyecta en los servicios cuando estos declaran `@Autowired UserRepository userRepository`.
+El **proxy dinámico** es la pieza clave porque **permite tener una implementación concreta de una interfaz sin escribir la clase**. Java genera en memoria un objeto que respeta el contrato de la interfaz, y todas las invocaciones se redirigen al `InvocationHandler` que sabe qué hacer con cada método. Ese objeto proxy es el que Spring inyecta en los servicios cuando estos declaran `@Autowired UserRepository userRepository`.
 
 ### Ejercicio 11:​ ¿Que diferencia hay entre `save()` en Spring Data JPA y `session.save()` / `session.merge()` en Hibernate directo? ¿Cómo decide Spring Data JPA si debe hacer un `INSERT` o un `UPDATE`?
 
@@ -219,9 +238,7 @@ En **Hibernate directo** existen dos operaciones distintas con semántica distin
 - `session.save(entity)` / `session.persist(entity)`: asume que la entidad es **nueva** y genera un `INSERT`. Falla si ya tiene un ID asignado o si ya existe en la BD.
 - `session.merge(entity)`: asume que la entidad está **detached** (existía en la BD pero no está managed) y genera un `UPDATE`, reincorporándola al `PersistenceContext`.
 
-El programador debía elegir cuál usar según el estado de la entidad.
-
-En **Spring Data JPA** existe **un único método** `save(entity)` que **decide automáticamente** entre uno y otro. La decisión se toma consultando si la entidad es *nueva* mediante el `EntityInformation` asociado al repositorio, que aplica el siguiente criterio:
+En **Spring Data JPA** existe **un único método** `save(entity)` que **decide automáticamente** entre uno y otro. La decisión se toma consultando si la entidad es nueva mediante el `EntityInformation` asociado al repositorio, que aplica el siguiente criterio:
 
 1. Si la entidad implementa `Persistable<ID>`, se llama a `isNew()` y se respeta lo que esa lógica devuelva.
 2. Si no, se mira el campo anotado con `@Id`: si su valor es `null` (o `0` para tipos primitivos), la entidad se considera **nueva** y se llama internamente a `entityManager.persist(entity)` → **INSERT**.
