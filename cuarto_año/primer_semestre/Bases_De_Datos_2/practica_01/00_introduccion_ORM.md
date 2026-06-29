@@ -29,32 +29,44 @@ En Java, se navega de una Purchase a sus ItemService a través de una relación 
 > El paradigma orientado a objetos soporta las jerarquías de herencia de forma nativa, pero el modelo relacional no soporta jerarquías
 
 Hay tres maneras de representar la jerarquía `User`/`DriverUser`/`TourGuideUser` en una tabla relacional:
+
 - **SINGLE_TABLE**: se mapean **todas las clases de la jerarquía en una sola tabla**, que contendrá los atributos de `User`, `DriverUser` y `TourGuideUser`. Se utiliza una **columna discriminadora** (ej. tipo_usuario) para distinguir a qué clase pertenece cada fila
+
 - **TABLE_PER_CLASS**: se mapean **solo las clases hijas** (`DriverUser` y `TourGuideUser`) en tablas separadas, **copiando y repitiendo los atributos de la superclase** `User` en cada una de ellas.
+
 - **JOINED**: se crea **una tabla para la superclase** `User` (con los datos comunes) **y tablas independientes** para `DriverUser` y `TourGuideUser` (con sus datos específicos), vinculando las tablas de las subclases a la tabla padre mediante el **uso de claves foráneas**
 
 #### d)​ Ciclos de referencia: ¿existe algún ciclo en el modelo? ¿Cómo impacta en la persistencia?
 
 Sí, existe un ciclo de referencia entre `User` -> `Purchase` -> `Route` -> `User (TourGuideUser/DriverUser)`.
 La presencia de ciclos afecta fuertemente la forma en que los ORMs y la base de datos gestionan la información:
-- **Ineficiencia relacional por recursióm (impendence mismatch)**
-  - Para recuperar los datos de este ciclo dispersos en distintas tablas, el motor de base de datos se ve obligado a ejecutar múltiples operaciones de `JOIN`, lo que penaliza severamente el rendimiento computacional
+- **Recursión infinita al recorrer el grafo (persistencia por alcance + cascade)**
+  - El framework recorre todos los objetos alcazables para persistir/actualizar. Sin un control para indicar que un objeto ya fue "visitado" en ese recorrido, ocurre un loop infinito si hay un ciclo.
+   >[!NOTE]
+   > Para que este recorrido en un ciclo no se convierta en un bucle infinito, implementaciones como Hibernate dependen de su Caché de Nivel 1 asociada a la sesión de trabajo, la cual registra las entidades que ya han sido visitadas o guardadas para detener la recursión
 - **Peligro de recuperación masiva en memoria (FetchType)**
-  - Si el mapeo en JPA se configurara con una estrategia de recuperación ansiosa (FetchType.EAGER), intentar cargar un simple `User` obligaría al ORM a cargar sus colecciones de `Purchase`, las cuales cargarían su `Route`, la cual a su vez desencadenaría la carga de todos sus `DriverUser` y `TourGuideUser` asociados, desencadenando una carga en cascada que podría arrastrar prácticamente toda la base de datos a la memoria de la aplicación
+  - Si el mapeo en JPA se configurara con una estrategia de recuperación ansiosa (`FetchType.EAGER`), intentar cargar un simple `User` obligaría al ORM a cargar sus colecciones de `Purchase`, las cuales cargarían su `Route`, la cual a su vez desencadenaría la carga de todos sus `DriverUser` y `TourGuideUser` asociados, desencadenando una carga en cascada que podría arrastrar prácticamente toda la base de datos a la memoria de la aplicación
 - **Necesidad obligatoria del patrón Proxy (Lazy Loading)**
-  - Para mitigar el impacto negativo mencionado en el punto anterior, un ciclo fuerza a utilizar la estrategia de Lazy Loading para que, cuando se recupere un `User`, el ORM no traerá todo el ciclo recursivamente, sino que recuperará únicamente los atributos básicos del objeto e inyectará un Proxy en las colecciones (ej. en sus compras). Estos proxies solo efectuarán una consulta real a la base de datos si la aplicación intenta acceder a ellos explícitamente
-- **Propagación de operaciones (Persistencia por alcance)**
-  - En los ORMs, la persistencia opera por alcance, lo que significa que todo objeto al cual se pueda navegar desde un objeto persistente se vuelve persistente. Si se configura la propagación de operaciones (como `CascadeType.ALL` o `PERSIST`), guardar un objeto provocará que el ORM navegue obligatoriamente a través del ciclo circular para persistir las actualizaciones. Para que este recorrido en un ciclo no se convierta en un bucle infinito, implementaciones como Hibernate dependen de su Caché de Nivel 1 asociada a la sesión de trabajo, la cual registra las entidades que ya han sido visitadas o guardadas para detener la recursión
+  - Para mitigar el impacto negativo mencionado en el punto anterior, un ciclo fuerza a utilizar la estrategia de **Lazy Loading** para que, cuando se recupere un `User`, el ORM no traerá todo el ciclo recursivamente, sino que recuperará **únicamente los atributos básicos del objeto** e inyectará un Proxy en las colecciones (ej. en sus compras). Estos proxies **solo efectuarán una consulta real a la base de datos si la aplicación intenta acceder a ellos explícitamente**
 
 ### Ejercicio 3: Describir las ventajas y deventajas concretas de usar un ORM en un proyecto como este
 
 - **Ventajas**
-  - Soporte nativo para jerarquías de herencia
+  - Resuelve la diferencia de impedancia
+    - Soporte nativo para jerarquías de herencia, polimorfismo, etc.
+  - Independencia de la base de datos
+    - Escribimos en términos de objetos y el ORM traduce al dialecto SQL del motor
   - Aplicación persisente por alcance (transitiva)
-  - Transparencia y eliminación del códgio SQL embebido
+    - Menos código de persistencia explícito como `save()`/`makePersistent()`
 - **Desventajas**
   - Curva de aprendizaje
-  - Disminución del rendimiento 
+    - Entender EAGER vs LAZY LOADING, los CascadeType, persistencia por alcance, proxies, cachés de dos niveles, etc.
+  - Caja negra
+    - El desarrollador no tiene total conocimietno de como se realizan las operaciones
+  - Propagación no deseada
+    - Persistir por alcance oblica a recorrer todo el grafo, por lo que actualizaciones masivas en cascada pueden impactar negativamente la performance
+  - Objetos huérfanos
+    - Desvincular de memoria no garantiza el borrado en la base, quedando registros huérfanos si no se configura bien 
 
 ## JPA e Hibernate
 
@@ -62,32 +74,39 @@ La presencia de ciclos afecta fuertemente la forma en que los ORMs y la base de 
 
 JPA (Java Persistence API) es un estándar o API de la industria utilizado en Java para **gestionar la persistencia de los objetos**. Nos permite definir, de forma declarativa, cómo se mapeará nuestro modelo de objetos (las entidades o POJOs persistentes) a las tablas de la base de datos.
 
-Apoyándose en el concepto de "Convención sobre Configuración", permite a los desarrolladores configurar aspectos como:
+>[!NOTE]
+> Un **POJO** (Java Old Plain Object) es una clase Java común y corriente sin ataduras a ningún framework
+
+Apoyándose en el concepto de **"Convención sobre Configuración"**, permite a los desarrolladores configurar aspectos como:
 - Las **Entidades** y los nombres de las tablas correpsondientes 
 - Los **atributos** y **columnas**, especificando sus propiedades, restricciones o ligándolos a métodos `getters` específicos. También permite usar la anotación `@Transient` para indicar que un atributo no debe ser persistido
 - Las **estrategias de herencia**, determinando como se representará la jerarquía de clases en un modelo relacional (SINGLE_TABLE, TABLE_PER_CLASS o JOINED)
 - El manejo de las **relaciones**, permitiendo definir estrategias de recuperación de datos (`FetchType` configurado como `EAGER` o `LAZY`) y la propagación de operaciones a los objetos asociados medianto los atributos de cascada (`CascadeType` como `ALL`, `PERSIST`, `REMOVE`, etc.)
 
-Se dice que JPA es una **especificación** y no una **implementación** porque únicamente dicta las reglas, las interfaces y las anotaciones que conforman el estándar de cómo debe comportarse la persistencia en Java, pero no incluye el código o el "motor" interno que realmente ejecuta el trabajo contra la base de datos. Para que JPA funcione, necesita apoyarse en un software de terceros que cumpla con estas reglas. Si bien existen varios productos en el mercado que lo hacen, **Hibernate** actúa como la implementación de referencia de este estándar.
+Se dice que JPA es una **especificación** y no una **implementación** porque únicamente dicta las **reglas, las interfaces y las anotaciones que conforman el estándar** de cómo debe comportarse la **persistencia en Java**, pero no incluye el código o el "motor" interno que realmente ejecuta el trabajo contra la base de datos. Para que JPA funcione, necesita apoyarse en un **software de terceros** que cumpla con estas reglas. Si bien existen varios productos en el mercado que lo hacen, **Hibernate** actúa como la implementación de referencia de este estándar.
 
 ### Ejercicio 5: ¿Cuál es la relación entre JPA e Hibernate? ¿Puede usarse JPA sin Hibernate o Hibernate sin JPA?
 
-La relación principal radica en que **JPA** es un estándar o especificación para el manejo de la persistencia, el cual fue creado posteriormente a **Hibernate** y con una alta influencia de este debido a su predominio en el mercado.   
-Por su parte, Hibernate es un framework ORM muy popular que actúa como la implementación de referencia de dicho estándar JPA.
-- Si es posible usar JPA sin Hibernate. Dado que JPA es únicamente un estándar, requiere de un motor interno ("proveedor") que lleve a cabo el trabajo real. Aunque Hibernate es la opción de referencia, existen otras implementaciones o productos en el mercado que también soportan el estándar JPA y pueden utilizarse en su lugar
-- Si es posible usar Hibernate sin JPA. Hibernate es un producto que antecede a la creación de JPA y cuenta con su propia API nativa. Por lo tanto, es perfectamente posible utilizar Hibernate de forma independiente haciendo uso de sus propios mecanismos, como la configuración mediante archivos de mapeo XML (`.hbm.xml`) y operando directamente con sus componentes internos (como `Session` y `SessionFactory`), sin necesidad de incluir las interfaces o anotaciones dictadas por JPA
+La relación principal radica en que **JPA** es un estándar o especificación para el manejo de la persistencia, el cual fue creado posteriormente a **Hibernate** y con una **alta influencia de éste** debido a su predominio en el mercado.   
+Por su parte, Hibernate es un framework ORM muy popular que actúa como la **implementación de referencia de dicho estándar JPA**.
+- **Si es posible usar JPA sin Hibernate**. Dado que **JPA es únicamente un estándar**, requiere de un motor interno ("proveedor") que lleve a cabo el trabajo real. Aunque Hibernate es la opción de referencia, **existen otras implementaciones o productos en el mercado que también soportan el estándar JPA** y pueden utilizarse en su lugar
+- **Si es posible usar Hibernate sin JPA**. **Hibernate es un producto que antecede a la creación de JPA** y cuenta con su propia **API nativa**. Por lo tanto, es perfectamente posible utilizar Hibernate de forma independiente haciendo uso de sus propios mecanismos, como la configuración mediante archivos de mapeo XML (`.hbm.xml`) y operando directamente con sus componentes internos (como `Session` y `SessionFactory`), sin necesidad de incluir las interfaces o anotaciones dictadas por JPA
 
 ### Ejercicio 6: ¿Qué es la SessionFactory? ¿Qué patrón de diseño implementa? Justificar por qué se crea una sola instancia durante todo el ciclo de vida de la aplicación y no una por operación.
 
-La `SessionFactory` es un componente fundamental de la arquitectura de Hibernate. Principalmente, es una **caché (inmutable) de mapeos compilados para una base de datos** y su función central es permitir la **creación de sesiones de trabajo** (`Session`).
+La `SessionFactory` representa una **"instancia" de Hibernate**. **Mantiene el metamodelo en ejecución** representando las entidades persistentes, sus atributos, sus asociaciones y sus mapeos a tablas relacionales, junto con **configuraciones que afectan al comportamiento en ejecución de Hibernate**, e **instancias de servicios que Hibernate necesita para trabajar**.   
+Su función central es permitir la **creación de sesiones de trabajo** (`Session`). Cada `SessionFactory` tiene su propio **caché de nivel 2** que comparte entre las sesiones que crea.
+
+>[!NOTE]
+> Metamodelo es una descripción del modelo de entidades en sí mismo, es decir, datos sobre sus entidades, como por ejemplo, qué clases son entidades, qué atributos tienen, etc. Es el modelo del modelo
 
 - En cuanto a los patrones de diseño, implementa dos:
-  - **Factory**: actúa como una fábrica encargada de instanciar y proveer las sesiones de trabajo necesarias para que la aplicación interactúe con la base de datos.
+  - **Factory**: Actúa como una fábrica encargada de instanciar y proveer las sesiones de trabajo necesarias para que la aplicación interactúe con la base de datos.
   - **Singleton**: Se diseña para que exista una única instancia compartida durante todo el ciclo de vida de la aplicación.
 
 Se crea una sola instancia de `SessionFactory` durante todo el ciclo de vida de la aplicación y no una por operación por varias razones:
-1. **Costo de inicialización (Performance)**: Construir la `SessionFactory` es un proceso "pesado". Requiere leer las configuraciones de conexión (como el archivo hibernate.cfg.xml) y compilar todos los archivos de mapeo XML o anotaciones.Si se creara una instancia por cada operación, el sistema colapsaría al tener que recompilar los metadatos constantemente.
-2. **Inmutabilidad**: Al ser una caché inmutable de mapeos, su estado no cambia una vez creada, por lo que es totalmente seguro y eficiente compartir la misma instancia entre múltiples hilos de ejecución.
+1. **Costo de inicialización (Performance)**: Construir la `SessionFactory` es un **proceso "pesado"**. Requiere **leer las configuraciones de conexión** (como el archivo hibernate.cfg.xml) y **compilar todos los archivos de mapeo XML o anotaciones**.Si se creara una instancia por cada operación, el sistema colapsaría al tener que recompilar los metadatos constantemente.
+2. **Inmutabilidad**: Una vez construida,  **su metamodelo y configuración no cambian**, por lo que es **seguro y eficiente compartir la misma instancia entre múltiples hilos de ejecución**.
 3. **Soporte para la Caché de Nivel 2**: La Caché de Nivel 2 opera a nivel de la `SessionFactory`. Para que los objetos cacheados y los resultados de las consultas puedan compartirse exitosamente entre diferentes operaciones y sesiones de distintos usuarios, es requisito indispensable que todos accedan a la misma instancia central.
 
 ### Ejercicio 7: La SessionFactory ofrece dos formas de obtener una `Session`: `openSession()` y `getCurrentSession()`. Responder:
@@ -100,20 +119,30 @@ La principal diferencia radica en cómo se inicializa y gestiona la sesión de t
 
 #### b)​ ¿Qué condición debe cumplirse para poder usar `getCurrentSession()`? ¿Qué configuración requiere en Hibernate?
 
-Para que `getCurrentSession()` funcione, la condición estricta es que debe haber un contexto en el cual se realicen transacciones (ida y vuelta de información)
-- En cuanto a la configutación se requiere agregar una propiedad específica en el archivo de configuración `hibernate.cfg.xml` para indicarle al framework cómo debe rastrear el contexto de la sesión actual. Habitualmente se configura la propiedad `<property name="hibernate.current_session_context_class">thread</property>`, lo que le indica a Hibernate que ate la sesión al hilo (thread) de ejecución actual.
+Para que `getCurrentSession()` funcione, la condición estricta es que debe haber un contexto transacccional activo.
+>[!IMPORTANT]
+> `getCurrentSession()` no gestiona el ciclo de vida de la sesión por sí mismo, se lo delega al contexto (la transacción). ES decir, la transacción es lo que delimita la sesión, definiendo su inicio y su fin 
+- En cuanto a la configutación se requiere agregar una propiedad específica en el archivo de configuración `hibernate.cfg.xml` para indicarle al framework cómo debe rastrear el contexto de la sesión actual. Habitualmente se configura la propiedad `<property name="hibernate.current_session_context_class">valor</property>`
+  - `valor` puede ser una de las siguientes tres opciones:
+      |valor|implementación|cómo ata la sesión|
+      |-----|--------------|------------------|
+      |`jta`|`JTASessionContext`|La sesión se rastrea y delimita por una transacción JTA|   
+      |`thread`|`ThreadLocalSessionContext`|La sesión se ata al hilo de ejecución actual (`ThreadLocal`)|
+      |`managed`|`ManagedSessionContext`|También por hilo, pero vos debés hacer el `bind`/`unbind` manual|
 
 >[!NOTE]
 > Tener en cuenta que la configuración depende de si se utiliza Hibernate de forma aislada o integrado con un framework como Spring.
 ​
 #### c)​ ¿Quién es responsable de cerrar la `Session` cuando se usa `getCurrentSession()`? ¿Y cuando se usa `openSession()`?
 
-- Con `openSession()`: La responsabilidad es del **desarrollador**. Se debe garantizar la finalización invocando manualmente el método `session.close()`, habitualmente dentro de un bloque `finally` para asegurar el cierre de la conexión incluso si ocurre una excepción durante la transacción.
+- Con `openSession()`: La responsabilidad es del **desarrollador**. Se debe garantizar la finalización invocando manualmente el método `session.close()`
+   >[!NOTE]
+   > Habitualmente dentro de un bloque `finally` para asegurar el cierre de la conexión incluso si ocurre una excepción durante la transacción.
 - Con `getCurrentSession()`: La responsabilidad es del **entorno o framework subyacente**, ya que la sesión se cierra y limpia de manera automática una vez que la transacción finaliza (sea por un commit exitoso o por un rollback)
 
 #### d)​ ¿Cuál de los dos métodos resulta más adecuado para usar en los repositorios de esta práctica y por qué?
 
-El método adecuado para implementar en los repositorios es `getCurrentSession()`. El diseño de la arquitectura multicapa de la aplicación establece que las transacciones deben gestionarse en la capa de servicios, no en la de repositorios. Esto ocurre porque una misma operación en la capa de servicio a menudo necesita realizar varios accesos a la base de datos interactuando con múltiples repositorios distintos. Si los repositorios utilizaran `openSession()`, cada invocación generaría una sesión y transacción aislada, haciendo imposible agruparlas de forma segura. Al usar `getCurrentSession()`, todos los repositorios llamados dentro de un mismo método de servicio comparten la misma sesión y se acoplan orgánicamente a la única transacción global gestionada por la capa de servicio.
+El método adecuado para implementar en los repositorios es `getCurrentSession()`. El diseño de la arquitectura multicapa de la aplicación establece que las **transacciones deben gestionarse en la capa de servicios**, no en la de repositorios. Esto ocurre porque **una misma operación en la capa de servicio a menudo necesita realizar varios accesos a la base de datos interactuando con múltiples repositorios distintos**. Si los repositorios utilizaran `openSession()`, cada invocación generaría una sesión y transacción aislada, haciendo imposible agruparlas de forma segura. Al usar `getCurrentSession()`, todos los **repositorios llamados dentro de un mismo método de servicio comparten la misma sesión y se acoplan orgánicamente a la única transacción global gestionada por la capa de servicio**.
 
 ### Ejercicio 8: Completar la tabla comparativa entre JPA e Hibernate
 
@@ -133,19 +162,19 @@ El método adecuado para implementar en los repositorios es `getCurrentSession()
 ### Ejercicio 9: Describir los cuatro estados posibles de una entidad en Hibernate (transient, managed, detached, removed) e indicar qué operación dispara cada transición entre ellos
 
 1. **Transient (transitorio)**
-   - Es un objeto recién instanciado en la memoria de Java que no tiene ni tuvo una representación en la base de datos (no existe una tupla asociada) y no está vinculado a ninguna sesión o contexto de persistencia actual. 
+   - Es un **objeto recién instanciado en la memoria** de Java que **no tiene ni tuvo una representación en la base de datos** (no existe una tupla asociada) y **no está vinculado a ninguna sesión o contexto de persistencia actual**. 
    - Se dispara al crear el objeto de manera nativa utilizando la palabra reservada `new` (ej. `new Purchase()`).
 2. **Managed (gestionado)**
-   - El objeto tiene una identidad (ID) en la base de datos, está asociado a una tupla, y se encuentra vinculado a un Contexto de Persistencia activo (`Session`). La característica principal de este estado es que el ORM rastrea el objeto, cualquier cambio en sus atributos será sincronizado automáticamente en la base de datos al realizar el commit. 
+   - El **objeto tiene una identidad (ID) en la base de datos**, está asociado a una tupla, y se encuentra **vinculado a un Contexto de Persistencia activo** (`Session`). La característica principal de este estado es que el **ORM rastrea el objeto**, cualquier cambio en sus atributos será sincronizado automáticamente en la base de datos al realizar el commit. 
    - Desde el estado transient, se dispara al invocar explícitamente operaciones de guardado como `session.persist()` o `session.save()`, o bien automáticamente si se lo vincula a otro objeto persistente gracias a la propagación en cascada (`CascadeType.PERSIST`). 
    - Desde la base de datos, al recuperar un objeto mediante operaciones de lectura (consultas HQL, `get()`, `load()`, `fetch()`). 
    - Desde detached, se dispara al "reasociar" el objeto a una sesión nueva utilizando `session.merge()` o `session.update()`.
 3. **Detached (desvinculado)**
-   - Son objetos que originalmente fueron recuperados dentro de una transacción, pero que luego de finalizada la misma han quedado "desasociados" o "desligados" de su sesión original. Conservan su identidad y sus datos, pero Hibernate ya no rastrea sus cambios. Acceder a relaciones no inicializadas en este estado suele provocar excepciones. 
+   - Son **objetos que originalmente fueron recuperados dentro de una transacción**, pero que luego de **finalizada la misma han quedado "desasociados" o "desligados" de su sesión original**. Conservan su identidad y sus datos, pero **Hibernate ya no rastrea sus cambios**. Acceder a relaciones no inicializadas en este estado suele provocar excepciones. 
    - Desde managed, la transición natural ocurre al cerrar la sesión (`session.close()`) una vez que finaliza la transacción. 
    - También se dispara al limpiar el contexto completo (`session.clear()`), o al desvincular un objeto puntual mediante `session.evict()` o la operación en cascada `DETACH`.
 4. **Removed (eliminado)**
-   - Es un objeto que antes era Managed y que ahora ha sido marcado explícitamente para ser borrado de la base de datos. El objeto sigue existiendo en la memoria de Java, pero su tupla correspondiente será eliminada físicamente de la base de datos cuando se consolide la transacción. 
+   - Es un **objeto que antes era Managed y que ahora ha sido marcado explícitamente para ser borrado de la base de datos**. El objeto **sigue existiendo en la memoria** de Java, pero su tupla correspondiente **será eliminada físicamente de la base de datos cuando se consolide la transacción**. 
    - Desde managed, se dispara al invocar explícitamente el método `session.delete()` o `session.remove()`. 
    - También ocurre automáticamente al desvincular el objeto de una colección si existe propagación por alcance configurada con `CascadeType.REMOVE` o limpieza de huérfanos (`orphanRemoval`)
 
@@ -173,41 +202,41 @@ stateDiagram-v2
 
 ### Ejercicio 10: Describir el ciclo de vida completo de una entidad persistente, tome como ejemplo un objeto de la clase Purchase: desde que se instancia con new, pasando por su persistencia, hasta que se elimina. Indicar explícitamente en qué estado se encuentra el objeto en cada paso.
 
-1. Instanciación
+1. **Instanciación**
    - El ciclo de vida comienza cuando se crea una nueva instancia `Purchase compra = new Purchase();`.
    - En este momento, el objeto se encuentra en estado **Transient**.
-2. Guardado / Persistencia
-   - Para almacenar la compra en la base de datos, el objeto debe asociarse a un Contexto de Persistencia activo (una transacción en curso). Esto se puede lograr de dos maneras, invocando explícitamente un método como `session.persist(compra)` o `session.save(compra)`, o de forma implícita por persistencia por alcance, agregando la compra a la colección de un User que ya está persistido (siempre que la relación tenga configurado un cascaded como `CascadeType.PERSIST o ALL`).
+2. **Guardado / Persistencia**
+   - Luego se almacena la compra en la base de datos, invocando explícitamente un método como `session.persist(compra)` o `session.save(compra)`, o de forma implícita por persistencia por alcance, agregando la compra a la colección de un `User` que ya está persistido (siempre que la relación tenga configurado un cascaded como `CascadeType.PERSIST o ALL`).
    - Al asociarse, el objeto `Purchase` pasa al estado **Managed**.
-3. Fin de la transacción
+3. **Fin de la transacción**
    - Una vez que la capa de servicio termina su trabajo, la transacción se consolida (commit) y la sesión de Hibernate se cierra (ya sea manualmente con `session.close()` o automáticamente si se configuró `getCurrentSession()`).
    - La instancia de `Purchase` que quedó en la memoria de Java pasa al estado **Detached**.
-4. Eliminación
+4. **Eliminación**
    - Si el usuario decide cancelar o borrar definitivamente esa compra, el sistema debe iniciar una nueva transacción. Para poder borrar el objeto `Purchase`, este debe volver primero al estado **Managed** (por ejemplo, recuperándolo de la base de datos con un `session.get()` o reasociando el objeto desasociado con `session.merge()`). Una vez que el objeto vuelve a estar gestionado por la sesión activa, se invoca la operación de eliminación mediante `session.delete(compra)` o `session.remove(compra)` (o implícitamente por cascada si se elimina el User dueño de la compra).
    - El objeto pasa al estado **Removed**. 
 
 ### Ejercicio 11: Investigue sobre los métodos de Session: session.save(), session.persist(), session.merge() y session.saveOrUpdate(). ¿Qué permite hacer cada uno y cuál es la diferencia entre ellos? Indicar en qué estado debe estar un objeto para usar cada uno correctamente.
 
 1. `session.save()`
-   - Toma un objeto volátil recién creado, le genera un identificador (Clave Primaria) y lo guarda en la base de datos, asociándolo a la sesión actual.
-   - **Estado inicial requerido**: El objeto debe estar en estado Transient (Transitorio).
+   - Toma un **objeto volátil recién creado**, le **genera un identificador** (Clave Primaria) y lo **guarda en la base de datos**, asociándolo a la **sesión actual**.
+   - **Estado inicial requerido**: El objeto debe estar en estado **Transient** (Transitorio).
 
 2. `session.persist()`
    - Al igual que `save()`, toma una instancia nueva y la hace persistente insertándola en la base de datos.
-   - **Estado inicial requerido**: El objeto debe estar en estado Transient (Transitorio).
+   - **Estado inicial requerido**: El objeto debe estar en estado **Transient** (Transitorio).
    >[!NOTE]
    > `persist()` sobre un objeto **Detached** lanza excepción
 
 3. `session.merge()`
-   - Su función principal es tomar los cambios realizados en un objeto que había quedado fuera de una transacción y sincronizarlos (reasociarlos) con la base de datos en una nueva sesión activa.
-   - **Estado inicial requerido**: Está diseñado principalmente para usarse con objetos en estado Detached (Desasociados).
+   - Su función principal es **tomar los cambios realizados en un objeto que había quedado fuera de una transacción y sincronizarlos** (reasociarlos) con la base de datos en una nueva sesión activa.
+   - **Estado inicial requerido**: Está diseñado principalmente para usarse con objetos en estado **Detached** (Desasociados).
   
     >[!NOTE]
     > Si se le pasa un objeto **Transient**, no falla, crea una copia nueva en estado **Managed** y la inserta. Si se le pasa uno ya **Managed**, devuelve esa misma instancia (no hace nada extra). Es decir, `merge()` nunca falla por el estado del objeto.
 
 4. `session.saveOrUpdate()`
-   - Es un método de conveniencia que le dice a Hibernate que decida automáticamente qué hacer con el objeto. Si el objeto es nuevo lo guarda (save), y si el objeto ya existía lo actualiza (update).
-   - **Estado inicial requerido**: Puede estar tanto en estado Transient (en cuyo caso ejecutará un guardado) como en estado Detached (en cuyo caso ejecutará una actualización).
+   - Es un método de conveniencia que **le dice a Hibernate que decida automáticamente qué hacer con el objeto**. Si el objeto es nuevo lo **guarda (save)**, y si el objeto ya existía lo **actualiza (update)**.
+   - **Estado inicial requerido**: Puede estar tanto en estado **Transient** (en cuyo caso ejecutará un guardado) como en estado **Detached** (en cuyo caso ejecutará una actualización).
 
 
 #### Diferencias
