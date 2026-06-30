@@ -183,9 +183,12 @@ La opción natural sería agregar `@Column(unique = true)` sobre el atributo `na
 
 ### Ejercicio 19: ItemService referencia a Service (muchos-a-uno). Analizar el diagrama: ¿es navegable esta relación desde Service hacia ItemService? Justificar si conviene hacerla bidireccional o no.
 
-- Es navegable, ya que `Service` tiene un atributo que es una colección de `ItemService`, por lo cual, se puede navegar desde una instancia de `Service` hacia sus `ItemService` asociados.
-- Es conveniente hacerla bidireccional porque permite una mayor flexibilidad al momento de acceder a los datos. Al tener la relación bidireccional, se puede navegar tanto desde `ItemService` hacia `Service` como desde `Service` hacia `ItemService`, lo que facilita la consulta y manipulación de los datos relacionados. Además, al ser una relación muchos-a-uno, la cantidad de `ItemService` asociados a un `Service` puede ser significativa, por lo que tener la capacidad de navegar desde `Service` hacia `ItemService` puede mejorar la eficiencia y la claridad del código. También, deberíamos tener en cuenta que al ser bidireccional, se debe gestionar adecuadamente la sincronización de ambas partes de la relación para evitar inconsistencias en el modelo de datos, lo cual agrega cierta complejidad al código.
-- Adicionalmente, el argumento no es meramente teórico: los tests provistos con el proyecto base asumen esta bidireccionalidad. Por ejemplo, en `ToursApplicationTests.removePurchaseAndItems` se valida `assertEquals(1, service1.getItemServiceList().size())`, es decir, se accede explícitamente a los `ItemService` desde el `Service`. Esto convierte la decisión en un requerimiento concreto del dominio dentro del TP, no en una simple comodidad.
+- Es navegable, ya que `Service` tiene una colección de `ItemService`, por lo cual, se puede navegar desde una instancia de `Service` hacia sus `ItemService` asociados.
+- Es conveniente hacerla bidireccional ya que nos permitirá consultar desde un servicio sus ítems, lo cual es útil para reportes, métricas, auditoría, etc. 
+- Se debe tener en cuenta que al ser bidireccional, se debe **gestionar adecuadamente la sincronización de ambas partes de la relación para evitar inconsistencias** en el modelo de datos, lo cual agrega cierta complejidad al código.
+
+>[!NOTE]
+> Los tests provistos con el proyecto base asumen esta bidireccionalidad. Por ejemplo, en `ToursApplicationTests.removePurchaseAndItems` se valida `assertEquals(1, service1.getItemServiceList().size())`, es decir, se accede explícitamente a los `ItemService` desde el `Service`. Esto convierte la decisión en un requerimiento concreto del dominio dentro del TP.
 
 ### Ejercicio 20.​Implementar el mapeo completo de las siguientes entidades con todas sus relaciones, siguiendo las anotaciones y decisiones discutidas: Supplier, Purchase, ItemService, Route, Stop y Review. Para cada relación bidireccional, incluir las anotaciones en ambos lados.
 
@@ -325,7 +328,7 @@ La opción natural sería agregar `@Column(unique = true)` sobre el atributo `na
 
 - **EAGER**:
   - **Ventajas**:
-    - Al cargarse la entidad principal junto con las entidades relacionadas, ya las tenemos disponibles en memoria, evitando que tengamos que hacer otras consultas para recuperarlas después.
+    - Al cargarse la entidad principal junto con las entidades relacionadas, ya las tenemos disponibles en memoria, evitando consultas para recuperarlas después.
     - Como todos se cargan en memoria, al cerrar un contexto de persistencia, se siguen podiendo leer.
   - **Desventajas**:
     - **Sobrecarga de memoria**: se cargan datos que quizá nunca se usen. Si una `Purchase` trae siempre su `User`, `Route`, `itemServiceList`, y cada ítem su `Service`, y cada `Service` su `Supplier`, una sola query termina arrastrando un grafo enorme.
@@ -338,7 +341,7 @@ La opción natural sería agregar `@Column(unique = true)` sobre el atributo `na
     - **Flexibilidad**: cada caso de uso puede decidir qué traer explícitamente.
   - **Desventajas**:
     - Cada acceso a una asociación no cargada genera una **consulta adicional**, lo que puede derivar en el problema de **N+1 queries** si no se planifica bien.
-    - Si se accede a la relación **fuera del contexto de persistencia** (con la `Session` cerrada), se produce `LazyInitializationException` (ver ejercicio 24).
+    - Si se accede a la relación **fuera del contexto de persistencia** (con la `Session` cerrada), se produce `LazyInitializationException`.
   
 - **¿Por qué configurar EAGER en todas las relaciones es mala idea?**
   - En un modelo con relaciones transitivas como el de tours (`Purchase` → `User`, `Route`, `itemServiceList` → `Service` → `Supplier`, etc.), marcar todo como `EAGER` provoca que **cada consulta a una entidad termine arrastrando gran parte del grafo de dominio**, incluso cuando el caso de uso sólo necesita un par de campos.
@@ -352,11 +355,11 @@ La opción natural sería agregar `@Column(unique = true)` sobre el atributo `na
 | `Purchase` → `Route` | `@ManyToOne` | `LAZY` | Mismo criterio, hay consultas sobre `Purchase` que no requieren la `Route` completa (con sus stops, drivers y tour guides).|
 | `Purchase` → `itemServiceList` | `@OneToMany` | `LAZY` | Una compra puede tener múltiples ítems, no tiene sentido cargar todos los items de una compra si por jemplo, solo queremos consultar  datos relacionados a la `Purchase`|
 | `Purchase` → `Review` | `@OneToOne` | `LAZY` | La review es opcional y no siempre se consulta junto con la `Purchase`.|
-| `ItemService` → `Service` | `@ManyToOne` | `LAZY` | Si sólo se necesitan la cantidad y el precio del ítem (p.ej. para calcular un total), no hace falta traer el `Service`. |
+| `ItemService` → `Service` | `@ManyToOne` | `EAGER` | Para procesar un item de servicio es necesario conocer qué servicio es (nombre, precio), de esta forma se facilita el acceso directo a esos datos|
 | `Route` → `stops` | `@OneToMany` | `LAZY` | Las paradas pueden ser muchas. En la mayoría de los listados de rutas basta con nombre, precio y km totales. |
 | `Route` → `drivers` (`DriverUser`) | `@ManyToMany` | `LAZY` | Lista potencialmente larga y ademas al ser muchos a muchos implica una tabla intermedia, por lo que el costo de procesamiento es alto. Solo cargaremos los `drivers` si se quiere administrar el personal |
 | `Route` → `tourGuides` (`TourGuideUser`) | `@ManyToMany` | `LAZY` | Mismo criterio que con `drivers`. |
-| `User` → `purchases` | `@OneToMany` | `LAZY` | Un usuario puede tener muchísimas compras, traerlas todas en cada carga de `User` colapsaría la memoria. |
+| `User` → `purchases` | `@OneToMany` | `LAZY` | Un usuario puede tener muchísimas compras, y las traeríamos a todas en cada carga de un `User` cuando hay varios casos en los que queremos realizar consultas sobre el usuario en particular y no en relación a sus compras. |
 | `Service` → `supplier` | `@ManyToOne` | `LAZY` | No todos los casos de uso sobre `Service` (listar servicios, buscar por nombre, actualizar precio) necesitan conocer el `Supplier`. |
 
 ### Ejercicio 24: ¿Cómo podría producirse una `LazyInitializationException` en el modelo? Investigue de qué representa esta excepción y escribir un escenario concreto explicando al menos formas de resolverlo sin cambiar el FetchType a EAGER.
@@ -468,14 +471,13 @@ La opción natural sería agregar `@Column(unique = true)` sobre el atributo `na
 
 #### a)​ ¿Qué tipos de cascade configurarías? Justificar cada uno.
 
-Para esta relación, configuraría `cascade = {CascadeType.PERSIST, CascadeType.REMOVE}`:
+Para esta relación, configuraría `cascade = {CascadeType.PERSIST, CascadeType.MERGE, CascadeType.REMOVE}`:
 
 - `CascadeType.PERSIST`: la composición implica que un `ItemService` no tiene sentido fuera de la `Purchase` que lo contiene. `PERSIST` permite que al guardar una nueva `Purchase`, todos sus `ItemService` se guarden automáticamente.
 - `CascadeType.REMOVE`: como los ítems no tienen sentido sin la compra, eliminar la `Purchase` debe arrastrar la baja de todos sus `ItemService`. Sin esta cascada, el `DELETE` sobre `purchase` fallaría por integridad referencial (la FK `purchase_id` en `item_service` apuntaría a un padre inexistente) o, peor, dejaría registros huérfanos si la FK lo permitiera.
-- **¿Por qué no `CascadeType.MERGE`, `DETACH` o `REFRESH`?**:
-  - `MERGE`/`DETACH`/`REFRESH` no aportan valor concreto en este modelo: el TP no transfiere grafos detached de un lado a otro de la red, ni necesita refrescar/desvincular agregados completos como unidad. Declararlos sería sobre-permisivo y dificultaría razonar el modelo. En coherencia con el criterio de la cátedra (ejercicio 20: declarar sólo lo que el dominio justifica), se omiten.
-- **¿Por qué no `CascadeType.ALL`?**:
-  - `ALL` incluye los anteriores que sí necesitamos pero también los que no. No usar `ALL` mantiene visible la decisión y evita propagaciones futuras inadvertidas si la jerarquía cambiara.
+- `CascadeType.MERGE`: es esencial para actualizaciones. Si se edita una compra (cambiar la cantidad de un item, agregar o eliminar uno, etc.) y se llama a `update`, los cambios se propagan a los hijos.
+- **¿Por qué no `DETACH` o `REFRESH`?**:
+  - `DETACH`/`REFRESH` no aportan valor concreto en este modelo, el TP no transfiere grafos detached de un lado a otro de la red, ni necesita refrescar/desvincular agregados completos como unidad.
 
 #### b)​ ¿Usarías orphanRemoval? ¿Por qué?
 
@@ -497,29 +499,20 @@ Sí, configuraría `orphanRemoval = true`.
 #### a)​ ¿Qué cascades configurarías?
 
 - `CascadeType.REMOVE`: la `Review` no es una entidad independiente en el dominio, sólo existe en función de una `Purchase`. Eliminar la compra debe arrastrar la baja del review asociado.
+- `CascadeType.MERGE`:  Si el usuario edita algún dato de la compra (como el estado) y al mismo tiempo la reseña ya existe, queremos que cualquier cambio en el grafo de objetos se sincronice.
 
 #### b)​ Si se elimina una Purchase, ¿debería eliminarse también su Review? Justificar desde el modelo de negocio.
 
 - Si, ya que el `Review` **no tiene existencia propia fuera de la compra que lo originó**. Representa la opinión del usuario sobre **esa** experiencia concreta. Si la compra desaparece, no queda nada a lo que la opinión refiera.
-- El propio modelo de datos lo refleja: la FK `purchase_id` en `review` está declarada `nullable = false`. Es decir, **no existe** el estado intermedio "review sin compra". Si se elimina la `Purchase` sin propagar la baja al `Review`, se viola la integridad referencial.
-- Desde la perspectiva del negocio descripto, los reviews se utilizan para *promociones del emprendimiento* y para *captar más público*. Mantener reviews huérfanos (sin compra trazable) los vuelve inutilizables para esos fines, ya que no se puede vincular la opinión al recorrido, al usuario ni a la fecha de la experiencia.
+- Desde la perspectiva del negocio descripto, los reviews se utilizan para promociones del emprendimiento y para captar más público. Mantener reviews huérfanos (sin compra trazable) los vuelve inutilizables para esos fines, ya que no se puede vincular la opinión al recorrido, al usuario ni a la fecha de la experiencia.
 
 ### Ejercicio 30: ​Para la relación Supplier -> Service:
 
 #### a)​ ¿Qué cascades tienen sentido?
 
-Esta no es una relación de composición sino de **asociación pura**. Un `Service` referencia obligatoriamente a un `Supplier`, pero el `Supplier` y los `Service` tienen ciclos de vida independientes y, sobre todo, los `Service` están a su vez están referenciados por los `ItemService` de cada `Purchase`. En este caso, lo mejor es no utilizar ningún tipo de cascada:
-
 - Justificaciones:
-  - `CascadeType.PERSIST`:
-    - Dar de alta un `Supplier` con su catálogo inicial de `Service` en una sola operación. Si el flujo de la aplicación crea ambos en el mismo momento, agregarlo evita persistir cada `Service` manualmente. Si en cambio los `Service` se dan de alta uno por uno sobre proveedores ya existentes, no aporta nada y se descarta.
-    - En este TP no hay un caso de uso documentado de "alta masiva del catálogo de un proveedor", es decir un servicio cobra sentido recién cuándo es agregado a una compra.
-  - `CascadeType.REMOVE`:
-    - Es **peligroso**, borrar un `Supplier` arrastraría todos sus `Service`, y cada `Service` está referenciado desde `ItemService` con FK `nullable = false`. La cascada fallaría por integridad referencial o forzaría a Hibernate a borrar también los `ItemService`. **Un `Service` ya vendido representa información histórica de compras pasadas**. Borrarlo en cascada implicaría romper el historial de la aplicación, que es información económica/contable y de relación con el cliente.
-  - `CascadeType.MERGE`, `DETACH`, `REFRESH`:
-    - Propagan operaciones de gestión del ciclo de vida en el contexto de persistencia, y solo tienen sentido cuando un conjunto de entidades se maneja como un único agregado, este no es el caso.
-
-**Configuración elegida**: `cascade = {}`, tal como se dejó en el ejercicio 20. Mantiene cada `Service` como una entidad gestionada explícitamente por su propio caso de uso, sin ataduras al ciclo de vida del proveedor.
+  - `CascadeType.PERSIST`: Dar de alta un `Supplier` con su catálogo inicial de `Service` en una sola operación. Si el flujo de la aplicación crea ambos en el mismo momento, agregarlo evita persistir cada `Service` manualmente.
+  - `CascadeTyzpe.MERGE`: Si el proveedor actualiza sus servicios, el cambio se propaga correctamente a cada `Supplier`
 
 #### b)​ Si se elimina un Supplier, ¿qué debería ocurrir con sus Service? ¿Y con las Purchase que los contienen a través de ItemService?
 
@@ -562,6 +555,7 @@ Consolidando las decisiones tomadas en los ejercicios 28–31, la configuración
   |`CascadeType` | Justificación |
   | --- | --- |
   | `REMOVE` | una `Review` no tiene sentido sin la compra, al borrarla, debe eliminarse el review |
+  | `MERGE`| sincroniza los cambios tanto en los datos de la compra, como en su reseña |
 
 - `ItemService` → `Purchase` (`@ManyToOne`, lado dueño)
 
