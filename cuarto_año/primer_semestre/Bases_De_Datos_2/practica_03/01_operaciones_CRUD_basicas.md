@@ -165,7 +165,7 @@ O podemos escribirlo sin `$and` ya que el filtro por defecto es una conjunción:
             {precio: {$lt: 50000}}
         ]
     },
-    {nombre: 1, totalKm: 1})
+    {nombre: 1, totalKm: 1, _id: 0})
 ```
 
 O podemos escribirlo sin `$and` ya que el filtro por defecto es una conjunción:
@@ -188,11 +188,12 @@ O podemos escribirlo sin `$and` ya que el filtro por defecto es una conjunción:
 ### Ejercicio 25: ​Solo el nombre de las rutas que dispongan de mas de 5 stops.
 
 ```javascript
-    db.recorridos.find({
-        $expr: {
-            $gt: [{ $size: "$stops"}, 5]
-        }
-    })
+    db.recorridos.find(
+        {$expr: 
+            {$gt: [{ $size: "$stops"}, 5]}
+        },
+        {nombre:1, _id:0}
+    )
 ```
 
 ### Ejercicio 26: ​Las rutas que no tengan definido el total de sus kilometros.
