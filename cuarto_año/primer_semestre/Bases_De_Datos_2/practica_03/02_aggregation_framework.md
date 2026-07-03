@@ -64,6 +64,14 @@ El script `generator1.js` no fija el nombre de la base internamente: usa `db.sto
     ])
 ```
 
+>[!IMPORTANT]
+> **$lookup** es una etapa del pipeline que trae todos los documentos de la colección A y les pega la información coincidente de la colección B.
+> - `from`: colección externa de donde queremos sacar los datos
+> - `localField`: campo del documento actual que contiene el valor de referencia (puede ser un arreglo, Mongo busca cada valor automáticamente)
+> - `foreignField`: campo en la otra colección que debe coincidir con nuestro valor local
+> - `as`: define el nombre del nuevo campo que se creará en nuestro documento
+
+
 ### Ejercicio 32: ​Obtener la informacion de las rutas (incluyendo la de sus stops) que tengan un precio mayor o igual a $90.000.
 
 ```javascript
