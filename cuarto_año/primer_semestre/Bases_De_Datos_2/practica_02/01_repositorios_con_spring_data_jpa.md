@@ -6,8 +6,10 @@
 
 Comparando el código de `PurchaseRepository` del TP1 con el nuevo del TP2 implementado con Spring Data JPA, podemos observar que:
 - Se redujeron **prácticamente a la mitad** las líneas de código (-27)
-- Ya no es necesario implementar manualmente las funcionalidad de encontrar compras por código ya que es resuelta automáticamente por Spring Data a través de la **query derivation**
-- El resto de funcionalidades, contar compras por ruta, obtener todas las compras de un usuario y obtener cantidad de compras entre fechas, se resuelven con consultas JPQL anotadas con `@Query` que son mucho más legibles y fáciles de escribir.
+- Ya **no es necesario implementar manualmente** las funcionalidad de encontrar compras por código ya que es resuelta automáticamente por Spring Data a través de la **query derivation**
+- Ya no se requiere llamar explícitamente a `this.currentSession()` para interactuar con la base de datos
+- En la versión vieja, se debía escribir `createQuery(...)` para cada método. En spring data, la consulta se deriva automáticamente del nombre del método (`findALlByUsername`) o se gestiona internamente por el framework
+- Se eliminan las llamadas repetitivas a `.setParameter("username", username)` para el mapeo de parámetros, ya que el framework realiza la ligadura de los parámetros reales a los formales de forma automática
 
 ### Ejercicio 13: En la Práctica 1, los repositorios gestionaban internamente la Session. ¿Que recibe ahora un servicio que necesita usar un repositorio Spring Data? ¿Cómo se declara esa dependencia? ¿Dónde queda ahora la lógica de apertura y cierre de sesiones? 
 

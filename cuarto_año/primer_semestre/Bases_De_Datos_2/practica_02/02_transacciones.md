@@ -15,9 +15,9 @@ public List<Route> findRoutesBelowPrice(float price) {
 
 **Qué optimizaciones activa:**
 
-- **Desactiva el *dirty checking* de Hibernate.** En una transacción normal, al hacer *flush* o *commit* Hibernate compara cada entidad managed con su snapshot inicial para detectar cambios y generar los `UPDATE` correspondientes. En modo `readOnly`, Hibernate **no toma ese snapshot** y omite la comparación, ahorrando memoria y CPU.
+- **Desactiva el dirty checking de Hibernate.** En una transacción normal, al hacer flush o commit Hibernate compara cada entidad managed con su snapshot inicial para detectar cambios y generar los `UPDATE` correspondientes. En modo `readOnly`, Hibernate **no toma ese snapshot** y omite la comparación, ahorrando memoria y CPU.
 - **No emite `UPDATE` al cerrar la sesión.** Aunque alguien por error modificara una entidad managed dentro del método, los cambios **no se persisten**, evitando efectos colaterales involuntarios.
-- **Habilita el modo *FlushMode = MANUAL/NEVER*.** Hibernate no hace flush automáticamente antes de cada query, lo que reduce escrituras innecesarias.
+- **Habilita el modo FlushMode = MANUAL/NEVER.** Hibernate no hace flush automáticamente antes de cada query, lo que reduce escrituras innecesarias.
 - **Permite al driver/motor optimizar la conexión.** Algunos motores (PostgreSQL, MySQL con réplicas) pueden enrutar la conexión a una **réplica de solo lectura** cuando ven el flag `read-only`, descargando trabajo del master.
 
 **En qué métodos conviene aplicarlo:**
@@ -43,20 +43,20 @@ public class ToursServiceImpl implements ToursService {
 
 ### Ejercicio 30: ​¿Cómo maneja Spring el rollback automático? ¿Sobre qué tipos de excepción hace rollback por defecto? ¿Cómo se configura para el rollback? Dar un ejemplo con el modelo.
 
-Cuando un método anotado con `@Transactional` se ejecuta, el **proxy transaccional** de Spring envuelve la llamada en un `try/catch`. Si el método termina normalmente, se hace `commit`. Si lanza una excepción, Spring decide en función del **tipo de la excepción** si hacer `commit` o `rollback`.
+Cuando un método anotado con `@Transactional` se ejecuta, el **proxy transaccional** de Spring envuelve la llamada en un `try/catch`. Si el método termina normalmente, se hace `commit`. Si lanza una excepción que cumple con los criterios de `rollback()`, el interceptor solicita automáticamente la operacion de `rollback()` la manejador de transacciones.
 
-**Comportamiento por defecto:**
+**Tipos de excepciones que hacer rollback por defecto:**
 
-- **`RuntimeException` y sus subclases (excepciones *unchecked*)**: provocan **rollback automático**. Esto incluye `NullPointerException`, `IllegalStateException`, `DataIntegrityViolationException`, etc.
-- **`Error` y sus subclases**: también provocan rollback (problemas graves de la JVM).
-- **Excepciones *checked*** (las que extienden `Exception` pero no `RuntimeException`): **no provocan rollback por defecto**. Spring asume que son "errores de negocio recuperables" y hace `commit` igual.
+- **Excepciones no comprobadas**:
+  - **Spring realiza el rollback automático por defecto solo cuando se lanzan subclases de `RuntimeException`** (como `NullPointerException` , `IllegalArgumentException` o las excepciones de persistencia de Spring) y errores de tipo Error.
+- **Excepciones comprobadas**: Por defecto, **Spring no realiza rollback ante excepciones que heredan directamente de `Exception`** (pero no de RuntimeException ). Estas se consideran excepciones de "negocio" que el desarrollador debe manejar sin invalidar necesariamente la transacción
 
 **Cómo se configura:**
 
 La anotación `@Transactional` admite dos atributos para personalizar el rollback:
 
-- **`rollbackFor = X.class`** (o una lista de clases): fuerza el rollback ante esas excepciones, incluso si son *checked*.
-- **`noRollbackFor = X.class`**: lo inverso, evita el rollback ante esas excepciones aunque sean *unchecked*.
+- **`rollbackFor = X.class`** (o una lista de clases): fuerza el rollback ante esas excepciones, incluso si son checked.
+- **`noRollbackFor = X.class`**: lo inverso, evita el rollback ante esas excepciones aunque sean unchecked.
 
 **Ejemplo aplicado al modelo:** `createPurchase` debe revertir la transacción ante cualquier `ToursException` (por ejemplo, si el cupo de la `Route` se agotó después de validaciones previas):
 
@@ -79,15 +79,7 @@ public Purchase createPurchase(String routeCode, String username) throws ToursEx
 }
 ```
 
-Sin `rollbackFor = ToursException.class`, el `throw new ToursException("Cupo agotado")` propagaría la excepción al servicio que llamó, **pero cualquier escritura previa de esta transacción se commitearía igual** (porque la excepción es *checked*). Agregando el atributo, el proxy reconoce a `ToursException` como motivo válido de rollback y revierte todo lo escrito en esa transacción.
-
-**Programáticamente** también se puede forzar un rollback desde dentro del método con:
-
-```java
-TransactionAspectSupport.currentTransactionStatus().setRollbackOnly();
-```
-
-aunque en la práctica es preferible el enfoque declarativo con `rollbackFor`.
+Sin `rollbackFor = ToursException.class`, el `throw new ToursException("Cupo agotado")` propagaría la excepción al servicio que llamó, **pero cualquier escritura previa de esta transacción se commitearía igual** (porque la excepción es checked). Agregando el atributo, el proxy reconoce a `ToursException` como motivo válido de rollback y revierte todo lo escrito en esa transacción.
 
 >[!NOTE]
 > Una práctica común para evitar olvidos es marcar **la clase del servicio** con `@Transactional(rollbackFor = Exception.class)`, asegurando rollback ante cualquier excepción (checked o unchecked) en todos los métodos. Es lo más seguro cuando el código usa excepciones de dominio como `ToursException`.
