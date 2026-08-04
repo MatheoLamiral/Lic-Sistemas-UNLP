@@ -27,7 +27,7 @@
 
 #### Calcule cuántos bytes de relleno necesita para pisar primero `debug` y luego la dirección de retorno.
 
-- **Para pisar debug**: 24 bytes de relleno + 1 byte <> 0.
+- **Para pisar debug**: 31 bytes de relleno + 1 byte <> 0 (según el `.s`, `debug` está en `rbp-1`, no en el offset que sugería el diagrama del comentario).
 - **Para pisar la dirección de retorno**: 40 bytes de relleno + 8 bytes con la dirección de `privileged_fn()`
 
 ## Ejercicio 5: Ejecute 01-stack-overflow-ret al menos 2 veces pisando el valor de `debug` para verificar que la dirección de memoria de `privileged_fn()` cambia.
