@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="es"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Virtualización — Infograma de Repaso (SO · UNLP)</title>
+<style>
+:root { --accent:#7c3aed; --accent2:#a78bfa; }
+* { box-sizing:border-box; }
+body {
+  font-family:'Segoe UI',system-ui,-apple-system,sans-serif;
+  margin:0; background:#0f172a; color:#1e293b; line-height:1.55;
+}
+.wrap { max-width:1100px; margin:0 auto; padding:0 16px 60px; }
+header.hero {
+  background:linear-gradient(135deg,var(--accent),var(--accent2));
+  color:#fff; padding:38px 28px; border-radius:0 0 24px 24px;
+  box-shadow:0 8px 30px rgba(0,0,0,.35); margin-bottom:26px;
+}
+header.hero h1 { margin:0; font-size:2.0rem; display:flex; align-items:center; gap:14px; }
+header.hero .sub { opacity:.92; margin-top:8px; font-size:.95rem; }
+.topbar { background:#0f172a; padding:10px 16px; }
+.topbar a { color:#cbd5e1; text-decoration:none; font-size:.88rem; font-weight:600; }
+.topbar a:hover { color:#fff; }
+section.card {
+  background:#fff; border-radius:16px; padding:18px 22px; margin:18px 0;
+  box-shadow:0 4px 18px rgba(0,0,0,.18); border-left:6px solid var(--accent);
+}
+section.card h2 {
+  margin:0 0 12px; font-size:1.28rem; color:var(--accent);
+  display:flex; align-items:center; gap:10px;
+}
+section.card h3 { font-size:1.05rem; color:#334155; margin:16px 0 6px; }
+section.trampas {
+  border-left:6px solid #f59e0b; background:#fffbeb;
+}
+section.trampas h2 { color:#b45309; }
+ul, ol { margin:8px 0 8px; padding-left:24px; }
+li { margin:4px 0; }
+table {
+  border-collapse:collapse; width:100%; margin:14px 0; font-size:.92rem;
+  border-radius:10px; overflow:hidden; box-shadow:0 2px 8px rgba(0,0,0,.10);
+}
+th { background:var(--accent); color:#fff; text-align:left; padding:9px 12px; }
+td { padding:8px 12px; border-top:1px solid #e2e8f0; vertical-align:top; }
+tr:nth-child(even) td { background:#f8fafc; }
+code { background:#eef2ff; color:#3730a3; padding:1px 6px; border-radius:5px;
+  font-family:'Fira Code',Consolas,monospace; font-size:.88em; }
+pre { background:#1e293b; color:#e2e8f0; padding:14px; border-radius:10px; overflow:auto; }
+pre code { background:none; color:inherit; padding:0; }
+strong { color:#0f172a; }
+blockquote { border-left:4px solid var(--accent2); margin:10px 0; padding:6px 16px;
+  background:#f1f5f9; border-radius:0 8px 8px 0; color:#475569; }
+.vf-true { background:#16a34a; color:#fff; padding:1px 8px; border-radius:20px;
+  font-weight:700; font-size:.8rem; letter-spacing:.3px; }
+.vf-false { background:#dc2626; color:#fff; padding:1px 8px; border-radius:20px;
+  font-weight:700; font-size:.8rem; letter-spacing:.3px; }
+a { color:var(--accent); }
+hr { border:none; border-top:1px dashed #cbd5e1; margin:22px 0; }
+.home-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(230px,1fr));
+  gap:16px; margin-top:10px; }
+.home-grid a { text-decoration:none; }
+.tile { background:#fff; border-radius:16px; padding:20px; box-shadow:0 4px 16px rgba(0,0,0,.18);
+  border-top:5px solid var(--accent); transition:transform .12s,box-shadow .12s; height:100%; }
+.tile:hover { transform:translateY(-4px); box-shadow:0 10px 28px rgba(0,0,0,.30); }
+.tile .ico { font-size:2rem; }
+.tile .t { font-weight:700; color:#1e293b; margin:8px 0 4px; font-size:1.05rem; }
+.tile .d { color:#64748b; font-size:.85rem; }
+.badge { display:inline-block; background:#fef3c7; color:#b45309; font-size:.72rem;
+  font-weight:700; padding:2px 8px; border-radius:20px; margin-top:8px; }
+@media print { body{background:#fff;} section.card{box-shadow:none;border:1px solid #e2e8f0;}
+  header.hero{box-shadow:none;} .topbar{display:none;} }
+</style></head>
+<body><div class="topbar"><a href="index.html">⟵ Índice de infogramas</a></div>
+<header class="hero"><h1><span>🖥️</span>Virtualización — Infograma de Repaso (SO · UNLP)</h1>
+<div class="sub">Repaso parcial · Sistemas Operativos UNLP</div></header>
+<div class="wrap"><section class="card"><h2><span>🖥️</span> ¿Qué es virtualizar?</h2>
+<p>Técnica de <strong>abstracción</strong> de recursos: una capa que <strong>desacopla el hardware físico</strong> del software, oculta detalles por <strong>encapsulación</strong> y permite que <strong>una máquina haga el trabajo de varias</strong> compartiendo un mismo hardware.</p>
+<ul>
+<li><strong>Sin virtualizar:</strong> un único SO controla todo el HW.</li>
+<li><strong>Virtualizado:</strong> múltiples entornos/VMs aislados sobre el mismo HW.</li>
+<li><strong>Host:</strong> SO anfitrión + capa de virtualización. <strong>Guest:</strong> lo que se simula (SO completo).</li>
+</ul>
+</section>
+<section class="card"><h2><span>🖥️</span> ¿Por qué virtualizar?</h2>
+<ul>
+<li><strong>Consolidación:</strong> servidores subutilizados (HW ~10-18% → ~70% de uso).</li>
+<li><strong>Aislamiento:</strong> entornos separados, probar apps inseguras, correr legacy.</li>
+<li><strong>Aprovechamiento del HW:</strong> varios SO distintos en simultáneo, ahorro de energía (green IT).</li>
+<li><strong>Flexibilidad:</strong> VMs encapsuladas en archivos → fácil backup, copia y <strong>migración</strong> entre servidores.</li>
+</ul>
+</section>
+<section class="card"><h2><span>🖥️</span> Hypervisor / VMM</h2>
+<p>Programa que corre sobre el HW, implementa las VMs y controla recursos y planificación de los guests.</p>
+<ul>
+<li>VMM en <strong>modo supervisor</strong>; guest en <strong>modo usuario</strong>.</li>
+<li>Las <strong>instrucciones privilegiadas</strong> del guest generan <strong>traps al VMM</strong>, que las interpreta/emula.</li>
+</ul>
+<h3>Tipo 1 vs Tipo 2</h3>
+<table>
+<thead>
+<tr>
+<th></th>
+<th><strong>Tipo 1 (bare-metal)</strong></th>
+<th><strong>Tipo 2 (hosted)</strong></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Dónde corre</td>
+<td><strong>Directo sobre el hardware</strong></td>
+<td>Como <strong>aplicación sobre un SO anfitrión</strong></td>
+</tr>
+<tr>
+<td>¿SO anfitrión?</td>
+<td><strong>No</strong> (es el "SO base")</td>
+<td><strong>Sí</strong></td>
+</tr>
+<tr>
+<td>Rendimiento</td>
+<td>Mayor</td>
+<td>Menor (capa extra del host)</td>
+</tr>
+<tr>
+<td>Uso típico</td>
+<td>Servidores / data center</td>
+<td>Escritorio / pruebas</td>
+</tr>
+<tr>
+<td>Ejemplos</td>
+<td><strong>ESXi, Xen, Hyper-V, KVM</strong></td>
+<td><strong>VirtualBox, VMware Workstation</strong></td>
+</tr>
+</tbody>
+</table>
+<p><strong>Diferencia clave:</strong> el tipo 1 NO necesita SO anfitrión (corre sobre el bare-metal); el tipo 2 sí.</p>
+</section>
+<section class="card"><h2><span>🖥️</span> Técnicas de virtualización</h2>
+<h3>Full virtualization con Binary Translation</h3>
+<ul>
+<li>El hypervisor <strong>traduce/intercepta en tiempo de ejecución</strong> las instrucciones privilegiadas del guest (busca bloques básicos y sustituye instrucciones sensibles por llamadas al VMM).</li>
+<li>El <strong>SO guest NO se modifica</strong> → no sabe que está virtualizado.</li>
+<li>Debe emular todo el HW → costo de performance.</li>
+</ul>
+<h3>Paravirtualización</h3>
+<ul>
+<li>El <strong>kernel del SO guest SE MODIFICA</strong>: reemplaza instrucciones privilegiadas por <strong>hypercalls</strong> (llamadas a la API del hypervisor) → <strong>mejor rendimiento</strong>.</li>
+<li><strong>Limitación:</strong> no sirve para SO que <strong>no se pueden modificar</strong> (ej. Windows de código cerrado).</li>
+</ul>
+<h3>Virtualización asistida por hardware</h3>
+<ul>
+<li>Extensiones de CPU <strong>Intel VT-x / AMD-V</strong> que dan soporte directo a la virtualización (requiere flag habilitado en BIOS para VMs).</li>
+</ul>
+<h3>Emulación</h3>
+<ul>
+<li>Simula por software un <strong>hardware/arquitectura completo</strong>; puede correr <strong>otra arquitectura</strong> distinta a la real. Es la más <strong>lenta</strong> (ej. QEMU).</li>
+</ul>
+<h3>Comparativa</h3>
+<table>
+<thead>
+<tr>
+<th>Técnica</th>
+<th>¿Modifica el guest?</th>
+<th>Rendimiento</th>
+<th>Nota</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Binary translation (full virt.)</strong></td>
+<td><strong>No</strong></td>
+<td>Medio</td>
+<td>Traduce/intercepta instr. privilegiadas en runtime</td>
+</tr>
+<tr>
+<td><strong>Paravirtualización</strong></td>
+<td><strong>Sí (kernel modificado)</strong></td>
+<td>Alto</td>
+<td>Usa hypercalls; no sirve para SO cerrados</td>
+</tr>
+<tr>
+<td><strong>Emulación</strong></td>
+<td>No</td>
+<td><strong>Bajo (lento)</strong></td>
+<td>Puede simular otra arquitectura</td>
+</tr>
+</tbody>
+</table>
+</section>
+<section class="card"><h2><span>🖥️</span> Contenedores (LXC / Docker) — Virtualización a nivel SO</h2>
+<ul>
+<li><strong>NO usan hypervisor</strong>.</li>
+<li><strong>Usan el MISMO kernel que el SO base</strong> (no instalan su propio kernel) → más livianos.</li>
+<li>Aíslan espacio de usuario mediante <strong>namespaces</strong> y <strong>cgroups</strong>.</li>
+<li><strong>No</strong> pueden ejecutar un SO con kernel distinto al del host (no virtualizan Windows sobre Linux).</li>
+<li>A diferencia de las VMs: los <strong>procesos del container SÍ aparecen como procesos en el host</strong>.</li>
+</ul>
+<hr />
+</section>
+<section class="card trampas"><h2><span>🖥️</span> ⚠️ Trampas típicas de parcial</h2>
+<ul>
+<li>"¿En cuál técnica se debe <strong>modificar el kernel del guest</strong> para mejorar rendimiento?" → <strong>PARAVIRTUALIZACIÓN</strong>.</li>
+<li>"En paravirtualización el SO guest NO se debe modificar" → <strong><span class="vf-false">FALSO</span></strong> (sí se modifica).</li>
+<li>"La paravirtualización permite virtualizar Windows sobre Linux" → <strong><span class="vf-false">FALSO</span></strong> (Windows no se puede modificar).</li>
+<li>LXC: "los containers usan el mismo kernel que el SO base" → <strong><span class="vf-true">VERDADERO</span></strong>. "usan su propio kernel" → <strong><span class="vf-false">FALSO</span></strong>.</li>
+<li>"Containers necesitan habilitar flag de virtualización en BIOS" → <strong><span class="vf-false">FALSO</span></strong>.</li>
+<li>"Los containers permiten virtualizar Windows" → <strong><span class="vf-false">FALSO</span></strong>.</li>
+<li>"Docker/containers necesitan un hypervisor tipo 2" → <strong><span class="vf-false">FALSO</span></strong>.</li>
+<li>"Cada container instala/ejecuta su propio kernel" → <strong><span class="vf-false">FALSO</span></strong>.</li>
+<li>"No es posible ejecutar un SO con kernel diferente al del SO base (containers)" → <strong><span class="vf-true">VERDADERO</span></strong>.</li>
+<li>En hypervisor tipo 1 / VMs, los <strong>PIDs del guest NO aparecen como procesos en el anfitrión</strong> (a diferencia de los containers).</li>
+</ul></section></div>
+</body></html>

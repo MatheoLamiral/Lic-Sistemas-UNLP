@@ -1,0 +1,398 @@
+<title>Entrenador Parcial SO</title>
+<style>
+  :root{
+    --bg:#F4F6F5; --surface:#FFFFFF; --surface2:#EDF1F0;
+    --ink:#1A2426; --muted:#5C6B6E; --border:#DCE3E2;
+    --accent:#0E7C86; --accent-soft:#E2F0F1; --accent-ink:#FFFFFF;
+    --ok:#2E7D46; --ok-soft:#E4F2E9;
+    --bad:#C43D3D; --bad-soft:#F9E9E9;
+    --warn:#B07818;
+    --mono:ui-monospace,'SF Mono','Cascadia Code',Menlo,Consolas,monospace;
+    --sans:system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;
+  }
+  @media (prefers-color-scheme:dark){
+    :root{
+      --bg:#0F1717; --surface:#17211F; --surface2:#1E2A28;
+      --ink:#E4ECEA; --muted:#8FA3A0; --border:#2A3936;
+      --accent:#46B8C4; --accent-soft:#173237; --accent-ink:#0B1416;
+      --ok:#5BC17F; --ok-soft:#16281D;
+      --bad:#E06C6C; --bad-soft:#301A1A;
+      --warn:#D9A441;
+    }
+  }
+  :root[data-theme="dark"]{
+    --bg:#0F1717; --surface:#17211F; --surface2:#1E2A28;
+    --ink:#E4ECEA; --muted:#8FA3A0; --border:#2A3936;
+    --accent:#46B8C4; --accent-soft:#173237; --accent-ink:#0B1416;
+    --ok:#5BC17F; --ok-soft:#16281D;
+    --bad:#E06C6C; --bad-soft:#301A1A;
+    --warn:#D9A441;
+  }
+  :root[data-theme="light"]{
+    --bg:#F4F6F5; --surface:#FFFFFF; --surface2:#EDF1F0;
+    --ink:#1A2426; --muted:#5C6B6E; --border:#DCE3E2;
+    --accent:#0E7C86; --accent-soft:#E2F0F1; --accent-ink:#FFFFFF;
+    --ok:#2E7D46; --ok-soft:#E4F2E9;
+    --bad:#C43D3D; --bad-soft:#F9E9E9;
+    --warn:#B07818;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--sans);line-height:1.55;-webkit-font-smoothing:antialiased}
+  #app{max-width:680px;margin:0 auto;padding:20px 16px 64px}
+  .eyebrow{font-family:var(--mono);font-size:.72rem;letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
+  code{font-family:var(--mono);font-size:.88em;background:var(--surface2);border:1px solid var(--border);border-radius:4px;padding:.08em .35em}
+  pre{font-family:var(--mono);font-size:.8rem;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:12px;overflow-x:auto;line-height:1.5}
+  button{font:inherit;color:inherit;cursor:pointer}
+  button:focus-visible,textarea:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+  /* ---------- home ---------- */
+  .home h1{font-size:1.7rem;margin:.35rem 0 .3rem;text-wrap:balance;letter-spacing:-.01em}
+  .home .sub{color:var(--muted);margin:0 0 1.4rem;max-width:52ch}
+  .rules{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:1.6rem}
+  .rules .pill{font-family:var(--mono);font-size:.74rem;border:1px solid var(--border);background:var(--surface);border-radius:999px;padding:.35em .8em;color:var(--muted)}
+  .rules .pill b{color:var(--ink);font-weight:600}
+  .decks{display:flex;flex-direction:column;gap:12px}
+  .deck{display:flex;align-items:center;gap:14px;width:100%;text-align:left;background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:16px 18px;transition:border-color .15s}
+  .deck:hover{border-color:var(--accent)}
+  .deck .num{font-family:var(--mono);font-size:1.05rem;font-weight:700;color:var(--accent);min-width:2.2rem}
+  .deck .t{font-weight:650}
+  .deck .d{color:var(--muted);font-size:.85rem;margin-top:2px}
+  .deck .best{margin-left:auto;font-family:var(--mono);font-size:.74rem;color:var(--muted);white-space:nowrap}
+  .deck .best .got{color:var(--ok);font-weight:700}
+
+  /* ---------- quiz chrome ---------- */
+  .bar{display:flex;align-items:center;gap:12px;margin-bottom:14px}
+  .bar .exit{background:none;border:1px solid var(--border);border-radius:8px;padding:.3em .7em;font-family:var(--mono);font-size:.74rem;color:var(--muted)}
+  .bar .exit:hover{color:var(--ink);border-color:var(--muted)}
+  .bar .count{font-family:var(--mono);font-size:.78rem;color:var(--muted);margin-left:auto}
+  .bar .count b{color:var(--ink)}
+  .track{height:4px;background:var(--surface2);border-radius:2px;overflow:hidden;margin-bottom:22px}
+  .track .fill{height:100%;background:var(--accent);border-radius:2px;transition:width .25s}
+  .scorechip{font-family:var(--mono);font-size:.78rem}
+  .scorechip .g{color:var(--ok);font-weight:700}.scorechip .b{color:var(--bad);font-weight:700}
+
+  .qcard{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:22px 22px 24px}
+  .qhead{display:flex;gap:10px;align-items:baseline;margin-bottom:12px;flex-wrap:wrap}
+  .tag{font-family:var(--mono);font-size:.7rem;letter-spacing:.08em;text-transform:uppercase;background:var(--accent-soft);color:var(--accent);border-radius:4px;padding:.25em .6em;font-weight:600}
+  .parte{font-family:var(--mono);font-size:.7rem;color:var(--muted);letter-spacing:.08em}
+  .qtext{font-size:1.06rem;font-weight:550;margin:0 0 18px;text-wrap:balance}
+  .qtext em{font-style:italic;font-weight:450}
+  .hint{font-size:.8rem;color:var(--muted);margin:-10px 0 14px}
+
+  .opts{display:flex;flex-direction:column;gap:9px}
+  .opt{display:flex;gap:12px;align-items:flex-start;text-align:left;width:100%;background:var(--surface);border:1.5px solid var(--border);border-radius:10px;padding:11px 14px;transition:border-color .12s,background .12s}
+  .opt:not(:disabled):hover{border-color:var(--accent)}
+  .opt .key{font-family:var(--mono);font-size:.8rem;font-weight:700;color:var(--muted);min-width:1.1rem;padding-top:.12em}
+  .opt.sel{border-color:var(--accent);background:var(--accent-soft)}
+  .opt.hit{border-color:var(--ok);background:var(--ok-soft)}
+  .opt.hit .key{color:var(--ok)}
+  .opt.miss{border-color:var(--bad);background:var(--bad-soft)}
+  .opt.miss .key{color:var(--bad)}
+  .opt:disabled{cursor:default;opacity:.92}
+  .vfrow{display:flex;gap:10px}
+  .vfrow .opt{justify-content:center;font-weight:650;font-size:1rem}
+
+  textarea{width:100%;min-height:110px;resize:vertical;background:var(--surface2);color:var(--ink);border:1.5px solid var(--border);border-radius:10px;padding:12px;font:inherit;font-size:.95rem}
+  textarea::placeholder{color:var(--muted)}
+
+  .actions{display:flex;gap:10px;margin-top:18px;flex-wrap:wrap}
+  .btn{border:none;background:var(--accent);color:var(--accent-ink);font-weight:650;border-radius:10px;padding:.65em 1.4em;font-size:.95rem}
+  .btn:hover{filter:brightness(1.08)}
+  .btn.ghost{background:none;border:1.5px solid var(--border);color:var(--ink)}
+  .btn.okb{background:var(--ok);color:#fff}
+  .btn.badb{background:var(--bad);color:#fff}
+  :root[data-theme="dark"] .btn.okb, :root[data-theme="dark"] .btn.badb{color:#0B1416}
+
+  .verdict{border-radius:12px;padding:16px 18px;margin-top:20px;border:1px solid;animation:pop .2s ease-out}
+  .verdict.good{background:var(--ok-soft);border-color:var(--ok)}
+  .verdict.wrong{background:var(--bad-soft);border-color:var(--bad)}
+  .verdict.neutral{background:var(--surface2);border-color:var(--border)}
+  .verdict .vt{font-family:var(--mono);font-size:.8rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;margin-bottom:6px}
+  .verdict.good .vt{color:var(--ok)} .verdict.wrong .vt{color:var(--bad)} .verdict.neutral .vt{color:var(--accent)}
+  .verdict p{margin:0;font-size:.93rem}
+  @keyframes pop{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+  @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+
+  /* ---------- results ---------- */
+  .res{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:28px 24px;text-align:center}
+  .res .big{font-family:var(--mono);font-size:3rem;font-weight:700;line-height:1;font-variant-numeric:tabular-nums}
+  .res .big small{font-size:1.2rem;color:var(--muted);font-weight:500}
+  .res .nota{font-family:var(--mono);color:var(--muted);margin-top:6px}
+  .res .estado{display:inline-block;margin-top:14px;font-weight:700;border-radius:999px;padding:.4em 1.2em}
+  .estado.promo{background:var(--ok-soft);color:var(--ok)}
+  .estado.aprob{background:var(--accent-soft);color:var(--accent)}
+  .estado.insuf{background:var(--bad-soft);color:var(--bad)}
+  .thresh{display:flex;justify-content:center;gap:18px;margin-top:16px;font-family:var(--mono);font-size:.76rem;color:var(--muted)}
+  .misses{text-align:left;margin-top:26px}
+  .misses h3{font-size:.95rem;margin:0 0 10px}
+  .missitem{border-top:1px solid var(--border);padding:10px 2px;font-size:.87rem}
+  .missitem .mt{font-family:var(--mono);font-size:.7rem;color:var(--bad);font-weight:700;letter-spacing:.06em}
+  .missitem p{margin:.2rem 0 0;color:var(--muted)}
+</style>
+
+<div id="app"></div>
+
+<script>
+/* ================= DATA ================= */
+/* type: 'vf' (answer:true/false) | 'mc' (answer:idx) | 'multi' (answer:[idx]) | 'dev' (model) */
+const DECKS=[
+{id:'s1',title:'Simulacro 1',desc:'10 choice/VF + 10 desarrollo · formato real',questions:[
+{type:'vf',topic:'Kernel',text:'«El kernel de Linux es un sistema operativo en sentido estricto, ya que contiene todo lo necesario para gestionar el hardware y los procesos.»',answer:false,expl:'El kernel es el núcleo (memoria, CPU, procesos, E/S), pero el SO completo agrega shell, utilidades y bibliotecas (GNU + Linux). La trampa está en «contiene TODO lo necesario».'},
+{type:'mc',topic:'Módulos',text:'¿Cuál de las siguientes afirmaciones sobre módulos del kernel de Linux es <em>falsa</em>?',options:['Pueden cargarse y descargarse de memoria con comandos específicos.','Pueden usarse para implementar drivers u otras funcionalidades.','Se ejecutan en espacio de usuario.','Para crear un módulo hay que implementar una función que se ejecuta al cargarlo y otra al descargarlo.'],answer:2,expl:'Los módulos corren en espacio de kernel / modo supervisor y comparten el espacio de direcciones del kernel: un bug puede causar un Kernel Panic.'},
+{type:'vf',topic:'Syscalls',text:'«La librería libc implementa directamente las system calls en modo kernel, sin necesidad de ningún mecanismo de trap o interrupción.»',answer:false,expl:'libc es una biblioteca de espacio de usuario que provee wrappers: carga el número de syscall en un registro y dispara el trap (int 0x80 / syscall). La syscall se define y ejecuta en el kernel.'},
+{type:'multi',topic:'/dev · drivers',text:'Un usuario ejecuta <code>ls -l</code> y ve:<pre>brw-rw---- 1 root root 240, 0 Jun 10 18:05 weird</pre>¿Cuál/es es/son verdadera/s?',options:['weird hace referencia a un dispositivo de bytes (caracter).','weird hace referencia a un dispositivo de bloques.','El driver asociado a weird debería vincularse al major number 240.','weird ocupa 240 bytes.','El comando echo "Hello world" > weird incrementa el tamaño de weird.'],answer:[1,2],expl:'La «b» inicial = dispositivo de bloques; «240, 0» son major y minor: el major 240 identifica al driver. No son 240 bytes, y escribirle no cambia su tamaño porque no es un archivo regular sino un punto de acceso al driver.'},
+{type:'vf',topic:'Threads',text:'«Si un proceso crea N User-Level Threads (ULTs), entonces con strace podremos observar que invoca N veces la system call clone3.»',answer:false,expl:'Los ULT los gestiona la biblioteca en espacio de usuario: el kernel no se entera, no hay syscalls. clone3 aparece con KLT (pthread_create) o procesos (fork).'},
+{type:'vf',topic:'Virtualización',text:'«En un hypervisor tipo 2, el SO host es el que se ejecuta directamente sobre el hardware físico y gestiona los drivers de dispositivo reales.»',answer:true,expl:'En tipo 2 el hypervisor es una aplicación sobre un SO anfitrión; ese host corre sobre el hardware real y maneja los drivers (ej.: VirtualBox sobre Linux).'},
+{type:'mc',topic:'Containers',text:'¿Cuál de las siguientes opciones es correcta respecto a los containers?',options:['Es necesario contar con un software de virtualización, tipo un hypervisor.','No es posible ejecutar un SO con un kernel diferente al del SO base.','Cada container ejecuta su propio kernel.','No es posible que un container tenga un nombre diferente al del nodo donde ejecuta.'],answer:1,expl:'Los containers comparten el kernel del host (no tienen kernel propio), no necesitan hypervisor, y pueden tener su propio hostname gracias al UTS namespace.'},
+{type:'vf',topic:'Docker',text:'«Al remover un archivo dentro de un Dockerfile con RUN rm, dicho archivo se elimina definitivamente de la imagen, reduciendo su tamaño total.»',answer:false,expl:'Las capas de una imagen son de solo lectura: el archivo queda en la capa donde se agregó. RUN rm solo crea una capa nueva que lo oculta; el tamaño no baja.'},
+{type:'vf',topic:'RAID',text:'«RAID 1 provee striping y paridad distribuida.»',answer:false,expl:'RAID 1 es mirroring (copia espejo): sin striping ni paridad. Striping con paridad distribuida es RAID 5.'},
+{type:'vf',topic:'Multiprocesadores',text:'«En la planificación por pandillas (gang scheduling), todos los hilos de un proceso se programan para ejecutarse simultáneamente en distintas CPUs durante el mismo intervalo de tiempo.»',answer:true,expl:'Los hilos relacionados forman una pandilla que se planifica junta: corren simultáneamente en distintas CPUs e inician/terminan el intervalo juntos, acelerando su sincronización.'},
+{type:'dev',topic:'Kernel',text:'¿Qué es el kernel de GNU/Linux? ¿Cuáles son sus funciones principales dentro del sistema operativo?',model:'Es el núcleo del SO: código que reside en memoria principal, corre en modo privilegiado y actúa de intermediario entre hardware y aplicaciones, exponiendo una interfaz controlada (system calls). Funciones: administración de memoria principal, manejo de CPU (scheduling), administración de procesos, gestión de E/S, y comunicación/concurrencia.'},
+{type:'dev',topic:'Compilación',text:'Una vez compilado e instalado el kernel con <code>make modules_install && make install</code>, ¿en qué directorios se instalan la imagen del kernel y los módulos?',model:'Los módulos van a /lib/modules/<versión>/ (make modules_install). La imagen del kernel (vmlinuz), System.map, .config y el initramfs van a /boot/ (make install). Después hay que actualizar GRUB.'},
+{type:'dev',topic:'Boot',text:'¿Qué contiene el initramfs y qué funcionalidad provee? ¿Bajo qué condiciones puede no ser necesario?',model:'Es un filesystem temporal en RAM que se monta durante el arranque, antes del root real. Contiene los módulos/drivers y programas mínimos (disco, filesystem, LVM/RAID, init temporal) para que el kernel pueda montar el root definitivo. Puede no ser necesario si todo eso está compilado built-in en el kernel.'},
+{type:'dev',topic:'Syscalls',text:'¿Qué es una system call y cuál es su propósito principal?',model:'Es la API que el kernel expone al espacio de usuario para solicitar servicios que requieren modo privilegiado (archivos, red, procesos). Se invoca mediante una interrupción de software (trap) y se identifica con un número único en la tabla de syscalls. Es el único puente controlado usuario → kernel.'},
+{type:'dev',topic:'Threads',text:'¿Quién es responsable de la planificación de los ULT? ¿Y de los KLT? ¿Cómo afecta esto al rendimiento en sistemas con múltiples núcleos?',model:'Los ULT los planifica la biblioteca de hilos en espacio de usuario; los KLT los planifica el kernel. Como el kernel no ve los ULT (ve un solo proceso), no puede repartirlos entre núcleos: no hay paralelismo real. Los KLT sí se planifican individualmente en distintos cores → paralelismo real.'},
+{type:'dev',topic:'Virtualización',text:'Describa brevemente la diferencia entre hypervisors de tipo 1 y de tipo 2. Dé un ejemplo de cada uno.',model:'Tipo 1 (bare-metal): corre directamente sobre el hardware, sin SO anfitrión; mayor rendimiento; ej.: ESXi, Xen, KVM. Tipo 2 (hosted): corre como aplicación sobre un SO anfitrión que maneja el hardware real; ej.: VirtualBox, VMware Workstation.'},
+{type:'dev',topic:'cgroups',text:'Un usuario desea limitar el uso de CPU de un proceso para que no supere el 80%. ¿Qué mecanismo del kernel Linux podría utilizar y cómo?',model:'cgroups, con el controlador cpu: se crea un cgroup, se fija la cuota de CPU al 80% (cpu.max en v2, o cfs_quota_us/cfs_period_us en v1) y se agrega el PID del proceso a cgroup.procs. El proceso no necesita modificarse.'},
+{type:'dev',topic:'Docker',text:'En el contexto de Docker: ¿qué es una imagen? ¿Y un contenedor? ¿Cuál es la principal diferencia?',model:'Imagen: template de solo lectura con la app + dependencias + instrucciones. Contenedor: instancia en ejecución de esa imagen, con una capa escribible propia encima. La imagen es estática y no se ejecuta; el contenedor sí, y de una misma imagen pueden crearse varios contenedores.'},
+{type:'dev',topic:'Seguridad',text:'¿Qué es ASLR? ¿Linux provee ASLR para los procesos de usuario? ¿Y para el kernel?',model:'ASLR aleatoriza las direcciones de memoria de un proceso en cada ejecución (stack, heap, librerías, y código si es PIE) para dificultar exploits de memoria. Linux lo provee para procesos de usuario (/proc/sys/kernel/randomize_va_space, configurable sin recompilar) y para el kernel mediante KASLR, un mecanismo separado.'},
+{type:'dev',topic:'Deadlocks',text:'Enuncie las cuatro condiciones de Coffman para que ocurra un deadlock. ¿Deben cumplirse todas simultáneamente?',model:'1) Exclusión mutua, 2) Retención y espera (hold and wait), 3) No apropiación, 4) Espera circular. Sí: deben darse las cuatro a la vez; si falta una sola no puede haber deadlock (base de la prevención).'}
+]},
+{id:'s2',title:'Simulacro 2',desc:'10 choice/VF + 10 desarrollo · formato real',questions:[
+{type:'vf',topic:'Kernel',text:'«En un microkernel, los drivers y servidores de filesystem se ejecutan en modo kernel para mejorar el rendimiento.»',answer:false,expl:'En un microkernel los drivers y servidores corren en espacio de usuario; en modo kernel queda lo mínimo (procesos, memoria, IPC). Todo en modo kernel es lo del monolítico.'},
+{type:'mc',topic:'Kernel',text:'¿Por qué se considera que Linux es portable?',options:['Porque los programas ELF pueden ejecutarse en cualquier arquitectura siempre que corran Linux.','Porque se pueden usar distintos lenguajes de programación para generar programas para Linux.','Porque su tamaño es pequeño, lo que facilita copiarlo a distintas computadoras.','Porque el mismo binario del kernel se puede ejecutar en distintas arquitecturas de CPU.','Porque su código puede ser modificado fácilmente para funcionar en distintas arquitecturas de CPU.'],answer:4,expl:'La portabilidad es del código fuente (C mayormente, Assembler solo para lo específico): se adapta y recompila por arquitectura. El mismo binario NO corre en arquitecturas distintas.'},
+{type:'mc',topic:'Syscalls',text:'¿Cuál de estas afirmaciones respecto a las system calls es <em>falsa</em>?',options:['Se pueden monitorear con el comando strace.','Pueden ser invocadas por los programas.','LibC implementa wrappers para las system calls.','Se implementan como módulos del kernel.'],answer:3,expl:'Las syscalls son parte del kernel base, adjuntadas estáticamente en tiempo de compilación; no son módulos cargables con insmod/rmmod.'},
+{type:'vf',topic:'Syscalls',text:'«La tabla de syscalls en GNU/Linux (syscall_64.tbl) permite que el dispatcher, al recibir una interrupción, identifique qué función del kernel debe ejecutarse según el número almacenado en el registro.»',answer:true,expl:'Todas las syscalls entran por el mismo trap; se distinguen por el número en EAX/RAX. El dispatcher lo busca en la tabla y ejecuta el handler correspondiente.'},
+{type:'vf',topic:'Threads',text:'«Un User-Level Thread (ULT) en el modelo M:1 puede aprovechar de manera directa múltiples procesadores físicos sin ningún mecanismo adicional.»',answer:false,expl:'En M:1 todos los ULT se mapean sobre un único KLT: el kernel ve una sola entidad planificable y no puede repartirlos entre núcleos. Sin más KLTs no hay paralelismo real.'},
+{type:'mc',topic:'Virtualización',text:'¿En cuál técnica de virtualización se debe modificar el kernel del SO invitado (guest) para mejorar el rendimiento?',options:['Hypervisores tipo 1.','Hypervisores tipo 2.','Paravirtualización.','Emuladores.','Todas necesitan un SO invitado modificado.'],answer:2,expl:'En paravirtualización el kernel del guest se modifica para reemplazar instrucciones privilegiadas por hypercalls. Por eso no sirve para SO cerrados como Windows.'},
+{type:'mc',topic:'cgroups',text:'¿Cuál de las siguientes opciones es correcta respecto de cgroups v2?',options:['Los procesos deben agregarse a los cgroups sin hijos (hojas), salvo el cgroup root.','Un proceso debe ser modificado para poder agregarse a una jerarquía de cgroups.','Cada container puede tener su propia IP pero el nombre siempre es el mismo que el host.','En cgroupv1, un proceso solo puede pertenecer a una jerarquía.','Los cgroups se implementan con un filesystem Ext4 o XFS.'],answer:0,expl:'Es la «no internal process constraint» de v2 (jerarquía única). Los procesos no se modifican; en v1 hay varias jerarquías (una por controlador) y el proceso está en una por cada una; usan un pseudo-filesystem propio.'},
+{type:'multi',topic:'Docker',text:'Indicar cuál/es de las siguientes opciones es/son correctas con respecto a Docker:',options:['A partir de una imagen solo se puede generar un solo contenedor.','Docker necesita un hypervisor para poder ejecutarse.','Dockerfile es un archivo con instrucciones que permite crear un container.','Cada imagen está compuesta por capas de las cuales solo la última puede ser modificada.','Docker hace uso de namespaces, cgroups y union filesystems para proveer contenedores.','No es posible generar una imagen a partir de un contenedor.'],answer:[3,4],expl:'De una imagen salen varios contenedores; Docker no usa hypervisor; un Dockerfile crea una IMAGEN, no un container; docker commit genera una imagen desde un contenedor.'},
+{type:'mc',topic:'RAID',text:'Si se tienen 5 discos de 1 TB cada uno en RAID 5, la capacidad total para almacenar datos es de:',options:['4 TB','3 TB','5 TB','Depende del chunk size elegido.'],answer:0,expl:'RAID 5 usa paridad distribuida equivalente a un disco: (N−1) × tamaño = 4 TB. El chunk size no afecta la capacidad.'},
+{type:'vf',topic:'Distribuidos',text:'«En un sistema distribuido, todos los nodos deben ejecutar el mismo sistema operativo y disponer del mismo hardware para garantizar la interoperabilidad.»',answer:false,expl:'Los sistemas distribuidos son heterogéneos (distinto SO, HW, FS); el middleware por encima del SO resuelve esa heterogeneidad con interfaces comunes.'},
+{type:'dev',topic:'Kernel',text:'Explique brevemente la arquitectura del kernel Linux: tipo de kernel, modularidad y portabilidad.',model:'Linux es monolítico híbrido: todo corre en un bloque en modo privilegiado, pero admite cargar/descargar módulos en runtime (que una vez cargados también corren en modo kernel). Es portable porque está escrito mayormente en C (Assembler solo para bajo nivel), de modo que el mismo código fuente se recompila para muchas arquitecturas.'},
+{type:'dev',topic:'Módulos',text:'¿Qué es un módulo del kernel y qué ventaja/s provee compilarlo como módulo respecto a built-in?',model:'Es un fragmento de código (.ko) que se carga/descarga en el kernel en runtime (insmod/rmmod), sin recompilar ni reiniciar. Ventajas: consume memoria solo cuando se usa, se actualiza sin reiniciar, y agiliza el desarrollo (probar un driver es cargar/descargar un .ko).'},
+{type:'dev',topic:'/dev',text:'¿Qué tipos de archivos se encuentran en <code>/dev</code>? ¿Qué representan?',model:'Device files: representan dispositivos y son el punto de acceso desde espacio de usuario al driver (open/read/write; el kernel redirige según el major number). Dos tipos: de caracter (c, byte a byte secuencial: teclado, tty) y de bloque (b, bloques de tamaño fijo con acceso aleatorio: discos).'},
+{type:'dev',topic:'Drivers',text:'¿Para qué se usa <code>register_chrdev()</code>? ¿Se puede usar en espacio de usuario, de kernel o ambos?',model:'Registra un dispositivo de caracter: asocia un major number con la tabla de operaciones del driver (struct file_operations), de modo que el kernel redirija al driver las operaciones sobre device files con ese major. Solo puede usarse en espacio de kernel (API interna del kernel).'},
+{type:'dev',topic:'Procesos',text:'¿Qué características tendrá el proceso creado si se ejecuta <code>fork()</code> pero no <code>exec()</code>?',model:'El hijo es copia casi idéntica del padre: ejecuta el mismo programa (no se reemplaza), su memoria es copia (copy-on-write), hereda descriptores y recursos, pero tiene PID propio. Se distinguen por el retorno de fork(): 0 en el hijo, PID del hijo en el padre.'},
+{type:'dev',topic:'cgroups · NS',text:'Describa brevemente las funcionalidades provistas por cgroups y por namespaces.',model:'cgroups: organiza procesos en grupos jerárquicos para limitar, priorizar, contabilizar (accounting) y controlar (freezar) su uso de recursos (CPU, memoria, E/S). Namespaces: dan a un proceso una vista aislada de un recurso global (PIDs, red, montajes, hostname, IPC, usuarios).'},
+{type:'dev',topic:'Namespaces',text:'Dentro del container, <code>mi_proceso</code> aparece con PID 1; en el host, con PID 423548. Explique por qué y qué mecanismo del kernel lo produce.',model:'Es el PID namespace: el contenedor tiene su propio árbol de PIDs aislado. mi_proceso es el primer proceso de su namespace (su «init», PID 1) y en el host tiene su PID real. Es un único proceso con dos identificadores según la vista.'},
+{type:'dev',topic:'Docker',text:'¿Qué es un Union Filesystem? ¿Cómo lo utiliza Docker?',model:'Mecanismo de montaje: varios directorios montados en un mismo punto se ven como un único FS (capas inferiores read-only, superior escribible). Docker arma cada imagen como capas apiladas (cada una guarda solo diferencias); al ejecutar un contenedor apila las capas, agrega una capa escribible propia y fija ese union-FS como raíz con chroot.'},
+{type:'dev',topic:'Filesystems',text:'¿Qué es un link simbólico? ¿En qué se diferencia de un hard link? ¿Cuál/es consumen un inodo al crearse?',model:'El symlink apunta a una ruta/nombre; el hard link apunta al mismo inodo que el original. Si se borra el original, el symlink queda roto; el hard link sigue funcionando (los datos viven hasta que link count = 0). El symlink SÍ consume un inodo nuevo; el hard link NO.'},
+{type:'dev',topic:'Deadlocks',text:'¿Qué diferencia hay entre deadlock y starvation?',model:'Deadlock: procesos mutuamente bloqueados en espera circular; ninguno avanza. Starvation: un proceso nunca obtiene el recurso porque siempre es pospuesto (prioridades/planificación), sin necesidad de ciclo. El deadlock se rompe abortando/expropiando; la starvation se evita con políticas justas (aging).'}
+]},
+{id:'s3',title:'Simulacro 3',desc:'10 choice/VF + 10 desarrollo · formato real',questions:[
+{type:'mc',topic:'Compilación',text:'¿Por qué, una vez compilado el nuevo kernel, es necesario reconfigurar el gestor de arranque?',options:['Para que se instale LILO, que reemplaza a GRUB en las nuevas versiones.','Para actualizar el menú de arranque incorporando el nuevo kernel en la configuración.','Para que almacene la imagen del kernel en el sector de arranque.','Para que se instale el binario del gestor de arranque generado al compilar.'],answer:1,expl:'GRUB no detecta el kernel nuevo solo: update-grub regenera grub.cfg con la ruta de la nueva imagen y su initramfs. No se reinstala el binario del gestor.'},
+{type:'multi',topic:'Boot',text:'¿Qué opción u opciones describen un initramfs?',options:['Inicializa la RAM del dispositivo con ceros como prueba de integridad.','Es un componente que ya no se utiliza en distribuciones modernas.','No siempre es necesario.','Aloja módulos del kernel y programas útiles para el arranque del sistema.'],answer:[2,3],expl:'Aloja los módulos/drivers y programas mínimos del arranque, y puede no ser necesario si todo lo requerido para montar el root está built-in.'},
+{type:'mc',topic:'/proc',text:'¿Cuál de las siguientes afirmaciones sobre <code>/proc</code> es <em>falsa</em>?',options:['/proc no ocupa espacio en disco.','Los módulos pueden registrar entradas en /proc.','Solo los módulos compilados como built-in pueden crear entradas en /proc.','/proc contiene información sobre los procesos.','Al leer/escribir un archivo de /proc se ejecuta una función del kernel asociada.'],answer:2,expl:'Cualquier módulo (cargable o built-in) puede registrar entradas en /proc. Es un pseudo-filesystem generado al vuelo.'},
+{type:'mc',topic:'Drivers',text:'¿Cuál es la forma correcta de implementar un driver para el kernel Linux?',options:['Como un servicio.','Como una system call.','Como un módulo.','Como un kthread.'],answer:2,expl:'Un driver se implementa como módulo (o built-in). No es un servicio de usuario ni una syscall: el driver implementa file_operations.'},
+{type:'vf',topic:'Threads',text:'«Un hilo (thread) es la unidad básica de utilización de CPU en los sistemas operativos modernos.»',answer:true,expl:'El hilo es la unidad de planificación/uso de CPU; el proceso es la unidad de propiedad de recursos (colección de hilos que comparten espacio de direcciones y recursos).'},
+{type:'vf',topic:'Virtualización',text:'«El SO guest en un entorno virtualizado tiene acceso directo y completo al hardware real de la máquina, sin ningún tipo de intermediación.»',answer:false,expl:'El VMM/hypervisor siempre intermedia: presenta hardware virtual, controla recursos e intercepta/emula las instrucciones privilegiadas (trap al VMM).'},
+{type:'mc',topic:'cgroups',text:'¿Cuál de las siguientes afirmaciones NO es correcta con respecto a cgroups v1?',options:['Un controlador solo puede ser desmontado si no tiene cgroups hijos.','Es posible montar un controlador en particular.','Dentro de una jerarquía, un proceso puede estar en varios cgroups a la vez.','Un proceso creado por un fork pertenece al mismo cgroup que el padre.'],answer:2,expl:'En v1, dentro de UNA jerarquía un proceso pertenece a UN solo cgroup (está en varios solo porque hay varias jerarquías, una por controlador).'},
+{type:'vf',topic:'Docker',text:'«Docker utiliza una arquitectura cliente-servidor donde el daemon (dockerd) es el servidor responsable de crear, ejecutar y monitorear los contenedores.»',answer:true,expl:'dockerd es el servidor que crea, ejecuta y monitorea contenedores e imágenes; el cliente docker (CLI) se comunica con él vía API REST.'},
+{type:'vf',topic:'Seguridad',text:'«Un sistema con muchas características y funcionalidades tiende a ser más seguro porque ofrece más herramientas de defensa.»',answer:false,expl:'Más features = más código = más superficie de ataque y más bugs potenciales. La seguridad se favorece con el principio de mínimo privilegio (POLA) y quitando lo que no se usa.'},
+{type:'mc',topic:'Filesystems',text:'¿En cuál de los siguientes tipos de filesystem NO se puede disminuir su tamaño?',options:['Ext2','Ext3','Ext4','XFS','Todos pueden hacerlo.'],answer:3,expl:'XFS solo puede crecer (extenderse); no soporta reducción. Los Ext sí pueden reducirse (desmontados).'},
+{type:'dev',topic:'Compilación',text:'Describa los motivos que puede tener un usuario de Linux para compilar un kernel (al menos tres).',model:'Soportar nuevos dispositivos (drivers de HW no reconocido); agregar funcionalidad (nuevos filesystems, protocolos); optimizar para el hardware donde corre; adaptar/aligerar quitando soporte no usado; corregir bugs de seguridad o programación aplicando parches.'},
+{type:'dev',topic:'Módulos',text:'¿Qué diferencia hay entre <code>insmod</code> y <code>modprobe</code>? ¿Qué rol cumple <code>modules.dep</code>?',model:'insmod carga UN módulo por ruta del .ko y no resuelve dependencias (falla si faltan símbolos). modprobe carga por nombre desde /lib/modules y resuelve dependencias automáticamente consultando modules.dep, el mapa de dependencias que genera depmod -a.'},
+{type:'dev',topic:'Drivers',text:'V/F y justifique: «Los drivers acceden a las funcionalidades del kernel a través de system calls.»',model:'FALSO. Los drivers corren en espacio de kernel/modo privilegiado: no necesitan syscalls, invocan directamente la API interna del kernel (kmalloc, printk, register_chrdev). Las syscalls son el mecanismo del espacio de USUARIO para pedir servicios al kernel.'},
+{type:'dev',topic:'Syscalls',text:'¿Qué pasos se requieren para agregar una nueva system call al kernel de Linux?',model:'(1) Declararla en la tabla de syscalls (syscall_64.tbl / syscall_32.tbl) con un número único; (2) implementar el handler en el código del kernel; (3) recompilar el kernel e instalarlo. No alcanza con reiniciar ni puede hacerse como módulo.'},
+{type:'dev',topic:'Threads',text:'¿Qué comparten los hilos de un mismo proceso y qué tiene cada hilo como propio?',model:'Comparten: espacio de direcciones (código, datos, heap), archivos abiertos, señales, sockets, el PID y el PCB. Propio de cada hilo: stack, registros y program counter, estado de ejecución, y su TCB con TID único.'},
+{type:'dev',topic:'Virtualización',text:'¿Qué implica la técnica de binary translation? ¿El SO guest debe modificarse?',model:'El hypervisor escanea y reescribe en tiempo de ejecución las instrucciones sensibles/privilegiadas del guest, reemplazándolas por llamadas seguras al VMM. El guest NO se modifica (no sabe que está virtualizado), a diferencia de la paravirtualización. Costo mayor porque se emula todo el hardware.'},
+{type:'dev',topic:'Docker',text:'¿Qué características del kernel Linux utiliza Docker para proveer containers, y para qué se usa cada una?',model:'chroot: fija el union-FS como raíz del contenedor. Namespaces: vista aislada de recursos (PID, red, montajes, hostname, IPC, usuarios). cgroups: limitan y controlan recursos (CPU, memoria, E/S). Union filesystem: apila las capas de la imagen + capa escribible del contenedor.'},
+{type:'dev',topic:'Docker',text:'¿De qué manera puede lograrse que los datos sean persistentes en Docker? Nombre las dos formas y sus diferencias.',model:'Guardándolos en el host. Volumes: gestionados por Docker en /var/lib/docker/volumes; recomendados, más portables, desacoplados del host. Bind mounts: mapean cualquier ruta del host elegida por el usuario; atados a esa ruta y modificables por procesos ajenos a Docker.'},
+{type:'dev',topic:'Filesystems',text:'En el contexto de los filesystems, defina brevemente inodo, bloque y extent.',model:'Inodo: estructura con los metadatos del archivo (permisos, dueño, tamaño, fechas, punteros a bloques, contador de links); el nombre NO está ahí, vive en el directorio. Bloque: unidad mínima de almacenamiento del FS (definida al crearlo). Extent: rango de bloques contiguos descripto como inicio + longitud; menos metadatos, mejor para archivos grandes.'},
+{type:'dev',topic:'Deadlocks',text:'En un grafo de asignación de recursos: ¿qué significa un ciclo con una sola instancia por recurso? ¿Y con múltiples instancias?',model:'Con una instancia por recurso, el ciclo es condición necesaria Y suficiente: hay deadlock seguro. Con múltiples instancias es solo condición necesaria: indica posibilidad de deadlock (otro proceso puede terminar y romper la espera).'}
+]},
+{id:'bx',title:'Bonus — alta probabilidad',desc:'20 preguntas extra de Moodle y trampas típicas',questions:[
+{type:'dev',topic:'Compilación',text:'Ordene los 7 pasos de la compilación del kernel.',model:'1. Obtener el código fuente · 2. Preparar el árbol de archivos · 3. Configurar (.config) · 4. Construir el kernel e instalar los módulos · 5. Reubicar el kernel y crear el initrd · 6. Configurar el gestor de arranque · 7. Reiniciar y probar.'},
+{type:'dev',topic:'Drivers',text:'¿Qué es el major number y qué es el minor number?',model:'Major: identifica el DRIVER asociado a un tipo de dispositivo (le dice al kernel a qué driver derivar la operación). Minor: identifica la instancia/dispositivo concreto dentro de ese driver (sda1 y sda2 comparten major, difieren en minor).'},
+{type:'mc',topic:'Syscalls',text:'¿Cuáles son los 3 file descriptors que todo proceso tiene abiertos al iniciarse?',options:['1 stdin, 2 stdout, 3 stderr','1 stdin, 2 stdout, 0 stderr','0 stdin, 1 stdout, 2 stderr','0 stdin, 2 stdout, 1 stderr'],answer:2,expl:'0 = stdin, 1 = stdout, 2 = stderr. Por eso un printf termina en write(1, ...).'},
+{type:'vf',topic:'Permisos',text:'«Mediante la variable UMASK es posible indicar los permisos por defecto en la creación de un archivo o directorio.»',answer:true,expl:'Funciona por resta sobre los permisos base: 666 (archivos) y 777 (directorios). Ej.: umask 022 → archivo 644, directorio 755.'},
+{type:'vf',topic:'Permisos',text:'«El sticky bit en un directorio indica que los archivos dentro solo pueden ser renombrados o eliminados por el propietario del archivo (o del directorio, o root).»',answer:true,expl:'Aunque otros tengan permiso de escritura en el directorio. Ejemplo clásico: /tmp.'},
+{type:'vf',topic:'Permisos',text:'«setuid hace que el ejecutable corra con los privilegios del usuario que lo lanza.»',answer:false,expl:'Corre con los privilegios del DUEÑO del archivo (ej.: passwd corre como root). Es el cambio de dominio dinámico en UNIX.'},
+{type:'dev',topic:'Seguridad',text:'¿Dónde se almacenan las contraseñas de los usuarios en Linux?',model:'En /etc/shadow (hasheadas), legible/modificable solo por root. /etc/passwd es legible por todos y NO contiene contraseñas (solo login, UID, GID, home, shell).'},
+{type:'vf',topic:'Filesystems',text:'«El journaling es un log que almacena todas las operaciones que se realizan sobre un archivo.»',answer:false,expl:'Registra operaciones/transacciones ANTES de aplicarlas al FS para recuperar un estado consistente tras una caída; no es un historial completo por archivo.'},
+{type:'dev',topic:'Filesystems',text:'Describa cómo BTRFS usa Copy-on-Write.',model:'Al modificar un dato no sobrescribe el bloque original: escribe en un bloque nuevo y actualiza los punteros/árbol. Da consistencia ante cortes (nunca queda a medias) y snapshots baratos (comparten bloques; solo se copia lo que cambia).'},
+{type:'dev',topic:'LVM',text:'¿Qué opciones son correctas sobre snapshots LVM? (CoW, qué se copia al crearse, cómo crece el espacio)',model:'Usan Copy-on-Write; al crearse NO se copian datos ni metadatos; el espacio ocupado crece a medida que se modifica el LV original (solo bloques que cambian); no se eliminan solos.'},
+{type:'mc',topic:'LVM',text:'Si se desea achicar el tamaño de un LV (Logical Volume), se debe:',options:['Achicar primero el filesystem y luego el LV.','Achicar primero el LV y luego el filesystem.','Realizar las dos operaciones en forma simultánea.','No importa el orden.'],answer:0,expl:'Para achicar: primero el contenido (FS), después el contenedor (LV). Para extender es al revés: primero LV, después FS.'},
+{type:'mc',topic:'RAID',text:'Se tienen 3 discos de 1, 2 y 3 GB en RAID 5. ¿Tamaño máximo para datos de usuario (sin paridad)?',options:['2 GB','3 GB','4 GB','6 GB'],answer:0,expl:'El RAID se limita al disco más chico: 3 × 1 GB efectivos, menos 1 GB de paridad → 2 GB útiles.'},
+{type:'mc',topic:'RAID',text:'¿En cuál de los siguientes niveles de RAID no existe striping de datos?',options:['RAID 0','RAID 1','RAID 4','RAID 5'],answer:1,expl:'RAID 1 es mirroring puro: copia espejo, sin striping ni paridad.'},
+{type:'dev',topic:'RAID',text:'¿Cuántos discos pueden fallar en RAID 5 sin pérdida de datos? ¿Y en RAID 6?',model:'RAID 5 (paridad simple distribuida): tolera 1 disco caído. RAID 6 (doble paridad distribuida): tolera 2. Capacidades útiles: N−1 y N−2 discos respectivamente.'},
+{type:'vf',topic:'Multiproc.',text:'«En un multiprocesador alcanza con deshabilitar interrupciones para proteger las estructuras del kernel.»',answer:false,expl:'Solo deshabilita las interrupciones de la CPU local; otra CPU puede acceder igual. Se necesita mutex con soporte de HW: TSL bloqueando el bus (spinlock).'},
+{type:'dev',topic:'Multiproc.',text:'¿Qué es SMP y qué ventaja tiene sobre el esquema maestro-esclavo?',model:'Una sola copia del SO que CUALQUIER CPU puede ejecutar: la syscall la atiende la CPU que la invocó. Elimina el cuello de botella del maestro; el costo es sincronizar el acceso concurrente al kernel (lock global o, mejor, locks por estructura).'},
+{type:'dev',topic:'Multiproc.',text:'¿Qué es la afinidad de CPU y por qué el planificador la respeta?',model:'Ejecutar un hilo en la CPU donde ya corrió: sus datos siguen en la cache. Migrarlo implica cache misses y tráfico de coherencia; por eso se usan colas por CPU (planificación de 2 niveles) y se reparte solo si una CPU queda ociosa.'},
+{type:'dev',topic:'Multiproc.',text:'Diferencia entre UMA y NUMA.',model:'UMA: tiempo de acceso a memoria IGUAL para todas las CPUs (típico SMP por bus; escala poco). NUMA: espacio de direcciones único pero acceso local rápido / remoto lento; escala más. Variantes NC-NUMA (sin cache) y CC-NUMA (con cache coherente, directorios).'},
+{type:'dev',topic:'Deadlocks',text:'¿Qué es un estado seguro? ¿Un estado inseguro implica deadlock?',model:'Seguro: existe una secuencia <P0..Pn> en la que todos los procesos pueden terminar con los recursos disponibles → garantiza que no hay deadlock. Inseguro: no existe tal secuencia; es solo POSIBILIDAD de deadlock. Deadlock ⇒ inseguro, pero inseguro ⇏ deadlock.'},
+{type:'dev',topic:'Deadlocks',text:'Nombre las 4 estrategias de manejo de deadlocks.',model:'Prevención (anular alguna condición de Coffman), evitación (algoritmo del Banquero: asignar solo si el estado sigue seguro), detección y recuperación (grafo wait-for + abortar/expropiar víctima), y avestruz (ignorarlo; lo que hacen UNIX/Windows en la práctica).'}
+]}
+];
+
+/* ================= STATE ================= */
+const app=document.getElementById('app');
+let deck=null,idx=0,results=[];   // results[i] = true/false
+const LS='so-quiz-best';
+function best(){try{return JSON.parse(localStorage.getItem(LS)||'{}')}catch(e){return{}}}
+function saveBest(id,score){try{const b=best();if(!(id in b)||score>b[id]){b[id]=score;localStorage.setItem(LS,JSON.stringify(b))}}catch(e){}}
+const LETTERS='abcdefgh';
+
+/* ================= VIEWS ================= */
+function home(){
+  deck=null;
+  const b=best();
+  app.innerHTML=`
+  <div class="home">
+    <div class="eyebrow">Sistemas Operativos · UNLP</div>
+    <h1>Entrenador de parcial</h1>
+    <p class="sub">Choice y V/F se corrigen solos. En las de desarrollo escribís tu respuesta (máx. 3-4 renglones en el parcial), la comparás con la respuesta modelo y te calificás con honestidad — como en el papel.</p>
+    <div class="rules">
+      <span class="pill">cada pregunta vale <b>0,50</b></span>
+      <span class="pill">≥ <b>14</b> bien · aprobado</span>
+      <span class="pill">≥ <b>16</b> bien · promoción</span>
+    </div>
+    <div class="decks">
+      ${DECKS.map((d,i)=>`
+      <button class="deck" data-i="${i}">
+        <span class="num">${d.id==='bx'?'+':'0'+(i+1)}</span>
+        <span><span class="t">${d.title}</span><br><span class="d">${d.desc}</span></span>
+        <span class="best">${d.id in b?`mejor: <span class="got">${b[d.id]}/${d.questions.length}</span>`:'sin intentos'}</span>
+      </button>`).join('')}
+    </div>
+  </div>`;
+  app.querySelectorAll('.deck').forEach(el=>el.onclick=()=>start(+el.dataset.i));
+}
+
+function start(i){deck=DECKS[i];idx=0;results=[];question();}
+
+function chrome(inner){
+  const total=deck.questions.length,ok=results.filter(r=>r===true).length,bad=results.filter(r=>r===false).length;
+  const q=deck.questions[idx];
+  const parte=deck.id==='bx'?'BONUS':(q.type==='dev'?'PARTE B · DESARROLLO':'PARTE A · CHOICE / V-F');
+  app.innerHTML=`
+  <div class="bar">
+    <button class="exit">← salir</button>
+    <span class="scorechip"><span class="g">✓ ${ok}</span> · <span class="b">✗ ${bad}</span></span>
+    <span class="count"><b>${String(idx+1).padStart(2,'0')}</b> / ${total}</span>
+  </div>
+  <div class="track"><div class="fill" style="width:${(idx/total)*100}%"></div></div>
+  <div class="qcard">
+    <div class="qhead"><span class="tag">${q.topic}</span><span class="parte">${parte}</span></div>
+    <p class="qtext">${q.text}</p>
+    ${inner}
+    <div id="fb"></div>
+    <div class="actions" id="acts"></div>
+  </div>`;
+  app.querySelector('.exit').onclick=home;
+}
+
+function question(){
+  const q=deck.questions[idx];
+  if(q.type==='vf'){
+    chrome(`<div class="vfrow">
+      <button class="opt" data-v="true">Verdadero</button>
+      <button class="opt" data-v="false">Falso</button></div>`);
+    app.querySelectorAll('.opt').forEach(el=>el.onclick=()=>{
+      const pick=el.dataset.v==='true',hit=pick===q.answer;
+      app.querySelectorAll('.opt').forEach(o=>{o.disabled=true;
+        const v=o.dataset.v==='true';
+        if(v===q.answer)o.classList.add('hit');else if(v===pick)o.classList.add('miss');});
+      feedback(hit,(q.answer?'VERDADERO':'FALSO')+'. '+q.expl);
+    });
+  }
+  else if(q.type==='mc'){
+    chrome(`<div class="opts">${q.options.map((o,i)=>`<button class="opt" data-i="${i}"><span class="key">${LETTERS[i]}.</span><span>${o}</span></button>`).join('')}</div>`);
+    app.querySelectorAll('.opt').forEach(el=>el.onclick=()=>{
+      const pick=+el.dataset.i,hit=pick===q.answer;
+      app.querySelectorAll('.opt').forEach(o=>{o.disabled=true;const i=+o.dataset.i;
+        if(i===q.answer)o.classList.add('hit');else if(i===pick)o.classList.add('miss');});
+      feedback(hit,'Correcta: '+LETTERS[q.answer]+'. '+q.expl);
+    });
+  }
+  else if(q.type==='multi'){
+    chrome(`<p class="hint">Seleccioná una o más y corregí.</p>
+      <div class="opts">${q.options.map((o,i)=>`<button class="opt" data-i="${i}"><span class="key">${LETTERS[i]}.</span><span>${o}</span></button>`).join('')}</div>`);
+    const sel=new Set();
+    app.querySelectorAll('.opt').forEach(el=>el.onclick=()=>{
+      const i=+el.dataset.i;
+      sel.has(i)?(sel.delete(i),el.classList.remove('sel')):(sel.add(i),el.classList.add('sel'));
+    });
+    const acts=app.querySelector('#acts');
+    const btn=document.createElement('button');btn.className='btn';btn.textContent='Corregir';
+    btn.onclick=()=>{
+      const ans=new Set(q.answer);
+      const hit=sel.size===ans.size&&[...sel].every(x=>ans.has(x));
+      app.querySelectorAll('.opt').forEach(o=>{o.disabled=true;const i=+o.dataset.i;
+        if(ans.has(i))o.classList.add('hit');else if(sel.has(i))o.classList.add('miss');});
+      btn.remove();
+      feedback(hit,'Correcta/s: '+q.answer.map(i=>LETTERS[i]).join(' y ')+'. '+q.expl);
+    };
+    acts.appendChild(btn);
+  }
+  else{ /* dev */
+    chrome(`<textarea id="mine" placeholder="Escribí tu respuesta (3-4 renglones)…"></textarea>`);
+    const acts=app.querySelector('#acts');
+    const btn=document.createElement('button');btn.className='btn';btn.textContent='Ver respuesta modelo';
+    btn.onclick=()=>{
+      btn.remove();
+      document.getElementById('mine').readOnly=true;
+      const fb=app.querySelector('#fb');
+      fb.innerHTML=`<div class="verdict neutral"><div class="vt">Respuesta modelo</div><p>${q.model}</p></div>`;
+      acts.innerHTML='';
+      const ok=document.createElement('button');ok.className='btn okb';ok.textContent='✓ La tuve bien';
+      const no=document.createElement('button');no.className='btn badb';no.textContent='✗ La tuve mal';
+      ok.onclick=()=>grade(true);no.onclick=()=>grade(false);
+      acts.append(ok,no);
+    };
+    acts.appendChild(btn);
+  }
+}
+
+function feedback(hit,msg){
+  results[idx]=hit;
+  app.querySelector('#fb').innerHTML=
+    `<div class="verdict ${hit?'good':'wrong'}"><div class="vt">${hit?'✓ Correcto':'✗ Incorrecto'}</div><p>${msg}</p></div>`;
+  const acts=app.querySelector('#acts');acts.innerHTML='';
+  const n=document.createElement('button');n.className='btn';
+  n.textContent=idx+1<deck.questions.length?'Siguiente →':'Ver resultado';
+  n.onclick=next;acts.appendChild(n);n.focus();
+}
+function grade(hit){
+  results[idx]=hit;
+  const acts=app.querySelector('#acts');acts.innerHTML='';
+  const n=document.createElement('button');n.className='btn';
+  n.textContent=idx+1<deck.questions.length?'Siguiente →':'Ver resultado';
+  n.onclick=next;acts.appendChild(n);n.focus();
+}
+function next(){ idx+1<deck.questions.length?(idx++,question()):finish(); }
+
+function finish(){
+  const total=deck.questions.length,ok=results.filter(Boolean).length;
+  saveBest(deck.id,ok);
+  const isSim=deck.id!=='bx';
+  const nota=(ok*0.5).toFixed(1).replace('.',',');
+  let estado='',cls='';
+  if(isSim){ if(ok>=16){estado='🎉 ¡Promoción!';cls='promo'} else if(ok>=14){estado='Aprobado';cls='aprob'} else {estado='No alcanza — a repasar';cls='insuf'} }
+  const missed=deck.questions.map((q,i)=>({q,i,r:results[i]})).filter(x=>x.r===false);
+  app.innerHTML=`
+  <div class="bar"><button class="exit">← inicio</button></div>
+  <div class="res">
+    <div class="eyebrow">${deck.title}</div>
+    <div class="big">${ok}<small> / ${total}</small></div>
+    ${isSim?`<div class="nota">nota: ${nota} pts</div><span class="estado ${cls}">${estado}</span>
+    <div class="thresh"><span>aprobado ≥ 14</span><span>promoción ≥ 16</span></div>`:''}
+    ${missed.length?`
+    <div class="misses"><h3>Para repasar (${missed.length})</h3>
+      ${missed.map(x=>`<div class="missitem">
+        <span class="mt">#${x.i+1} · ${x.q.topic}</span>
+        <p>${x.q.type==='dev'?x.q.model:(x.q.expl||'')}</p></div>`).join('')}
+    </div>`:`<p style="margin-top:20px;color:var(--ok);font-weight:650">Sin errores. Impecable.</p>`}
+    <div class="actions" style="justify-content:center;margin-top:24px">
+      <button class="btn" id="again">Repetir</button>
+      <button class="btn ghost" id="gohome">Elegir otro simulacro</button>
+    </div>
+  </div>`;
+  app.querySelector('.exit').onclick=home;
+  document.getElementById('again').onclick=()=>{idx=0;results=[];question();};
+  document.getElementById('gohome').onclick=home;
+}
+
+home();
+</script>

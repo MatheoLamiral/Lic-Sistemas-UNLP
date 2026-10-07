@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Infograma IS3 — Ayudamemoria</title>
+<style>
+  :root{
+    --proj:#3b82f6; --proj-bg:#eff6ff;
+    --cal:#10b981;  --cal-bg:#ecfdf5;
+    --aud:#f59e0b;  --aud-bg:#fffbeb;
+    --col:#8b5cf6;  --col-bg:#f5f3ff;
+    --ink:#1e293b; --muted:#64748b; --line:#cbd5e1;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:'Segoe UI',system-ui,sans-serif;background:#f1f5f9;color:var(--ink);line-height:1.45;padding:32px 16px}
+  .wrap{max-width:1100px;margin:0 auto}
+  header.top{text-align:center;margin-bottom:8px}
+  header.top h1{font-size:2rem;letter-spacing:.5px}
+  header.top p{color:var(--muted);font-size:.95rem;margin-top:4px}
+  .legend{display:flex;gap:14px;justify-content:center;flex-wrap:wrap;margin:18px 0 30px}
+  .legend span{font-size:.8rem;display:flex;align-items:center;gap:6px;color:var(--muted)}
+  .dot{width:12px;height:12px;border-radius:50%;display:inline-block}
+  .fire{color:#ef4444;font-weight:700}
+
+  /* flow station */
+  .station{position:relative;border-radius:18px;padding:22px 24px 24px;margin-bottom:0;box-shadow:0 4px 14px rgba(0,0,0,.06);border:2px solid}
+  .station h2{display:flex;align-items:center;gap:12px;font-size:1.35rem;margin-bottom:4px}
+  .station h2 .num{width:34px;height:34px;border-radius:50%;color:#fff;display:grid;place-items:center;font-size:1rem;flex:none}
+  .station .sub{color:var(--muted);font-size:.85rem;margin-bottom:16px;margin-left:46px}
+  .cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:12px}
+  .card{background:#fff;border-radius:12px;padding:12px 14px;border:1px solid #e2e8f0}
+  .card h3{font-size:.93rem;margin-bottom:5px;display:flex;align-items:center;gap:6px}
+  .card p{font-size:.8rem;color:#475569}
+  .card .tag{font-size:.68rem;font-weight:700;padding:1px 7px;border-radius:20px;color:#fff;margin-left:auto}
+  .pill{display:inline-block;background:#f1f5f9;border-radius:6px;padding:1px 6px;font-size:.72rem;font-weight:600;margin:2px 2px 0 0}
+
+  .proj{border-color:var(--proj);background:var(--proj-bg)} .proj .num{background:var(--proj)} .proj .tag{background:var(--proj)}
+  .cal{border-color:var(--cal);background:var(--cal-bg)}   .cal .num{background:var(--cal)}  .cal .tag{background:var(--cal)}
+  .aud{border-color:var(--aud);background:var(--aud-bg)}   .aud .num{background:var(--aud)}  .aud .tag{background:var(--aud)}
+  .col{border-color:var(--col);background:var(--col-bg)}   .col .num{background:var(--col)}  .col .tag{background:var(--col)}
+
+  /* connector arrow */
+  .arrow{display:flex;flex-direction:column;align-items:center;margin:0;padding:6px 0}
+  .arrow .line{width:3px;height:26px;background:var(--line)}
+  .arrow .head{width:0;height:0;border-left:9px solid transparent;border-right:9px solid transparent;border-top:12px solid var(--line);margin-top:-1px}
+  .arrow .lbl{font-size:.72rem;color:var(--muted);background:#fff;border:1px solid var(--line);border-radius:20px;padding:2px 12px;margin:4px 0}
+
+  /* transversal banner */
+  .transversal{margin-top:14px;border:2px dashed var(--col);background:var(--col-bg);border-radius:18px;padding:18px 22px}
+  .transversal h2{display:flex;align-items:center;gap:10px;font-size:1.15rem;color:#6d28d9;margin-bottom:10px}
+
+  .tip{background:#fff7ed;border-left:4px solid var(--aud);padding:4px 10px;border-radius:4px;font-size:.78rem;margin-top:8px}
+  footer{text-align:center;color:var(--muted);font-size:.78rem;margin-top:28px}
+  @media print{body{background:#fff;padding:0}.station,.transversal{box-shadow:none;break-inside:avoid}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <h1>🧭 Ingeniería de Software III — Flujo de un Proyecto</h1>
+    <p>Ayudamemoria visual · seguí el flujo de arriba hacia abajo · <span class="fire">❗</span> = muy preguntado en parciales</p>
+  </header>
+
+  <div class="legend">
+    <span><i class="dot" style="background:var(--proj)"></i>Administración de Proyectos</span>
+    <span><i class="dot" style="background:var(--cal)"></i>Calidad</span>
+    <span><i class="dot" style="background:var(--aud)"></i>Auditoría</span>
+    <span><i class="dot" style="background:var(--col)"></i>Colaboración / Interfaces</span>
+  </div>
+
+  <!-- ===== 1. ADMINISTRACIÓN DE PROYECTOS ===== -->
+  <section class="station proj">
+    <h2><span class="num">1</span>📋 Administración de Proyectos <span class="fire">❗❗</span></h2>
+    <div class="sub">«Planificar y dirigir»: definir el qué, quién y cuánto antes de construir.</div>
+    <div class="cards">
+      <div class="card">
+        <h3>🔺 Triángulo de Alcance <span class="tag">❗</span></h3>
+        <p><b>Centro:</b> Alcance + Calidad. <b>Lados:</b> Tiempo, Costo, Recursos. Mover un vértice deforma el centro → hay que rebalancear (equilibrio).</p>
+      </div>
+      <div class="card">
+        <h3>📦 Proyecto vs Programa <span class="tag">❗</span></h3>
+        <p><b>Proyecto:</b> único, plazo/presupuesto acotado, éxito = cumplir specs. <b>Programa:</b> conjunto de proyectos, éxito = ROI. El proyecto forma parte del programa.</p>
+      </div>
+      <div class="card">
+        <h3>👥 Stakeholders <span class="tag">❗❗</span></h3>
+        <p>Identificar (Mapa) → Analizar (Matriz de impacto) → Comunicar (Plan: <b>QUÉ/QUIÉN/CUÁNDO/CÓMO</b>).</p>
+      </div>
+      <div class="card">
+        <h3>🗂️ WBS</h3>
+        <p>Descompone el trabajo (Top-Down / Bottom-Up). Tarea sana: acotada, medible, independiente, con entregable. Sin la duración en el nombre.</p>
+      </div>
+      <div class="card">
+        <h3>🏷️ Clasificar proyecto <span class="tag">❗</span></h3>
+        <p>Por <b>Duración · Riesgo · Complejidad · Tecnología</b> (tipos A→D). Siempre justificar. <span class="pill">ítem práctico</span></p>
+      </div>
+      <div class="card">
+        <h3>📐 Estimación</h3>
+        <p><b>COCOMO:</b> original (básico/intermedio/avanzado) vs 2.0 (Puntos Objeto, KLOC, P. Función). <b>Esfuerzo:</b> Delphi · 3 puntos (O+4M+P)/6. Duración ≠ Esfuerzo.</p>
+      </div>
+    </div>
+  </section>
+
+  <div class="arrow"><div class="line"></div><div class="lbl">…ya planificado, hay que asegurar que salga bien →</div><div class="head"></div></div>
+
+  <!-- ===== 2. CALIDAD ===== -->
+  <section class="station cal">
+    <h2><span class="num">2</span>✅ Calidad de Software <span class="fire">❗</span></h2>
+    <div class="sub">«Que esté bien hecho»: el producto y el proceso cumplen lo esperado.</div>
+    <div class="cards">
+      <div class="card">
+        <h3>🎯 Producto vs Proceso <span class="tag">❗</span></h3>
+        <p><b>Producto</b> (ISO 9126-1 / 25010) · eval. 14598/25040. <b>Proceso</b> (ISO 12207) · eval. 15504/33000.</p>
+      </div>
+      <div class="card">
+        <h3>🧩 Modelo de producto</h3>
+        <p><b>9126-1 → 6</b> (Func, Confiab, Usab, Efic, Manten, Portab). <b>25010 → 8</b> (+ Seguridad + Compatibilidad).</p>
+      </div>
+      <div class="card">
+        <h3>🗃️ Calidad de Datos 25012 <span class="tag">❗</span></h3>
+        <p><b>Inherentes:</b> Exactitud, Completitud, Consistencia, Credibilidad, Actualidad. <b>Dependientes del sistema:</b> Disponibilidad, Portabilidad, Recuperabilidad.</p>
+      </div>
+      <div class="card">
+        <h3>📜 ISO 9001 → software <span class="tag">❗❗</span></h3>
+        <p>Se aplica usando <b>ISO/IEC 90003:2018</b> como directriz. <span class="pill">respuesta fija</span></p>
+      </div>
+      <div class="card">
+        <h3>🏛️ SGC</h3>
+        <p>Base ISO 9001:2015. <b>Alcance</b> documentado/conciso + <b>Objetivos SMART</b> (Específico, Medible, Alcanzable, Relevante, Temporal).</p>
+      </div>
+      <div class="card">
+        <h3>📊 Métricas en 4 niveles <span class="tag">❗</span></h3>
+        <p>Combinar varias → <b>predomina el peor nivel</b>. Crear nueva → relevante, fiable, válida, objetiva, comprensible.</p>
+      </div>
+    </div>
+  </section>
+
+  <div class="arrow"><div class="line"></div><div class="lbl">…¿y quién controla que todo esto se cumpla? →</div><div class="head"></div></div>
+
+  <!-- ===== 3. AUDITORÍA ===== -->
+  <section class="station aud">
+    <h2><span class="num">3</span>🔍 Auditoría de Sistemas <span class="fire">❗</span></h2>
+    <div class="sub">«Verificar y controlar»: evidencia para confiar en el sistema y sus datos.</div>
+    <div class="cards">
+      <div class="card">
+        <h3>📖 Definición + 4 objetivos <span class="tag">❗</span></h3>
+        <p>Recolectar/evaluar evidencia para: preservar <b>activos</b>, integridad de <b>datos</b>, <b>eficiencia</b> de recursos, <b>eficacia</b> de objetivos.</p>
+      </div>
+      <div class="card">
+        <h3>⚖️ Opinión del auditor <span class="tag">❗❗</span></h3>
+        <p><b>Sin calif.</b> (todo ok) · <b>Con calif.</b> (pérdidas no graves) · <b>Adversa</b> (pérdidas graves) · <b>Excusada</b> (no puede opinar).</p>
+      </div>
+      <div class="card">
+        <h3>🎲 Riesgos de auditoría</h3>
+        <p><b>Inherente</b> (propio) · <b>De control</b> (falla el control) · <b>De detección</b> (el auditor no lo ve).</p>
+      </div>
+      <div class="card">
+        <h3>🛡️ Controles <span class="tag">❗</span></h3>
+        <p><b>Preventivo</b> (antes, ej. validar campo) · <b>Detectivo</b> (después, ej. log) · <b>Correctivo</b> (corrige, ej. reset). «Un control es un sistema».</p>
+      </div>
+      <div class="card">
+        <h3>🏢 Gobernanza vs Adm. de TI <span class="tag">❗</span></h3>
+        <p><b>Gobernanza:</b> QUIÉN decide (Evaluar/Dirigir/Monitorear). <b>Administración:</b> ejecuta (Planificar/Construir/Ejecutar/Monitorear).</p>
+      </div>
+      <div class="card">
+        <h3>📐 COBIT</h3>
+        <p>Marco de ISACA. Separa gobernanza de administración. 5 principios · 37 procesos (dominios: APO/BAI/DSS/MEA).</p>
+      </div>
+      <div class="card">
+        <h3>💻 Abuso informático</h3>
+        <p>vs fraude comercial: se diferencia por <b>Escalabilidad</b> (masivo) y <b>Trazabilidad</b> (deja logs).</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== 4. TRANSVERSAL ===== -->
+  <div class="arrow"><div class="line"></div><div class="lbl">… atravesando todo el proyecto ↓</div><div class="head"></div></div>
+
+  <section class="transversal">
+    <h2>🤝 4 · Capa transversal: Colaboración &amp; Interfaces <span style="font-size:.7rem;color:var(--muted);font-weight:400">(cae poco — definición + ejemplos)</span></h2>
+    <div class="cards">
+      <div class="card col" style="background:#fff">
+        <h3>🌐 Sistemas Colaborativos</h3>
+        <p>Permiten trabajar en conjunto. Interacción <b>sincrónica/asincrónica</b> y <b>mismo lugar/distribuido</b>. Tipos: Wikis, Foros, Repositorios, Mail.</p>
+      </div>
+      <div class="card col" style="background:#fff">
+        <h3>✋ Interfaces no convencionales</h3>
+        <p><b>Hápticas</b> (tacto/fuerza): guante VR, volante con force-feedback, cinturón con vibración. También voz, gestos, RA/RV.</p>
+      </div>
+    </div>
+    <div class="tip">🧠 <b>Truco mnemotécnico del flujo:</b> <b>P</b>lanifico (Proyectos) → <b>C</b>onstruyo con <b>C</b>alidad → <b>A</b>udito → todo sobre una base de <b>C</b>olaboración. → «<b>P-C-A-C</b>».</div>
+  </section>
+
+  <footer>Generado a partir de las notas de <code>Ayudamemoria/</code> · IS3 UNLP · repasá los detalles finos contra las teorías 5–10</footer>
+</div>
+</body>
+</html>

@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="es"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Deadlocks (Interbloqueos)</title>
+<style>
+:root { --accent:#ea580c; --accent2:#fb923c; }
+* { box-sizing:border-box; }
+body {
+  font-family:'Segoe UI',system-ui,-apple-system,sans-serif;
+  margin:0; background:#0f172a; color:#1e293b; line-height:1.55;
+}
+.wrap { max-width:1100px; margin:0 auto; padding:0 16px 60px; }
+header.hero {
+  background:linear-gradient(135deg,var(--accent),var(--accent2));
+  color:#fff; padding:38px 28px; border-radius:0 0 24px 24px;
+  box-shadow:0 8px 30px rgba(0,0,0,.35); margin-bottom:26px;
+}
+header.hero h1 { margin:0; font-size:2.0rem; display:flex; align-items:center; gap:14px; }
+header.hero .sub { opacity:.92; margin-top:8px; font-size:.95rem; }
+.topbar { background:#0f172a; padding:10px 16px; }
+.topbar a { color:#cbd5e1; text-decoration:none; font-size:.88rem; font-weight:600; }
+.topbar a:hover { color:#fff; }
+section.card {
+  background:#fff; border-radius:16px; padding:18px 22px; margin:18px 0;
+  box-shadow:0 4px 18px rgba(0,0,0,.18); border-left:6px solid var(--accent);
+}
+section.card h2 {
+  margin:0 0 12px; font-size:1.28rem; color:var(--accent);
+  display:flex; align-items:center; gap:10px;
+}
+section.card h3 { font-size:1.05rem; color:#334155; margin:16px 0 6px; }
+section.trampas {
+  border-left:6px solid #f59e0b; background:#fffbeb;
+}
+section.trampas h2 { color:#b45309; }
+ul, ol { margin:8px 0 8px; padding-left:24px; }
+li { margin:4px 0; }
+table {
+  border-collapse:collapse; width:100%; margin:14px 0; font-size:.92rem;
+  border-radius:10px; overflow:hidden; box-shadow:0 2px 8px rgba(0,0,0,.10);
+}
+th { background:var(--accent); color:#fff; text-align:left; padding:9px 12px; }
+td { padding:8px 12px; border-top:1px solid #e2e8f0; vertical-align:top; }
+tr:nth-child(even) td { background:#f8fafc; }
+code { background:#eef2ff; color:#3730a3; padding:1px 6px; border-radius:5px;
+  font-family:'Fira Code',Consolas,monospace; font-size:.88em; }
+pre { background:#1e293b; color:#e2e8f0; padding:14px; border-radius:10px; overflow:auto; }
+pre code { background:none; color:inherit; padding:0; }
+strong { color:#0f172a; }
+blockquote { border-left:4px solid var(--accent2); margin:10px 0; padding:6px 16px;
+  background:#f1f5f9; border-radius:0 8px 8px 0; color:#475569; }
+.vf-true { background:#16a34a; color:#fff; padding:1px 8px; border-radius:20px;
+  font-weight:700; font-size:.8rem; letter-spacing:.3px; }
+.vf-false { background:#dc2626; color:#fff; padding:1px 8px; border-radius:20px;
+  font-weight:700; font-size:.8rem; letter-spacing:.3px; }
+a { color:var(--accent); }
+hr { border:none; border-top:1px dashed #cbd5e1; margin:22px 0; }
+.home-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(230px,1fr));
+  gap:16px; margin-top:10px; }
+.home-grid a { text-decoration:none; }
+.tile { background:#fff; border-radius:16px; padding:20px; box-shadow:0 4px 16px rgba(0,0,0,.18);
+  border-top:5px solid var(--accent); transition:transform .12s,box-shadow .12s; height:100%; }
+.tile:hover { transform:translateY(-4px); box-shadow:0 10px 28px rgba(0,0,0,.30); }
+.tile .ico { font-size:2rem; }
+.tile .t { font-weight:700; color:#1e293b; margin:8px 0 4px; font-size:1.05rem; }
+.tile .d { color:#64748b; font-size:.85rem; }
+.badge { display:inline-block; background:#fef3c7; color:#b45309; font-size:.72rem;
+  font-weight:700; padding:2px 8px; border-radius:20px; margin-top:8px; }
+@media print { body{background:#fff;} section.card{box-shadow:none;border:1px solid #e2e8f0;}
+  header.hero{box-shadow:none;} .topbar{display:none;} }
+</style></head>
+<body><div class="topbar"><a href="index.html">⟵ Índice de infogramas</a></div>
+<header class="hero"><h1><span>⛓️</span>Deadlocks (Interbloqueos)</h1>
+<div class="sub">Repaso parcial · Sistemas Operativos UNLP</div></header>
+<div class="wrap"><section class="card intro"><blockquote>
+<p>Infograma de repaso - Sistemas Operativos (UNLP)</p>
+</blockquote></section>
+<section class="card"><h2><span>⛓️</span> Definicion</h2>
+<p>Un conjunto de procesos esta en <strong>deadlock</strong> cuando cada proceso del conjunto esta <strong>bloqueado</strong>, reteniendo recursos y <strong>esperando</strong> un recurso que esta retenido por otro proceso del mismo conjunto. Ninguno avanza ni libera lo suyo (<em>abrazo mortal</em>: A tiene lo que B pide y B tiene lo que A pide).</p>
+</section>
+<section class="card"><h2><span>⛓️</span> Recursos</h2>
+<ul>
+<li><strong>Fisicos</strong> (CPU, memoria, dispositivos) / <strong>Logicos</strong> (archivos, registros, semaforos).</li>
+<li><strong>Apropiables / preemptibles</strong>: se pueden quitar sin dano (memoria, CPU).</li>
+<li><strong>No apropiables</strong>: si se quitan, el proceso falla (escritura a CD/impresora a medias).</li>
+<li>Un recurso <code>Rj</code> puede tener varias <strong>instancias</strong> identicas (clase de recurso).</li>
+</ul>
+<p><strong>Secuencia de uso</strong>: 1) <strong>Solicitar</strong> (si no se concede, esperar) → 2) <strong>Usar</strong> → 3) <strong>Liberar</strong>.</p>
+</section>
+<section class="card"><h2><span>⛓️</span> ⭐ Las 4 condiciones de Coffman (1971)</h2>
+<blockquote>
+<p><strong>Deben darse las CUATRO simultaneamente.</strong> Si falta una sola, NO hay deadlock (base de la prevencion).</p>
+</blockquote>
+<ol>
+<li><strong>Exclusion mutua</strong>: el recurso no es compartible; solo un proceso lo usa a la vez.</li>
+<li><strong>Retencion y espera</strong> (<em>hold and wait</em>): el proceso mantiene recursos asignados mientras espera otros.</li>
+<li><strong>No apropiacion</strong> (<em>no preemption</em>): no se pueden quitar los recursos a quien los posee.</li>
+<li><strong>Espera circular</strong> (<em>circular wait</em>): lista circular de procesos donde cada uno espera un recurso del siguiente.</li>
+</ol>
+</section>
+<section class="card"><h2><span>⛓️</span> ⭐ Grafo de asignacion de recursos</h2>
+<ul>
+<li><strong>Nodos</strong>: procesos <code>Pi</code> y recursos <code>Rj</code> (un recurso con varias instancias = varios "puntos" dentro del nodo).</li>
+<li><strong>Aristas dirigidas</strong>:</li>
+<li><code>Pi → Rj</code>: el proceso <strong>solicita</strong> una instancia.</li>
+<li><code>Rj → Pi</code>: el recurso esta <strong>asignado</strong> al proceso.</li>
+</ul>
+<table>
+<thead>
+<tr>
+<th>Estado del grafo</th>
+<th>Resultado</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Sin ciclos</strong></td>
+<td>NO hay deadlock (seguro)</td>
+</tr>
+<tr>
+<td><strong>Con ciclo + 1 instancia/recurso</strong></td>
+<td>SI hay deadlock (ciclo = necesario y <strong>suficiente</strong>)</td>
+</tr>
+<tr>
+<td><strong>Con ciclo + varias instancias</strong></td>
+<td><strong>Posibilidad</strong> de deadlock (necesario, NO suficiente)</td>
+</tr>
+</tbody>
+</table>
+</section>
+<section class="card"><h2><span>⛓️</span> Estrategias de manejo</h2>
+<table>
+<thead>
+<tr>
+<th>Estrategia</th>
+<th>Idea</th>
+<th>Como</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Prevencion</strong> (prevention)</td>
+<td>Que <strong>nunca</strong> se cumpla una de las 4 condiciones</td>
+<td>Restringe la forma de solicitar recursos (orden de recursos, reservar todo al inicio, spooling/virtualizar)</td>
+</tr>
+<tr>
+<td><strong>Evitacion</strong> (avoidance)</td>
+<td>Asignar con cuidado segun el estado</td>
+<td><strong>Algoritmo del Banquero</strong>; conoce la demanda maxima por adelantado; nunca entra a estado inseguro</td>
+</tr>
+<tr>
+<td><strong>Deteccion y recuperacion</strong></td>
+<td>Permitir el deadlock y luego romperlo</td>
+<td>Grafo <em>wait-for</em> (1 inst.) o banquero (varias); abortar procesos / expropiar (seleccion de victima)</td>
+</tr>
+<tr>
+<td><strong>Avestruz</strong> (ostrich)</td>
+<td><strong>Ignorar</strong> el problema</td>
+<td>Asumir que casi nunca ocurre (lo usa UNIX/Windows)</td>
+</tr>
+</tbody>
+</table>
+<h3>Prevencion: como atacar cada condicion</h3>
+<ul>
+<li><strong>Exclusion mutua</strong> → recursos compartibles / spooling (no siempre posible).</li>
+<li><strong>Retencion y espera</strong> → reservar TODO al inicio, o pedir solo si no tiene nada (riesgo: starvation, baja utilizacion).</li>
+<li><strong>No apropiacion</strong> → virtualizar el recurso via un demonio que encola (spooler).</li>
+<li><strong>Espera circular</strong> → ordenar recursos con <code>F: R→N</code>; solo pedir <code>Rj</code> si <code>F(Ri) &lt; F(Rj)</code>.</li>
+</ul>
+<h3>⭐ Avoidance: estado seguro vs inseguro</h3>
+<ul>
+<li><strong>Estado seguro</strong>: existe una <strong>cadena segura</strong> <code>&lt;P0,...,Pn&gt;</code> con TODOS los procesos que pueden terminar con los recursos disponibles → <strong>garantiza que NO hay deadlock</strong>.</li>
+<li><strong>Estado inseguro</strong>: no se puede construir esa cadena → <strong>posibilidad</strong> de deadlock (no implica deadlock seguro).</li>
+<li>Si hay deadlock ⇒ estoy en estado inseguro. (La reciproca NO vale.)</li>
+</ul>
+<h3>⭐ Algoritmo del Banquero (multiples instancias)</h3>
+<p>Cada proceso declara su <strong>maximo</strong>. El SO solo asigna si el estado resultante sigue siendo <strong>seguro</strong>.
+- <code>disponible</code> (vector <code>m</code>): instancias libres por recurso.
+- <code>asignacion</code> (matriz <code>n×m</code>): lo que cada <code>Pi</code> ya tiene.
+- <code>max</code> (matriz <code>n×m</code>): maximo que <code>Pi</code> necesitara.
+- <code>need = max − asignacion</code>: lo que le falta.</p>
+<p>Busca una <strong>secuencia segura</strong>; si existe, el estado es seguro. Para <strong>1 instancia</strong> no hace falta: basta el grafo (buscar que no haya ciclos).</p>
+</section>
+<section class="card"><h2><span>⛓️</span> Deadlock vs Starvation (inanicion)</h2>
+<table>
+<thead>
+<tr>
+<th>Deadlock</th>
+<th>Starvation</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Conjunto de procesos <strong>bloqueados mutuamente</strong>, ninguno progresa</td>
+<td>Un proceso <strong>nunca obtiene</strong> el recurso (siempre posterga)</td>
+</tr>
+<tr>
+<td>Espera <strong>circular</strong> entre ellos</td>
+<td>NO requiere ciclo; suele ser por planificacion/prioridades</td>
+</tr>
+<tr>
+<td>Se rompe matando/expropiando</td>
+<td>Se evita con politicas justas (aging, FIFO)</td>
+</tr>
+</tbody>
+</table>
+<hr />
+</section>
+<section class="card trampas"><h2><span>⛓️</span> ⚠️ Conceptos clave / posibles preguntas</h2>
+<ul>
+<li><strong>Las 4 condiciones de Coffman</strong> (nombrarlas y saber que las 4 deben darse a la vez). MUY preguntado.</li>
+<li><strong>Grafo de asignacion</strong>: interpretar aristas y la regla ciclo ⇒ deadlock SOLO con 1 instancia; con varias es condicion necesaria pero NO suficiente.</li>
+<li><strong>Algoritmo del Banquero</strong>: estructuras (<code>disponible</code>, <code>asignacion</code>, <code>max</code>, <code>need</code>), encontrar/justificar una <strong>secuencia segura</strong>.</li>
+<li>Diferencia <strong>estado seguro vs inseguro</strong> (inseguro ≠ deadlock; deadlock ⇒ inseguro).</li>
+<li>Diferencia entre las 4 <strong>estrategias</strong>, y como prevencion ataca cada condicion.</li>
+<li><strong>Deadlock ≠ Starvation</strong>: deadlock = bloqueo circular mutuo; starvation = postergacion infinita sin ciclo.</li>
+<li>Seleccion de <strong>victima</strong> en recuperacion (evitar elegir siempre al mismo → starvation).</li>
+</ul></section></div>
+</body></html>

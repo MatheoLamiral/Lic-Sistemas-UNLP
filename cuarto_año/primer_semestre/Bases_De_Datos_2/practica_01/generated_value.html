@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>@GeneratedValue — estrategias de generación de ID</title>
+<style>
+  :root{
+    --bg:#0d1117; --card:#161b26; --card2:#1c2230;
+    --auto:#a78bfa; --identity:#f59e0b; --sequence:#34d399; --table:#38bdf8;
+    --obj:#f59e0b; --db:#38bdf8; --before:#34d399; --after:#f59e0b;
+    --text:#e6edf3; --muted:#8b949e; --line:#30363d;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{
+    font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+    background:radial-gradient(1200px 600px at 50% -10%,#1c2230 0%,var(--bg) 60%);
+    color:var(--text);line-height:1.55;padding:36px 18px 60px;
+  }
+  .wrap{max-width:1080px;margin:0 auto;}
+  header{text-align:center;margin-bottom:22px;}
+  header h1{font-size:1.85rem;font-weight:800;letter-spacing:-.5px;}
+  .grad{background:linear-gradient(90deg,var(--sequence),var(--identity));-webkit-background-clip:text;background-clip:text;color:transparent;}
+  header p{color:var(--muted);margin-top:6px;font-size:.95rem;}
+  h2.sec{font-size:1.05rem;margin:34px 0 16px;color:var(--text);border-left:3px solid var(--sequence);padding-left:10px;}
+  code,pre{font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace;}
+  pre{font-size:.76rem;white-space:pre;overflow-x:auto;}
+  .k{color:#a78bfa;} .a{color:var(--identity);} .s{color:var(--sequence);} .c{color:var(--muted);} .t{color:var(--db);}
+
+  /* strategy cards */
+  .strats{display:grid;grid-template-columns:repeat(2,1fr);gap:14px;}
+  .scard{background:linear-gradient(160deg,var(--card2),var(--card));border:1px solid var(--line);border-top-width:3px;border-radius:14px;padding:15px 17px;box-shadow:0 10px 26px rgba(0,0,0,.3);}
+  .scard h3{font-size:1rem;display:flex;align-items:center;gap:8px;}
+  .scard h3 .b{width:12px;height:12px;border-radius:50%;}
+  .scard .when{margin-left:auto;font-size:.62rem;font-weight:800;text-transform:uppercase;letter-spacing:.5px;border-radius:6px;padding:3px 8px;color:var(--bg);}
+  .scard p{font-size:.78rem;color:var(--muted);margin-top:8px;}
+  .scard pre{margin-top:10px;background:rgba(0,0,0,.28);border-radius:8px;padding:9px 11px;}
+  .c-auto{border-top-color:var(--auto);}      .c-auto h3 .b{background:var(--auto);}
+  .c-identity{border-top-color:var(--identity);} .c-identity h3 .b{background:var(--identity);}
+  .c-sequence{border-top-color:var(--sequence);} .c-sequence h3 .b{background:var(--sequence);}
+  .c-table{border-top-color:var(--table);}    .c-table h3 .b{background:var(--table);}
+  .w-before{background:var(--before);} .w-after{background:var(--after);} .w-na{background:var(--muted);}
+
+  /* timelines */
+  .tl-wrap{display:grid;grid-template-columns:1fr 1fr;gap:18px;}
+  .tl{border:1px solid var(--line);border-radius:14px;padding:16px;background:var(--card);}
+  .tl.identity{border-top:3px solid var(--identity);} .tl.sequence{border-top:3px solid var(--sequence);}
+  .tl .th{font-size:.95rem;font-weight:800;display:flex;align-items:center;gap:8px;}
+  .tl .badge{font-size:.6rem;font-weight:800;text-transform:uppercase;letter-spacing:.5px;border-radius:6px;padding:3px 8px;color:var(--bg);margin-left:auto;}
+  .tl.identity .badge{background:var(--after);} .tl.sequence .badge{background:var(--before);}
+  .ts{position:relative;padding-left:26px;padding-bottom:14px;border-left:2px solid var(--line);margin-left:8px;margin-top:12px;}
+  .ts:last-child{border-left-color:transparent;padding-bottom:0;}
+  .ts .dot{position:absolute;left:-7px;top:2px;width:12px;height:12px;border-radius:50%;border:2px solid var(--bg);}
+  .ts h4{font-size:.8rem;}
+  .ts p{font-size:.72rem;color:var(--muted);margin-top:2px;}
+  .ts code{font-size:.72rem;}
+  .dot-obj{background:var(--obj);} .dot-db{background:var(--db);} .dot-id{background:var(--sequence);}
+  .idchip{display:inline-block;font-family:ui-monospace,monospace;font-size:.7rem;background:rgba(52,211,153,.14);color:var(--sequence);border:1px solid rgba(52,211,153,.35);border-radius:5px;padding:1px 6px;}
+  .idchip.null{background:rgba(148,163,184,.14);color:var(--muted);border-color:rgba(148,163,184,.3);}
+
+  /* comparison */
+  table.cmp{width:100%;border-collapse:collapse;font-size:.78rem;margin-top:4px;}
+  table.cmp th{background:rgba(56,189,248,.1);color:var(--db);padding:8px;border:1px solid var(--line);text-align:left;}
+  table.cmp td{padding:8px;border:1px solid var(--line);}
+  table.cmp td b{color:var(--text);}
+  .yes{color:var(--sequence);font-weight:700;} .no{color:var(--identity);font-weight:700;}
+
+  .note{max-width:800px;margin:26px auto 0;font-size:.84rem;color:var(--text);background:rgba(245,158,11,.07);border:1px dashed rgba(245,158,11,.45);border-radius:12px;padding:14px 18px;}
+  .note b{color:var(--identity);}
+  @media(max-width:720px){.strats,.tl-wrap{grid-template-columns:1fr;}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1><span class="grad">@GeneratedValue</span> — generación de la clave primaria</h1>
+    <p>Las cuatro estrategias y, sobre todo, <b>cuándo</b> se obtiene el ID: antes o después del INSERT</p>
+  </header>
+
+  <!-- 1: QUÉ ES -->
+  <h2 class="sec">1 · Qué hace y dónde se declara</h2>
+  <div style="max-width:760px;margin:0 auto;">
+    <pre style="background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px 16px;"><span class="a">@Id</span>
+<span class="a">@GeneratedValue</span>(strategy = GenerationType.<span class="s">SEQUENCE</span>)   <span class="c">// ← la estrategia</span>
+<span class="k">private</span> Long id;</pre>
+    <p style="color:var(--muted);font-size:.82rem;margin-top:10px;text-align:center;">
+      <code style="color:var(--identity)">@GeneratedValue</code> le dice a JPA que <b>no asignás el id a mano</b>: lo genera automáticamente. La <b>estrategia</b> define <i>quién</i> lo genera y <i>cuándo</i>.
+    </p>
+  </div>
+
+  <!-- 2: ESTRATEGIAS -->
+  <h2 class="sec">2 · Las cuatro estrategias</h2>
+  <div class="strats">
+
+    <div class="scard c-identity">
+      <h3><span class="b"></span> IDENTITY <span class="when w-after">id: después</span></h3>
+      <p>Usa una <b>columna autoincremental</b> de la base (<code>AUTO_INCREMENT</code> / <code>SERIAL</code>). La base asigna el id <b>al insertar</b>.</p>
+      <pre><span class="a">@GeneratedValue</span>(strategy =
+   GenerationType.<span class="a">IDENTITY</span>)</pre>
+    </div>
+
+    <div class="scard c-sequence">
+      <h3><span class="b"></span> SEQUENCE <span class="when w-before">id: antes</span></h3>
+      <p>Usa un objeto <b>secuencia</b> de la base. Hibernate le pide el próximo número <b>antes</b> de insertar. Ideal en PostgreSQL/Oracle; permite <b>batch</b>.</p>
+      <pre><span class="a">@GeneratedValue</span>(strategy =
+   GenerationType.<span class="s">SEQUENCE</span>)</pre>
+    </div>
+
+    <div class="scard c-table">
+      <h3><span class="b"></span> TABLE <span class="when w-before">id: antes</span></h3>
+      <p>Emula una secuencia con una <b>tabla auxiliar</b> (<code>hibernate_sequences</code>). 100% <b>portable</b>, pero la más <b>lenta</b> (requiere bloqueo de fila).</p>
+      <pre><span class="a">@GeneratedValue</span>(strategy =
+   GenerationType.<span class="t">TABLE</span>)</pre>
+    </div>
+
+    <div class="scard c-auto">
+      <h3><span class="b"></span> AUTO <span class="when w-na">depende</span></h3>
+      <p>El <b>proveedor elige</b> la estrategia según el dialecto de la base (suele resolver a SEQUENCE o a una tabla). Es el valor <b>por defecto</b>.</p>
+      <pre><span class="a">@GeneratedValue</span>   <span class="c">// = AUTO</span></pre>
+    </div>
+
+  </div>
+
+  <!-- 3: ANTES vs DESPUÉS -->
+  <h2 class="sec">3 · El punto clave: ¿el id viaja antes o después del INSERT?</h2>
+  <div class="tl-wrap">
+
+    <!-- IDENTITY -->
+    <div class="tl identity">
+      <div class="th"><span style="color:var(--identity)">IDENTITY</span><span class="badge">id DESPUÉS</span></div>
+      <p style="font-size:.74rem;color:var(--muted);margin-top:4px;">El id no existe hasta que la fila está insertada → el INSERT se ejecuta <b>ya</b>.</p>
+
+      <div class="ts"><span class="dot dot-obj"></span>
+        <h4>1 · persist(user)</h4>
+        <p>objeto con <span class="idchip null">id = null</span></p>
+      </div>
+      <div class="ts"><span class="dot dot-db"></span>
+        <h4>2 · INSERT inmediato</h4>
+        <p><code class="t">INSERT INTO app_user(name) VALUES('Ana')</code> — sin id</p>
+      </div>
+      <div class="ts"><span class="dot dot-db"></span>
+        <h4>3 · la base asigna el id</h4>
+        <p>el <code>AUTO_INCREMENT</code> genera <span class="idchip">1</span></p>
+      </div>
+      <div class="ts"><span class="dot dot-obj"></span>
+        <h4>4 · el id vuelve al objeto</h4>
+        <p>Hibernate lee la clave generada → <span class="idchip">user.id = 1</span></p>
+      </div>
+      <div style="margin-top:10px;font-size:.72rem;color:var(--identity);">⚠ No se puede diferir ni agrupar (sin batch inserts).</div>
+    </div>
+
+    <!-- SEQUENCE -->
+    <div class="tl sequence">
+      <div class="th"><span style="color:var(--sequence)">SEQUENCE</span><span class="badge">id ANTES</span></div>
+      <p style="font-size:.74rem;color:var(--muted);margin-top:4px;">Pide el id a la secuencia primero → el INSERT puede esperar al flush.</p>
+
+      <div class="ts"><span class="dot dot-db"></span>
+        <h4>1 · pedir el próximo id</h4>
+        <p><code class="t">SELECT nextval('user_seq')</code> → <span class="idchip">1</span></p>
+      </div>
+      <div class="ts"><span class="dot dot-obj"></span>
+        <h4>2 · persist(user)</h4>
+        <p>el objeto ya queda con <span class="idchip">user.id = 1</span></p>
+      </div>
+      <div class="ts"><span class="dot dot-db"></span>
+        <h4>3 · INSERT (puede diferirse)</h4>
+        <p><code class="t">INSERT INTO app_user(id,name) VALUES(1,'Ana')</code></p>
+      </div>
+      <div class="ts"><span class="dot dot-id"></span>
+        <h4>4 · al flush / commit</h4>
+        <p>se manda el INSERT (o varios juntos en <b>batch</b>)</p>
+      </div>
+      <div style="margin-top:10px;font-size:.72rem;color:var(--sequence);">✓ Permite agrupar inserts y optimizar (allocationSize).</div>
+    </div>
+
+  </div>
+
+  <!-- 4: COMPARACIÓN -->
+  <h2 class="sec">4 · Comparación</h2>
+  <table class="cmp">
+    <tr><th>Estrategia</th><th>¿Quién genera el id?</th><th>¿Cuándo?</th><th>Batch</th><th>Notas</th></tr>
+    <tr><td><b style="color:var(--identity)">IDENTITY</b></td><td>columna autoincremental de la BD</td><td class="no">después del INSERT</td><td class="no">No</td><td>Simple; común en MySQL</td></tr>
+    <tr><td><b style="color:var(--sequence)">SEQUENCE</b></td><td>objeto secuencia de la BD</td><td class="yes">antes del INSERT</td><td class="yes">Sí</td><td>Mejor rendimiento; PostgreSQL/Oracle</td></tr>
+    <tr><td><b style="color:var(--table)">TABLE</b></td><td>tabla auxiliar de contadores</td><td class="yes">antes del INSERT</td><td class="yes">Sí</td><td>Portable pero lenta</td></tr>
+    <tr><td><b style="color:var(--auto)">AUTO</b></td><td>lo decide el proveedor</td><td>depende del dialecto</td><td>depende</td><td>Por defecto; portable</td></tr>
+  </table>
+
+  <div class="note">
+    <b>La idea del "antes / después":</b> con <b style="color:var(--sequence)">SEQUENCE</b> (y TABLE) Hibernate <b>consigue el id en una consulta aparte antes</b> de insertar, así que ya puede ponerlo en el objeto y dejar el INSERT para el flush (e incluso juntar varios).
+    Con <b style="color:var(--identity)">IDENTITY</b> el id <b>recién existe cuando la fila ya fue insertada</b>, por eso el INSERT se ejecuta de inmediato y no se pueden agrupar. La forma de generar la clave cambia <i>cuándo</i> viaja el dato y, con eso, el rendimiento.
+  </div>
+
+</div>
+</body>
+</html>

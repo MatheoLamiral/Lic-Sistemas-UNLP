@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="es"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Infograma de Repaso: Kernel de Linux y Compilación</title>
+<style>
+:root { --accent:#2563eb; --accent2:#60a5fa; }
+* { box-sizing:border-box; }
+body {
+  font-family:'Segoe UI',system-ui,-apple-system,sans-serif;
+  margin:0; background:#0f172a; color:#1e293b; line-height:1.55;
+}
+.wrap { max-width:1100px; margin:0 auto; padding:0 16px 60px; }
+header.hero {
+  background:linear-gradient(135deg,var(--accent),var(--accent2));
+  color:#fff; padding:38px 28px; border-radius:0 0 24px 24px;
+  box-shadow:0 8px 30px rgba(0,0,0,.35); margin-bottom:26px;
+}
+header.hero h1 { margin:0; font-size:2.0rem; display:flex; align-items:center; gap:14px; }
+header.hero .sub { opacity:.92; margin-top:8px; font-size:.95rem; }
+.topbar { background:#0f172a; padding:10px 16px; }
+.topbar a { color:#cbd5e1; text-decoration:none; font-size:.88rem; font-weight:600; }
+.topbar a:hover { color:#fff; }
+section.card {
+  background:#fff; border-radius:16px; padding:18px 22px; margin:18px 0;
+  box-shadow:0 4px 18px rgba(0,0,0,.18); border-left:6px solid var(--accent);
+}
+section.card h2 {
+  margin:0 0 12px; font-size:1.28rem; color:var(--accent);
+  display:flex; align-items:center; gap:10px;
+}
+section.card h3 { font-size:1.05rem; color:#334155; margin:16px 0 6px; }
+section.trampas {
+  border-left:6px solid #f59e0b; background:#fffbeb;
+}
+section.trampas h2 { color:#b45309; }
+ul, ol { margin:8px 0 8px; padding-left:24px; }
+li { margin:4px 0; }
+table {
+  border-collapse:collapse; width:100%; margin:14px 0; font-size:.92rem;
+  border-radius:10px; overflow:hidden; box-shadow:0 2px 8px rgba(0,0,0,.10);
+}
+th { background:var(--accent); color:#fff; text-align:left; padding:9px 12px; }
+td { padding:8px 12px; border-top:1px solid #e2e8f0; vertical-align:top; }
+tr:nth-child(even) td { background:#f8fafc; }
+code { background:#eef2ff; color:#3730a3; padding:1px 6px; border-radius:5px;
+  font-family:'Fira Code',Consolas,monospace; font-size:.88em; }
+pre { background:#1e293b; color:#e2e8f0; padding:14px; border-radius:10px; overflow:auto; }
+pre code { background:none; color:inherit; padding:0; }
+strong { color:#0f172a; }
+blockquote { border-left:4px solid var(--accent2); margin:10px 0; padding:6px 16px;
+  background:#f1f5f9; border-radius:0 8px 8px 0; color:#475569; }
+.vf-true { background:#16a34a; color:#fff; padding:1px 8px; border-radius:20px;
+  font-weight:700; font-size:.8rem; letter-spacing:.3px; }
+.vf-false { background:#dc2626; color:#fff; padding:1px 8px; border-radius:20px;
+  font-weight:700; font-size:.8rem; letter-spacing:.3px; }
+a { color:var(--accent); }
+hr { border:none; border-top:1px dashed #cbd5e1; margin:22px 0; }
+.home-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(230px,1fr));
+  gap:16px; margin-top:10px; }
+.home-grid a { text-decoration:none; }
+.tile { background:#fff; border-radius:16px; padding:20px; box-shadow:0 4px 16px rgba(0,0,0,.18);
+  border-top:5px solid var(--accent); transition:transform .12s,box-shadow .12s; height:100%; }
+.tile:hover { transform:translateY(-4px); box-shadow:0 10px 28px rgba(0,0,0,.30); }
+.tile .ico { font-size:2rem; }
+.tile .t { font-weight:700; color:#1e293b; margin:8px 0 4px; font-size:1.05rem; }
+.tile .d { color:#64748b; font-size:.85rem; }
+.badge { display:inline-block; background:#fef3c7; color:#b45309; font-size:.72rem;
+  font-weight:700; padding:2px 8px; border-radius:20px; margin-top:8px; }
+@media print { body{background:#fff;} section.card{box-shadow:none;border:1px solid #e2e8f0;}
+  header.hero{box-shadow:none;} .topbar{display:none;} }
+</style></head>
+<body><div class="topbar"><a href="index.html">⟵ Índice de infogramas</a></div>
+<header class="hero"><h1><span>🧩</span>Infograma de Repaso: Kernel de Linux y Compilación</h1>
+<div class="sub">Repaso parcial · Sistemas Operativos UNLP</div></header>
+<div class="wrap"><section class="card intro"><blockquote>
+<p>Repaso denso para parcial de Sistemas Operativos (UNLP). Leé la sección de <strong>Trampas</strong> al final.</p>
+</blockquote>
+<hr /></section>
+<section class="card"><h2><span>🧩</span> 1. ¿Qué es el Kernel?</h2>
+<ul>
+<li><strong>Porción de código</strong> que reside en <strong>memoria principal</strong> y administra los recursos. Actúa como <strong>API/intermediario entre el hardware y las aplicaciones</strong>.</li>
+<li>Es <strong>"el encargado de que el software y el hardware trabajen juntos"</strong>.</li>
+<li>En <strong>sentido estricto, el Kernel ES el Sistema Operativo</strong> (el resto —shell, herramientas— son componentes del SO, no el SO en sí).</li>
+<li>Provee acceso seguro al HW vía <strong>system calls</strong>. Un proceso de usuario no puede hacer nada fuera de su espacio de direcciones sin pedírselo al kernel.</li>
+</ul>
+<h3>Las 5 funciones principales</h3>
+<ol>
+<li><strong>Administración de memoria principal</strong> (asigna, gestiona y protege).</li>
+<li><strong>Manejo del uso de la CPU</strong> (planificación / scheduling).</li>
+<li><strong>Administración de procesos</strong> (ciclo de vida completo).</li>
+<li><strong>Gestión de E/S</strong> (acceso a dispositivos y periféricos).</li>
+<li><strong>Comunicación y Concurrencia</strong> (IPC, sincronización segura).</li>
+</ol>
+<h3>Modos de ejecución (los provee el HW)</h3>
+<ul>
+<li><strong>Modo Supervisor / Kernel / privilegiado</strong>: acceso al <strong>conjunto completo de instrucciones</strong> (HW, memoria, CPU). Instrucciones privilegiadas <strong>solo</strong> acá.</li>
+<li><strong>Modo Usuario</strong>: el proceso accede solo a <strong>su propio espacio</strong>, con instrucciones reducidas.</li>
+<li>El <strong>bit de modo</strong> en la CPU indica el modo actual. Arranca en <strong>supervisor</strong>; al ceder control a un proceso se pone en <strong>usuario</strong>. La <strong>única</strong> forma de volver a modo kernel es vía <strong>trap o interrupción</strong> (no lo decide el proceso de usuario).</li>
+</ul>
+<hr />
+</section>
+<section class="card"><h2><span>🧩</span> 2. Tipos de Kernel</h2>
+<table>
+<thead>
+<tr>
+<th>Tipo</th>
+<th>Idea clave</th>
+<th>Dónde corren los servicios</th>
+<th>Ejemplos</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Monolítico</strong></td>
+<td>Toda la funcionalidad en <strong>un solo bloque</strong> linkeado</td>
+<td>Todo en <strong>modo supervisor</strong></td>
+<td>Unix, FreeBSD</td>
+</tr>
+<tr>
+<td><strong>Microkernel</strong></td>
+<td><strong>Mínimo</strong> código en modo supervisor (procesos, memoria, E/S básica)</td>
+<td>El resto en <strong>modo usuario</strong></td>
+<td>Minix, QNX</td>
+</tr>
+<tr>
+<td><strong>Monolítico HÍBRIDO</strong></td>
+<td>Monolítico <strong>+</strong> capacidad de cargar/descargar <strong>módulos</strong> en runtime</td>
+<td>Núcleo y módulos en <strong>modo kernel</strong></td>
+<td><strong>GNU/Linux</strong>, Windows NT, macOS (XNU)</td>
+</tr>
+</tbody>
+</table>
+<h3>¿Por qué Linux es monolítico-híbrido?</h3>
+<ul>
+<li><strong>Monolítico</strong>: toda la funcionalidad del SO está <strong>linkeada en una sola imagen</strong> que corre en modo privilegiado (máxima eficiencia, sin cambios de modo internos).</li>
+<li><strong>Híbrido</strong>: permite <strong>cargar y descargar funcionalidad en runtime mediante módulos</strong> (sin reiniciar). Ojo: el módulo, una vez cargado, <strong>también corre en modo kernel</strong> (un bug puede colgar todo el sistema).</li>
+</ul>
+<hr />
+</section>
+<section class="card"><h2><span>🧩</span> 3. Portabilidad</h2>
+<ul>
+<li>Linux es <strong>altamente portable</strong>: una <strong>misma estructura de código fuente da soporte a TODAS las arquitecturas</strong>.</li>
+<li>Esto se logra porque está escrito <strong>mayoritariamente en C</strong> (fácilmente modificable/recompilable para distintas arquitecturas de CPU), reservando <strong>Assembler solo para instrucciones especiales y de bajo nivel</strong>. (Rust desde v6.1, sobre todo para módulos).</li>
+<li><strong>CLAVE:</strong> la portabilidad NO significa que el <strong>mismo binario</strong> corra en cualquier arquitectura, sino que el <strong>código</strong> se adapta/recompila fácilmente para cada una.</li>
+</ul>
+<hr />
+</section>
+<section class="card"><h2><span>🧩</span> 4. ¿Por qué (re)compilar el kernel?</h2>
+<ul>
+<li><strong>Soportar nuevos dispositivos</strong> (ej.: placa de video).</li>
+<li><strong>Agregar funcionalidad</strong> (nuevos filesystems, protocolos de red).</li>
+<li><strong>Optimizar</strong> el rendimiento según el HW donde corre.</li>
+<li><strong>Adaptar / limpiar</strong>: quitar soporte de hardware que no se usa → kernel más chico.</li>
+<li><strong>Corregir bugs</strong> (errores de programación o vulnerabilidades de seguridad).</li>
+</ul>
+<hr />
+</section>
+<section class="card"><h2><span>🧩</span> 5. Los 7 PASOS de Compilación (EN ORDEN)</h2>
+<ol>
+<li><strong>Obtener el código fuente</strong> (desde <code>kernel.org</code>).</li>
+<li><strong>Preparar el árbol de archivos</strong> del código fuente (descomprimir, aplicar parches).</li>
+<li><strong>Configurar el código fuente</strong> (generar el <code>.config</code>).</li>
+<li><strong>Construir el kernel</strong> a partir del código fuente <strong>e instalar los módulos</strong>.</li>
+<li><strong>Reubicar el kernel</strong> y <strong>crear el disco RAM inicial (initrd/initramfs)</strong>.</li>
+<li><strong>Configurar y ejecutar el gestor de arranque</strong> (GRUB/LILO).</li>
+<li><strong>Reiniciar y probar</strong> el nuevo kernel.</li>
+</ol>
+<h3>Herramientas y comandos clave</h3>
+<ul>
+<li><strong><code>gcc</code></strong> (compilador C), <strong><code>make</code></strong> (ejecuta directivas de los <strong>Makefiles</strong>), <strong><code>binutils</code></strong> (assembler/linker), <strong><code>libc6</code></strong>, <strong><code>ncurses</code></strong> (solo para <code>menuconfig</code>), <strong><code>initrd-tools</code></strong>.</li>
+<li><strong><code>make</code></strong> compara la <strong>fecha de modificación</strong> de cada target con sus dependencias: solo recompila lo desactualizado.</li>
+<li><strong><code>make -j$(nproc)</code></strong>: compila en paralelo según cantidad de CPUs.</li>
+<li><strong><code>make modules_install</code></strong>: copia los <code>.ko</code> a <code>/lib/modules/&lt;versión&gt;</code>.</li>
+<li><strong><code>make install</code></strong>: copia <code>bzImage</code> → <code>/boot/vmlinuz-&lt;v&gt;</code>, <code>System.map</code>, <code>.config</code>, genera el initramfs y actualiza GRUB.</li>
+</ul>
+<h3>Configuración del kernel (<code>.config</code>)</h3>
+<ul>
+<li><strong><code>make config</code></strong>: texto secuencial, pregunta opción por opción (tedioso, sin dependencias extra).</li>
+<li><strong><code>make menuconfig</code></strong>: menús navegables en terminal (requiere <strong>ncurses</strong>). El más usado, ideal en servidores/SSH.</li>
+<li><strong><code>make xconfig</code></strong>: GUI gráfica (requiere entorno X).</li>
+<li>En <code>menuconfig</code>, la barra espaciadora cicla: <strong><code>&lt;*&gt;</code> built-in</strong>, <strong><code>&lt;M&gt;</code> módulo</strong>, <strong><code>&lt; &gt;</code> deshabilitado</strong>.</li>
+</ul>
+<h3>Parches</h3>
+<ul>
+<li><strong>Parche</strong> = archivo de <strong>diff</strong> que indica qué código agregar/quitar sobre una versión base.</li>
+<li>Se aplican con el comando <strong><code>patch</code></strong>, frecuentemente vía pipe: <code>xzcat ../patch-6.13.7.xz | patch -p1</code> (el <code>-p1</code> ignora el primer nivel de directorio <code>a/</code> o <code>b/</code>).</li>
+<li>Pueden ser <strong>incrementales</strong> (sobre la versión inmediatamente anterior) o <strong>no incrementales</strong> (sobre el mainline). <code>--dry-run</code> simula sin modificar.</li>
+</ul>
+<hr />
+</section>
+<section class="card"><h2><span>🧩</span> 6. Gestor de arranque: ¿por qué reconfigurarlo?</h2>
+<ul>
+<li>Tras compilar e instalar, el GRUB <strong>NO detecta el nuevo kernel automáticamente</strong>.</li>
+<li>Reconfigurarlo (ej.: <strong><code>update-grub</code>/<code>update-grub2</code></strong>) <strong>actualiza el menú de arranque incorporando el nuevo kernel en la configuración</strong> (<code>grub.cfg</code>).</li>
+<li><strong>NO reinstala el binario del gestor</strong>: solo actualiza su archivo de configuración con las rutas de la nueva imagen y su initramfs.</li>
+</ul>
+<hr />
+</section>
+<section class="card"><h2><span>🧩</span> 7. initramfs / initrd</h2>
+<ul>
+<li><strong>Sistema de archivos temporal en RAM</strong>, montado en el arranque <strong>ANTES de montar el root real</strong>.</li>
+<li>Contiene los <strong>módulos, drivers y programas mínimos</strong> que el kernel necesita para poder <strong>montar el filesystem raíz</strong> definitivo. Una vez montado el root, se desmonta.</li>
+<li><strong>PUEDE NO SER NECESARIO</strong>: si todos los drivers y FS críticos para montar el root están compilados <strong>built-in (<code>&lt;*&gt;</code>)</strong> dentro del kernel, el initramfs deja de ser un requisito estricto.</li>
+</ul>
+<hr />
+</section>
+<section class="card"><h2><span>🧩</span> 8. Módulo vs Built-in</h2>
+<ul>
+<li><strong>Built-in (<code>&lt;*&gt;</code>)</strong>: compilado dentro de la imagen del kernel. Más eficiente (acceso directo, no se carga en memoria aparte), pero fijo.</li>
+<li><strong>Módulo (<code>&lt;M&gt;</code>)</strong> — ventajas:</li>
+<li><strong>Memoria</strong>: solo se carga cuando se necesita (<code>/lib/modules/&lt;versión&gt;</code>).</li>
+<li><strong>Sin reiniciar</strong>: se carga/descarga <strong>en caliente</strong> (<code>modprobe</code>, <code>lsmod</code>).</li>
+<li><strong>Desarrollo ágil</strong>: facilita el desarrollo y mantenimiento modular.</li>
+<li>Contra: corre en <strong>modo kernel</strong>, un bug puede comprometer todo el sistema.</li>
+</ul>
+<hr />
+</section>
+<section class="card trampas"><h2><span>🧩</span> ⚠️ Trampas típicas de parcial</h2>
+<ul>
+<li><strong>"Linux es monolítico-híbrido PORQUE permite cargar/descargar funcionalidades vía módulos"</strong> → <strong><span class="vf-true">VERDADERO</span></strong>.</li>
+<li><strong>"Linux es portable porque su código puede modificarse fácilmente para distintas arquitecturas de CPU"</strong> → <strong><span class="vf-true">VERDADERO</span></strong>. (NO es porque el mismo <strong>binario</strong> corra en cualquier arquitectura).</li>
+<li><strong>Reconfigurar el gestor de arranque = actualizar el menú con el nuevo kernel</strong> (opción correcta). NO reinstala el binario del gestor.</li>
+<li><strong>initramfs</strong>:</li>
+<li>"Aloja módulos del kernel y programas útiles para el arranque" → <strong>V</strong>.</li>
+<li>"No siempre es necesario" → <strong>V</strong> (si todo está built-in).</li>
+<li><strong>NO</strong> inicializa la RAM con ceros → eso es <span class="vf-false">FALSO</span>.</li>
+<li><strong>El kernel</strong>:</li>
+<li>"Es el encargado de que SW y HW trabajen juntos" → <strong>V</strong>.</li>
+<li>"Administra memoria principal y uso de CPU" → <strong>V</strong>.</li>
+<li><strong>Puedo tener más de un kernel compilado en la misma máquina</strong> → <strong>V</strong> (GRUB lista varios; permite volver atrás si el nuevo no arranca).</li>
+</ul></section></div>
+</body></html>

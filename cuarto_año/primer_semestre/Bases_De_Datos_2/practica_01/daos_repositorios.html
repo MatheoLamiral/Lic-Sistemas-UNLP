@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DAOs y Repositorios — arquitectura en capas</title>
+<style>
+  :root{
+    --bg:#0d1117; --card:#161b26; --card2:#1c2230;
+    --pres:#f472b6; --service:#34d399; --repo:#818cf8; --orm:#2dd4bf; --db:#38bdf8;
+    --text:#e6edf3; --muted:#8b949e; --line:#30363d;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;background:radial-gradient(1200px 600px at 50% -10%,#1c2230 0%,var(--bg) 60%);color:var(--text);line-height:1.55;padding:34px 18px 70px;}
+  .wrap{max-width:1080px;margin:0 auto;}
+  header{text-align:center;margin-bottom:22px;}
+  header h1{font-size:1.85rem;font-weight:800;letter-spacing:-.5px;}
+  .grad{background:linear-gradient(90deg,var(--repo),var(--service));-webkit-background-clip:text;background-clip:text;color:transparent;}
+  header p{color:var(--muted);margin-top:6px;font-size:.95rem;}
+  h2.sec{font-size:1.1rem;margin:36px 0 14px;color:var(--text);border-left:4px solid var(--repo);padding-left:12px;}
+  code,pre{font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace;}
+  pre{font-size:.75rem;white-space:pre;overflow-x:auto;line-height:1.5;}
+  .k{color:#c4a8ff;} .a{color:#f59e0b;} .str{color:var(--service);} .c{color:var(--muted);} .ty{color:var(--db);}
+
+  /* layers stack */
+  .stack{max-width:680px;margin:0 auto;}
+  .layer{display:flex;align-items:center;gap:14px;border-radius:12px;padding:13px 18px;border:1px solid var(--line);border-left-width:4px;background:var(--card);}
+  .layer .ic{width:34px;height:34px;border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:1.1rem;flex:0 0 auto;}
+  .layer .bd{flex:1;}
+  .layer .bd h3{font-size:.95rem;}
+  .layer .bd p{font-size:.78rem;color:var(--muted);}
+  .layer .bd code{font-size:.74rem;color:var(--text);}
+  .l-pres{border-left-color:var(--pres);} .l-pres .ic{background:rgba(244,114,182,.16);}
+  .l-serv{border-left-color:var(--service);} .l-serv .ic{background:rgba(52,211,153,.16);}
+  .l-repo{border-left-color:var(--repo);box-shadow:0 0 0 1px rgba(129,140,248,.3);} .l-repo .ic{background:rgba(129,140,248,.2);}
+  .l-orm{border-left-color:var(--orm);} .l-orm .ic{background:rgba(45,212,191,.16);}
+  .l-db{border-left-color:var(--db);} .l-db .ic{background:rgba(56,189,248,.16);}
+  .between{text-align:center;color:var(--line);font-size:1.05rem;line-height:.7;margin:3px 0;}
+  .tag{font-size:.6rem;font-weight:800;text-transform:uppercase;letter-spacing:.5px;border-radius:5px;padding:2px 7px;color:var(--bg);margin-left:6px;}
+
+  /* concept panels */
+  .panes{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
+  .pane{background:linear-gradient(160deg,var(--card2),var(--card));border:1px solid var(--line);border-top-width:3px;border-radius:14px;padding:16px 18px;box-shadow:0 8px 24px rgba(0,0,0,.3);}
+  .pane.dao{border-top-color:var(--orm);} .pane.repo{border-top-color:var(--repo);}
+  .pane h3{font-size:1.05rem;display:flex;align-items:center;gap:8px;}
+  .pane .sub{font-size:.72rem;color:var(--muted);margin-top:2px;margin-bottom:10px;}
+  .pane p{font-size:.8rem;color:var(--muted);margin-bottom:8px;}
+  .pane pre{background:rgba(0,0,0,.28);border-radius:8px;padding:10px 12px;margin:8px 0;}
+  .pane ul{list-style:none;font-size:.77rem;color:var(--muted);margin-top:6px;}
+  .pane ul li{padding:3px 0 3px 16px;position:relative;}
+  .pane.dao ul li::before{content:"▹";position:absolute;left:0;color:var(--orm);}
+  .pane.repo ul li::before{content:"▹";position:absolute;left:0;color:var(--repo);}
+
+  table.cmp{width:100%;border-collapse:collapse;font-size:.8rem;margin-top:6px;}
+  table.cmp th{background:rgba(129,140,248,.1);color:var(--repo);padding:9px;border:1px solid var(--line);text-align:left;}
+  table.cmp td{padding:9px;border:1px solid var(--line);vertical-align:top;}
+  table.cmp td:first-child{color:var(--muted);font-weight:600;}
+  .th-dao{color:var(--orm)!important;}
+
+  /* flow */
+  .flow{max-width:740px;margin:0 auto;}
+  .fstep{display:flex;gap:12px;align-items:flex-start;margin-bottom:0;}
+  .fstep .n{width:24px;height:24px;border-radius:50%;font-weight:800;font-size:.74rem;display:flex;align-items:center;justify-content:center;flex:0 0 auto;margin-top:9px;color:var(--bg);}
+  .fstep .c{flex:1;border:1px solid var(--line);border-radius:10px;padding:9px 13px;background:var(--card);border-left-width:3px;}
+  .fstep .c b{font-size:.82rem;} .fstep .c p{font-size:.75rem;color:var(--muted);margin-top:2px;} .fstep .c code{font-size:.73rem;color:var(--text);}
+  .fconn{height:13px;width:2px;background:var(--line);margin:2px 0 2px 23px;}
+  .s-pres{border-left-color:var(--pres);} .s-pres .n{background:var(--pres);}
+  .s-serv{border-left-color:var(--service);} .s-serv .n{background:var(--service);}
+  .s-repo{border-left-color:var(--repo);} .s-repo .n{background:var(--repo);}
+  .s-orm{border-left-color:var(--orm);} .s-orm .n{background:var(--orm);}
+  .s-db{border-left-color:var(--db);} .s-db .n{background:var(--db);}
+
+  .note{max-width:880px;margin:28px auto 0;font-size:.85rem;color:var(--text);background:rgba(129,140,248,.07);border:1px dashed rgba(129,140,248,.45);border-radius:12px;padding:15px 19px;}
+  .note b{color:var(--repo);}
+  @media(max-width:760px){.panes{grid-template-columns:1fr;}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1><span class="grad">DAOs y Repositorios</span></h1>
+    <p>La capa de acceso a datos: qué son, dónde viven y en qué se diferencian</p>
+  </header>
+
+  <!-- 1: CAPAS -->
+  <h2 class="sec">1 · La arquitectura en capas — dónde vive el acceso a datos</h2>
+  <div class="stack">
+    <div class="layer l-pres">
+      <div class="ic">🖥️</div>
+      <div class="bd"><h3>Presentación / Controller</h3><p>Recibe la petición (HTTP, UI). No sabe nada de SQL ni de Hibernate.</p></div>
+    </div>
+    <div class="between">▼ &nbsp; llama a</div>
+    <div class="layer l-serv">
+      <div class="ic">⚙️</div>
+      <div class="bd"><h3>Servicio</h3><p>Lógica de negocio. <b>Abre la transacción</b> (<code>@Transactional</code>) y coordina <b>uno o varios</b> repositorios/DAOs.</p></div>
+    </div>
+    <div class="between">▼ &nbsp; usa</div>
+    <div class="layer l-repo">
+      <div class="ic">🗃️</div>
+      <div class="bd"><h3>Repositorio / DAO <span class="tag" style="background:var(--repo)">capa de acceso a datos</span></h3><p>Encapsula <b>cómo</b> se guardan y recuperan las entidades. Expone operaciones (<code>save</code>, <code>findById</code>…) ocultando el detalle de persistencia.</p></div>
+    </div>
+    <div class="between">▼ &nbsp; delega en</div>
+    <div class="layer l-orm">
+      <div class="ic">🔄</div>
+      <div class="bd"><h3>ORM (Hibernate / JPA)</h3><p>Traduce objetos ⇄ SQL, gestiona la <code>Session</code> y el contexto de persistencia.</p></div>
+    </div>
+    <div class="between">▼</div>
+    <div class="layer l-db">
+      <div class="ic">🗄️</div>
+      <div class="bd"><h3>Base de datos</h3><p>Ejecuta el SQL y devuelve filas.</p></div>
+    </div>
+  </div>
+  <p style="text-align:center;color:var(--muted);font-size:.8rem;margin-top:12px;">El DAO/Repositorio es la <b style="color:var(--repo)">frontera</b>: por encima se piensa en <b>objetos</b>; por debajo, en <b>tablas y SQL</b>. Aísla el resto de la app de la tecnología de persistencia.</p>
+
+  <!-- 2 y 3: QUÉ SON -->
+  <h2 class="sec">2 · Los dos patrones</h2>
+  <div class="panes">
+    <div class="pane dao">
+      <h3>🔧 DAO <span style="font-size:.7rem;color:var(--muted);font-weight:400">(Data Access Object)</span></h3>
+      <div class="sub">Orientado a la <b>persistencia / tabla</b></div>
+      <p>Patrón que <b>abstrae y encapsula el acceso a una fuente de datos</b>. Responde "<i>cómo</i> guardar/recuperar". Suele haber <b>un DAO por entidad/tabla</b>, con operaciones CRUD.</p>
+<pre><span class="k">public interface</span> <span class="ty">UserDAO</span> {
+  <span class="k">void</span> save(User u);
+  User findById(Long id);
+  List&lt;User&gt; findAll();
+  <span class="k">void</span> update(User u);
+  <span class="k">void</span> delete(User u);
+}
+<span class="c">// impl usa Session / EntityManager</span></pre>
+      <ul>
+        <li>Piensa en términos de la <b>tabla</b></li>
+        <li>API técnica: CRUD genérico</li>
+        <li>Una clase por entidad</li>
+      </ul>
+    </div>
+
+    <div class="pane repo">
+      <h3>📚 Repository <span style="font-size:.7rem;color:var(--muted);font-weight:400">(Repositorio, viene de DDD)</span></h3>
+      <div class="sub">Orientado al <b>dominio</b></div>
+      <p>Patrón que actúa como una <b>colección en memoria de objetos del dominio</b>. Responde "<i>dame los objetos que cumplen X</i>". Trabaja sobre <b>raíces de agregado</b> y habla el lenguaje del negocio.</p>
+<pre><span class="a">@Repository</span>
+<span class="k">public interface</span> <span class="ty">UserRepository</span>
+        <span class="k">extends</span> JpaRepository&lt;User, Long&gt; {
+
+  Optional&lt;User&gt; findByUsername(String u);
+  List&lt;User&gt; findByActiveTrue();
+}</pre>
+      <ul>
+        <li>Piensa en términos del <b>dominio</b></li>
+        <li>API expresiva (consultas con sentido de negocio)</li>
+        <li>Como una "colección" de entidades</li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- 4: COMPARACIÓN -->
+  <h2 class="sec">3 · DAO vs Repository</h2>
+  <table class="cmp">
+    <tr><th>Criterio</th><th class="th-dao">DAO</th><th>Repository</th></tr>
+    <tr><td>Origen</td><td>Patrón clásico de acceso a datos</td><td>Domain-Driven Design (DDD)</td></tr>
+    <tr><td>Enfoque</td><td>La <b>fuente de datos</b> (tabla/persistencia)</td><td>El <b>dominio</b> (colección de objetos)</td></tr>
+    <tr><td>Pregunta que responde</td><td>"¿cómo persisto esta entidad?"</td><td>"¿qué objetos del dominio necesito?"</td></tr>
+    <tr><td>Granularidad</td><td>Uno por <b>tabla/entidad</b></td><td>Uno por <b>raíz de agregado</b></td></tr>
+    <tr><td>Estilo de API</td><td>CRUD técnico (save, update…)</td><td>Colección + consultas de negocio (findByUsername…)</td></tr>
+    <tr><td>En la práctica</td><td>Lo escribís a mano sobre `Session`/`EntityManager`</td><td>Spring Data lo genera (interfaz `JpaRepository`)</td></tr>
+  </table>
+  <p style="color:var(--muted);font-size:.8rem;margin-top:10px;">En la práctica los términos <b>se solapan</b>: ambos resuelven "aislar el acceso a datos". La diferencia es de <b>énfasis</b> (técnico vs dominio). Spring Data unificó el nombre en <b>Repository</b>.</p>
+
+  <!-- 5: FLUJO -->
+  <h2 class="sec">4 · Flujo de una operación (comprar un tour)</h2>
+  <div class="flow">
+    <div class="fstep s-pres"><div class="n">1</div><div class="c"><b>Controller</b> recibe <code>POST /purchases</code><p>Llama al servicio. No toca la base.</p></div></div>
+    <div class="fconn"></div>
+    <div class="fstep s-serv"><div class="n">2</div><div class="c"><b>Servicio</b> <code>@Transactional comprar(...)</code><p>Abre la transacción y coordina <b>varios</b> repositorios: <code>routeRepository.findById()</code>, <code>userRepository.findById()</code>, <code>purchaseRepository.save()</code>.</p></div></div>
+    <div class="fconn"></div>
+    <div class="fstep s-repo"><div class="n">3</div><div class="c"><b>Repositorio</b> <code>purchaseRepository.save(compra)</code><p>Expone la operación; por dentro delega en el ORM. La lógica de negocio no sabe cómo se guarda.</p></div></div>
+    <div class="fconn"></div>
+    <div class="fstep s-orm"><div class="n">4</div><div class="c"><b>Hibernate</b> traduce a SQL<p>Genera el <code>INSERT</code>, gestiona la <code>Session</code> atada a la transacción del servicio.</p></div></div>
+    <div class="fconn"></div>
+    <div class="fstep s-db"><div class="n">5</div><div class="c"><b>Base de datos</b> ejecuta el SQL<p>Al hacer <code>commit</code> la compra queda persistida; las filas vuelven como objetos.</p></div></div>
+  </div>
+
+  <div class="note">
+    <b>La idea central:</b> el <b style="color:var(--repo)">repositorio/DAO</b> es la <b>frontera</b> que aísla al resto de la aplicación de <i>cómo</i> se guardan los datos. El <b style="color:var(--service)">servicio</b> maneja la transacción y la lógica de negocio coordinando uno o varios repositorios; el <b style="color:var(--repo)">repositorio</b> expone operaciones sobre entidades; el <b style="color:var(--orm)">ORM</b> hace la traducción a SQL. Así, si mañana cambia la tecnología de persistencia, solo cambia la capa de repositorios — el resto de la app no se entera.
+  </div>
+
+</div>
+</body>
+</html>

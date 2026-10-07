@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="es"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Threads (Hilos) — Infograma de Repaso</title>
+<style>
+:root { --accent:#059669; --accent2:#34d399; }
+* { box-sizing:border-box; }
+body {
+  font-family:'Segoe UI',system-ui,-apple-system,sans-serif;
+  margin:0; background:#0f172a; color:#1e293b; line-height:1.55;
+}
+.wrap { max-width:1100px; margin:0 auto; padding:0 16px 60px; }
+header.hero {
+  background:linear-gradient(135deg,var(--accent),var(--accent2));
+  color:#fff; padding:38px 28px; border-radius:0 0 24px 24px;
+  box-shadow:0 8px 30px rgba(0,0,0,.35); margin-bottom:26px;
+}
+header.hero h1 { margin:0; font-size:2.0rem; display:flex; align-items:center; gap:14px; }
+header.hero .sub { opacity:.92; margin-top:8px; font-size:.95rem; }
+.topbar { background:#0f172a; padding:10px 16px; }
+.topbar a { color:#cbd5e1; text-decoration:none; font-size:.88rem; font-weight:600; }
+.topbar a:hover { color:#fff; }
+section.card {
+  background:#fff; border-radius:16px; padding:18px 22px; margin:18px 0;
+  box-shadow:0 4px 18px rgba(0,0,0,.18); border-left:6px solid var(--accent);
+}
+section.card h2 {
+  margin:0 0 12px; font-size:1.28rem; color:var(--accent);
+  display:flex; align-items:center; gap:10px;
+}
+section.card h3 { font-size:1.05rem; color:#334155; margin:16px 0 6px; }
+section.trampas {
+  border-left:6px solid #f59e0b; background:#fffbeb;
+}
+section.trampas h2 { color:#b45309; }
+ul, ol { margin:8px 0 8px; padding-left:24px; }
+li { margin:4px 0; }
+table {
+  border-collapse:collapse; width:100%; margin:14px 0; font-size:.92rem;
+  border-radius:10px; overflow:hidden; box-shadow:0 2px 8px rgba(0,0,0,.10);
+}
+th { background:var(--accent); color:#fff; text-align:left; padding:9px 12px; }
+td { padding:8px 12px; border-top:1px solid #e2e8f0; vertical-align:top; }
+tr:nth-child(even) td { background:#f8fafc; }
+code { background:#eef2ff; color:#3730a3; padding:1px 6px; border-radius:5px;
+  font-family:'Fira Code',Consolas,monospace; font-size:.88em; }
+pre { background:#1e293b; color:#e2e8f0; padding:14px; border-radius:10px; overflow:auto; }
+pre code { background:none; color:inherit; padding:0; }
+strong { color:#0f172a; }
+blockquote { border-left:4px solid var(--accent2); margin:10px 0; padding:6px 16px;
+  background:#f1f5f9; border-radius:0 8px 8px 0; color:#475569; }
+.vf-true { background:#16a34a; color:#fff; padding:1px 8px; border-radius:20px;
+  font-weight:700; font-size:.8rem; letter-spacing:.3px; }
+.vf-false { background:#dc2626; color:#fff; padding:1px 8px; border-radius:20px;
+  font-weight:700; font-size:.8rem; letter-spacing:.3px; }
+a { color:var(--accent); }
+hr { border:none; border-top:1px dashed #cbd5e1; margin:22px 0; }
+.home-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(230px,1fr));
+  gap:16px; margin-top:10px; }
+.home-grid a { text-decoration:none; }
+.tile { background:#fff; border-radius:16px; padding:20px; box-shadow:0 4px 16px rgba(0,0,0,.18);
+  border-top:5px solid var(--accent); transition:transform .12s,box-shadow .12s; height:100%; }
+.tile:hover { transform:translateY(-4px); box-shadow:0 10px 28px rgba(0,0,0,.30); }
+.tile .ico { font-size:2rem; }
+.tile .t { font-weight:700; color:#1e293b; margin:8px 0 4px; font-size:1.05rem; }
+.tile .d { color:#64748b; font-size:.85rem; }
+.badge { display:inline-block; background:#fef3c7; color:#b45309; font-size:.72rem;
+  font-weight:700; padding:2px 8px; border-radius:20px; margin-top:8px; }
+@media print { body{background:#fff;} section.card{box-shadow:none;border:1px solid #e2e8f0;}
+  header.hero{box-shadow:none;} .topbar{display:none;} }
+</style></head>
+<body><div class="topbar"><a href="index.html">⟵ Índice de infogramas</a></div>
+<header class="hero"><h1><span>🧵</span>Threads (Hilos) — Infograma de Repaso</h1>
+<div class="sub">Repaso parcial · Sistemas Operativos UNLP</div></header>
+<div class="wrap"><section class="card intro"><blockquote>
+<p>Repaso denso para parcial de Sistemas Operativos (UNLP).</p>
+</blockquote>
+<hr /></section>
+<section class="card"><h2><span>🧵</span> 1. ¿Qué es un thread?</h2>
+<p>Un <strong>hilo</strong> es la <strong>unidad básica de ejecución</strong> dentro de un proceso (también <em>lightweight process</em>). Se ejecuta secuencialmente y es <strong>interrumpible</strong> para que el procesador pase a otro hilo.</p>
+<ul>
+<li><strong>Proceso</strong> = unidad de <strong>propiedad de recursos</strong> (espacio de direcciones aislado). Es una colección de uno o más hilos.</li>
+<li><strong>Hilo</strong> = unidad de <strong>ejecución</strong> dentro del proceso.</li>
+</ul>
+<p>Los hilos de un proceso <strong>comparten el espacio de direcciones y los recursos</strong>; cada uno mantiene su propio flujo de ejecución.</p>
+<h3>Qué comparten vs qué es propio</h3>
+<table>
+<thead>
+<tr>
+<th>Compartido por los hilos del proceso</th>
+<th>Propio de cada hilo</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Espacio de direcciones</strong> (TEXT/código, DATA, <strong>HEAP</strong>)</td>
+<td><strong>Stack</strong></td>
+</tr>
+<tr>
+<td>Recursos del proceso: <strong>archivos abiertos, señales, sockets</strong></td>
+<td><strong>Registros</strong> + <strong>Program Counter (PC)</strong></td>
+</tr>
+<tr>
+<td><strong>PID</strong> (común a todos)</td>
+<td><strong>Estado</strong> de ejecución / <strong>contexto</strong> del procesador</td>
+</tr>
+<tr>
+<td>1 PCB</td>
+<td>1 TCB (Thread Control Block) por hilo; <strong>TID</strong> propio</td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p><strong>Clave:</strong> comparten <strong>memoria/recursos</strong>, pero cada uno tiene <strong>stack, registros y PC propios</strong> → por eso pueden ejecutarse de forma independiente.</p>
+</blockquote>
+<h3>Proceso vs Thread (por qué el hilo es más barato)</h3>
+<table>
+<thead>
+<tr>
+<th>Aspecto</th>
+<th>Proceso</th>
+<th>Hilo</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Espacio de direcciones</strong></td>
+<td>Propio y aislado</td>
+<td>Compartido con el proceso</td>
+</tr>
+<tr>
+<td><strong>Creación / destrucción</strong></td>
+<td>La hace el SO (nuevo espacio, PCB)</td>
+<td>Más barato (solo TCB, stack, registros)</td>
+</tr>
+<tr>
+<td><strong>Cambio de contexto</strong></td>
+<td>Caro: cambia todo el ambiente</td>
+<td>Barato: solo registros, no cambia espacio de direcciones</td>
+</tr>
+<tr>
+<td><strong>Protección</strong></td>
+<td>El SO la garantiza</td>
+<td>Responsabilidad del desarrollador (comparten memoria)</td>
+</tr>
+</tbody>
+</table>
+<hr />
+</section>
+<section class="card"><h2><span>🧵</span> 2. Concurrencia vs Paralelismo</h2>
+<ul>
+<li><strong>Concurrencia</strong>: múltiples tareas <strong>progresan intercaladas</strong> en el tiempo, posiblemente sobre <strong>1 solo core</strong> (multiplexación en el tiempo). <em>Da la ilusión de simultaneidad.</em></li>
+<li><strong>Paralelismo</strong>: múltiples tareas se ejecutan <strong>simultáneamente, de verdad</strong>, en <strong>múltiples cores</strong>.</li>
+</ul>
+<blockquote>
+<p>Todo paralelismo es concurrencia, pero no toda concurrencia es paralelismo.</p>
+</blockquote>
+<hr />
+</section>
+<section class="card"><h2><span>🧵</span> 3. ULT vs KLT</h2>
+<ul>
+<li><strong>ULT (User Level Threads):</strong> los gestiona y <strong>planifica una biblioteca de hilos en espacio de usuario</strong> (POSIX Pthreads, GNU Pth, Solaris Threads). El <strong>kernel NO sabe que existen</strong> → ve un único proceso (un solo hilo de ejecución) y planifica el proceso completo.</li>
+<li><strong>KLT (Kernel Level Threads):</strong> los <strong>conoce y planifica el kernel</strong>, hilo por hilo. En Linux se crean con la syscall <code>clone()</code>/<code>clone3()</code> (con flags <code>CLONE_VM</code> + <code>CLONE_THREAD</code>).</li>
+</ul>
+<h3>Tabla comparativa</h3>
+<table>
+<thead>
+<tr>
+<th>Criterio</th>
+<th><strong>ULT</strong></th>
+<th><strong>KLT</strong></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>¿Quién planifica?</strong></td>
+<td>La <strong>biblioteca de hilos</strong> (espacio de usuario)</td>
+<td>El <strong>kernel</strong>, individualmente</td>
+</tr>
+<tr>
+<td><strong>Visibilidad al kernel</strong></td>
+<td>Invisible: ve <strong>1 solo proceso</strong></td>
+<td>Visible: cada hilo es entidad planificable</td>
+</tr>
+<tr>
+<td><strong>Paralelismo en multicore</strong></td>
+<td><strong>NO</strong> (no puede repartirlos en varios núcleos)</td>
+<td><strong>SÍ</strong> (paralelismo real, distintos cores a la vez)</td>
+</tr>
+<tr>
+<td><strong>Costo de cambio de contexto</strong></td>
+<td><strong>Barato</strong> (sin pasar a modo kernel)</td>
+<td><strong>Caro</strong> (cada operación requiere syscall / modo kernel)</td>
+</tr>
+<tr>
+<td><strong>Bloqueo (syscall bloqueante)</strong></td>
+<td>Bloquea <strong>TODO el proceso</strong> y todos los hilos</td>
+<td>Solo se bloquea <strong>ese hilo</strong>; los demás siguen</td>
+</tr>
+<tr>
+<td><strong>Portabilidad</strong></td>
+<td>Alta (corren incluso sin soporte del SO)</td>
+<td>Dependen del soporte del kernel</td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p><strong>Trade-off:</strong> los <strong>KLT</strong> ganan en paralelismo y robustez ante bloqueos, pero pagan <strong>overhead</strong> (modo kernel). Los <strong>ULT</strong> son rápidos y portables, pero <strong>no aprovechan múltiples núcleos</strong> y un bloqueo frena todo el proceso.</p>
+</blockquote>
+<p><strong>Regla práctica (rendimiento):</strong> KLT/procesos para <strong>CPU-bound</strong> (necesitan paralelismo); ULT excelentes para <strong>IO-bound</strong> (las esperas se solapan con yields, sin overhead de kernel).</p>
+<hr />
+</section>
+<section class="card"><h2><span>🧵</span> 4. Modelos de mapeo ULT ↔ KLT</h2>
+<p>Los ULT <strong>no pueden ejecutarse directamente</strong>: necesitan mapearse sobre un KLT para obtener CPU.</p>
+<table>
+<thead>
+<tr>
+<th>Modelo</th>
+<th>Relación</th>
+<th>Característica</th>
+<th>Ejemplo</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>N:1</strong> (Muchos a Uno)</td>
+<td>Muchos ULT → 1 KLT</td>
+<td>Sin paralelismo; un bloqueo frena todo el proceso</td>
+<td>Java sobre SO sin KLT</td>
+</tr>
+<tr>
+<td><strong>1:1</strong> (Uno a Uno)</td>
+<td>1 ULT → 1 KLT</td>
+<td>Paralelismo máximo; costo alto (1 KLT por hilo)</td>
+<td><strong>Linux</strong>, Windows NT, Solaris</td>
+</tr>
+<tr>
+<td><strong>M:N</strong> (Muchos a Muchos)</td>
+<td>M ULT → N KLT (híbrido)</td>
+<td>Balance: paralelismo sin el costo de 1:1</td>
+<td>Solaris (LWP), TRIX</td>
+</tr>
+</tbody>
+</table>
+<hr />
+</section>
+<section class="card"><h2><span>🧵</span> 5. fork() y exec()</h2>
+<ul>
+<li><strong><code>fork()</code></strong>: crea un <strong>proceso hijo</strong>, copia (casi) idéntica del padre. Usa <strong>Copy-On-Write (COW)</strong>: comparten páginas en solo-lectura y se copian recién al escribir. <strong><code>fork()</code> asigna el nuevo PID.</strong></li>
+<li><strong><code>exec()</code></strong>: <strong>reemplaza la imagen</strong> del proceso por otro programa. <strong>NO crea proceso ni cambia el PID.</strong></li>
+<li><strong><code>fork()</code> + <code>exec()</code></strong>: lanzar <strong>otro programa</strong> (mecanismo clásico de la shell).</li>
+</ul>
+<h3><code>fork()</code> SIN <code>exec()</code> — característica de parcial</h3>
+<p>El hijo es una <strong>copia (casi) idéntica del padre</strong>:</p>
+<ul>
+<li><strong>Mismo código, datos y programa</strong> que el padre (ejecuta el mismo binario).</li>
+<li><strong>Hereda los descriptores de archivo abiertos</strong>.</li>
+<li><strong>Distinto PID</strong> (y distinto PPID).</li>
+<li>Se diferencian por el <strong>valor de retorno de <code>fork()</code></strong>: <code>0</code> en el hijo, PID del hijo en el padre → cada uno corre una <strong>parte distinta del código</strong>.</li>
+</ul>
+<blockquote>
+<p>En Linux <strong>tanto <code>fork()</code> como <code>pthread_create()</code> llaman a <code>clone()</code></strong>; cambia qué se comparte: <code>fork()</code> → espacio aislado (COW); <code>pthread_create()</code> → espacio de direcciones y recursos compartidos (<code>CLONE_VM</code>+<code>CLONE_THREAD</code>).</p>
+</blockquote>
+<hr />
+</section>
+<section class="card trampas"><h2><span>🧵</span> ⚠️ Trampas típicas de parcial</h2>
+<ul>
+<li><strong>¿Quién planifica los ULT?</strong> → La <strong>biblioteca de hilos en espacio de usuario</strong>. <strong>¿Y los KLT?</strong> → El <strong>kernel</strong>, hilo por hilo.</li>
+<li><strong>Efecto en multicore:</strong> <strong>ULT = SIN paralelismo real</strong> (el kernel ve una sola entidad); <strong>KLT = CON paralelismo real</strong> (el kernel los reparte entre núcleos).</li>
+<li><strong>¿Bloqueo por syscall?</strong> ULT → se bloquea <strong>todo el proceso</strong>; KLT → solo el hilo que llamó.</li>
+<li><strong><code>fork()</code> sin <code>exec()</code></strong> → hijo es <strong>copia del padre</strong>, <strong>mismo programa</strong>, <strong>distinto PID</strong>, <strong>hereda descriptores de archivo abiertos</strong> (COW para la memoria).</li>
+<li><strong>¿Quién asigna el PID nuevo?</strong> → <strong><code>fork()</code></strong>, no <code>exec()</code> (<code>exec</code> conserva el PID).</li>
+<li><strong>Proceso vs thread:</strong> comparten <strong>espacio de direcciones, código, datos, heap y recursos</strong> (archivos/señales/sockets) y el <strong>PID</strong>; <strong>NO comparten</strong> stack, registros, PC, estado ni TID.</li>
+<li><strong>Hilo principal:</strong> <code>gettid() == getpid()</code>. En ULT (GNU Pth), todos comparten el mismo <code>gettid()</code> (kernel ve 1 entidad); solo <code>pth_self()</code> los distingue.</li>
+</ul></section></div>
+</body></html>

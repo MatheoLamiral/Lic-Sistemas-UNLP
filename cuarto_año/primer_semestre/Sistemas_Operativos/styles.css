@@ -1,0 +1,547 @@
+/* ================================================================
+   Sistemas Operativos — Resumen Final · Stylesheet
+   Paleta inspirada en terminales y en tooling de sistemas.
+   Optimizado para lectura en iPad (interlineado amplio, contraste alto).
+   ================================================================ */
+
+/* ---------------- Page setup (weasyprint) ---------------- */
+@page {
+  size: A4;
+  margin: 22mm 20mm 22mm 20mm;
+
+  @top-left {
+    content: "Sistemas Operativos — UNLP";
+    font-family: "JetBrains Mono", "Fira Mono", monospace;
+    font-size: 8.5pt;
+    color: #6b7280;
+  }
+  @top-right {
+    content: "Resumen final";
+    font-family: "JetBrains Mono", "Fira Mono", monospace;
+    font-size: 8.5pt;
+    color: #6b7280;
+  }
+  @bottom-center {
+    content: counter(page) " / " counter(pages);
+    font-family: "JetBrains Mono", "Fira Mono", monospace;
+    font-size: 9pt;
+    color: #6b7280;
+  }
+  @bottom-left {
+    content: "$ cat resumen_final.md";
+    font-family: "JetBrains Mono", "Fira Mono", monospace;
+    font-size: 8pt;
+    color: #9ca3af;
+  }
+}
+
+@page :first {
+  margin: 0;
+  @top-left { content: none; }
+  @top-right { content: none; }
+  @bottom-center { content: none; }
+  @bottom-left { content: none; }
+}
+
+/* ---------------- Hide pandoc auto title ---------------- */
+#title-block-header, header#title-block-header {
+  display: none !important;
+}
+
+/* ---------------- Fonts + body ---------------- */
+
+html {
+  font-size: 10.5pt;
+}
+
+body {
+  font-family: "Inter", "Segoe UI", "Helvetica Neue", Helvetica, Arial, sans-serif;
+  color: #1f2937;
+  line-height: 1.6;
+  text-align: justify;
+  hyphens: auto;
+  background: #ffffff;
+}
+
+/* ---------------- Cover page ---------------- */
+
+.cover {
+  page: cover;
+  height: 297mm;
+  width: 210mm;
+  margin: 0;
+  padding: 0;
+  background: linear-gradient(135deg, #0b1220 0%, #0f172a 50%, #111827 100%);
+  color: #f3f4f6;
+  position: relative;
+  overflow: hidden;
+  page-break-after: always;
+  break-after: page;
+}
+
+.cover .grid-bg {
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(rgba(56, 189, 248, 0.06) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(56, 189, 248, 0.06) 1px, transparent 1px);
+  background-size: 12mm 12mm;
+  pointer-events: none;
+}
+
+.cover .terminal {
+  position: absolute;
+  top: 30mm;
+  left: 22mm;
+  right: 22mm;
+  background: #020617;
+  border: 1px solid #1e293b;
+  border-radius: 6px;
+  padding: 6mm 8mm;
+  box-shadow: 0 6mm 14mm rgba(0, 0, 0, 0.35);
+}
+
+.cover .terminal .bar {
+  display: flex;
+  gap: 6px;
+  padding-bottom: 5mm;
+  border-bottom: 1px solid #1e293b;
+  margin-bottom: 5mm;
+  align-items: center;
+}
+
+.cover .terminal .bar .dot {
+  width: 10px; height: 10px; border-radius: 50%;
+  display: inline-block;
+}
+.cover .terminal .bar .dot.r { background: #ef4444; }
+.cover .terminal .bar .dot.y { background: #f59e0b; }
+.cover .terminal .bar .dot.g { background: #22c55e; }
+.cover .terminal .bar .title {
+  margin-left: 10px;
+  color: #94a3b8;
+  font-family: "JetBrains Mono", monospace;
+  font-size: 10pt;
+}
+
+.cover .terminal .prompt {
+  font-family: "JetBrains Mono", "Fira Mono", monospace;
+  font-size: 11pt;
+  color: #22d3ee;
+  margin-bottom: 2mm;
+}
+.cover .terminal .prompt::before {
+  content: "$ ";
+  color: #22c55e;
+}
+
+.cover .terminal .comment {
+  font-family: "JetBrains Mono", "Fira Mono", monospace;
+  font-size: 9pt;
+  color: #64748b;
+  margin-bottom: 5mm;
+}
+
+.cover .title-big {
+  position: absolute;
+  top: 100mm;
+  left: 22mm;
+  right: 22mm;
+  font-family: "JetBrains Mono", monospace;
+  font-size: 46pt;
+  font-weight: 800;
+  line-height: 1.05;
+  color: #e2e8f0;
+  letter-spacing: -1px;
+}
+
+.cover .title-big .accent {
+  color: #22d3ee;
+}
+.cover .title-big .amber {
+  color: #fbbf24;
+}
+
+.cover .subtitle {
+  position: absolute;
+  top: 148mm;
+  left: 22mm;
+  right: 22mm;
+  font-family: "Inter", sans-serif;
+  font-size: 14pt;
+  color: #94a3b8;
+  line-height: 1.5;
+}
+
+.cover .kernel-info {
+  position: absolute;
+  top: 185mm;
+  left: 22mm;
+  right: 22mm;
+  font-family: "JetBrains Mono", monospace;
+  font-size: 10pt;
+  color: #cbd5e1;
+  border-left: 3px solid #22d3ee;
+  padding: 4mm 6mm;
+  background: rgba(15, 23, 42, 0.55);
+}
+.cover .kernel-info .k { color: #f472b6; }
+.cover .kernel-info .v { color: #a7f3d0; }
+
+.cover .topics {
+  position: absolute;
+  top: 185mm;
+  left: 22mm;
+  right: 22mm;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4mm 6mm;
+  font-family: "JetBrains Mono", monospace;
+  font-size: 9.5pt;
+  color: #94a3b8;
+}
+.cover .topics span::before {
+  content: "> ";
+  color: #22d3ee;
+}
+
+.cover .footer {
+  position: absolute;
+  bottom: 12mm;
+  left: 22mm;
+  right: 22mm;
+  font-family: "JetBrains Mono", monospace;
+  font-size: 8.5pt;
+  color: #475569;
+  display: flex;
+  justify-content: space-between;
+}
+
+/* ---------------- Headings ---------------- */
+
+h1, h2, h3, h4 {
+  font-family: "Inter", "Segoe UI", sans-serif;
+  color: #0f172a;
+  page-break-after: avoid;
+  break-after: avoid;
+}
+
+h1 {
+  font-size: 22pt;
+  border-bottom: 3px solid #22d3ee;
+  padding-bottom: 4mm;
+  margin-top: 15mm;
+  margin-bottom: 6mm;
+  font-weight: 800;
+  page-break-before: always;
+  break-before: page;
+  letter-spacing: -0.3px;
+}
+h1:first-of-type {
+  page-break-before: auto;
+  break-before: auto;
+}
+h1::before {
+  content: "# ";
+  color: #22d3ee;
+  font-family: "JetBrains Mono", monospace;
+  font-weight: 400;
+}
+
+h2 {
+  font-size: 15pt;
+  margin-top: 10mm;
+  margin-bottom: 4mm;
+  color: #0b3d91;
+  border-bottom: 1px solid #e5e7eb;
+  padding-bottom: 2mm;
+  font-weight: 700;
+}
+h2::before {
+  content: "## ";
+  color: #38bdf8;
+  font-family: "JetBrains Mono", monospace;
+  font-weight: 400;
+}
+
+h3 {
+  font-size: 12pt;
+  margin-top: 6mm;
+  margin-bottom: 2.5mm;
+  color: #1e3a8a;
+  font-weight: 700;
+}
+h3::before {
+  content: "### ";
+  color: #64748b;
+  font-family: "JetBrains Mono", monospace;
+  font-weight: 400;
+}
+
+h4 {
+  font-size: 11pt;
+  margin-top: 4mm;
+  margin-bottom: 2mm;
+  color: #334155;
+  font-weight: 600;
+}
+
+/* ---------------- Paragraphs, lists ---------------- */
+
+p {
+  margin: 0 0 3mm 0;
+}
+
+ul, ol {
+  margin: 2mm 0 4mm 0;
+  padding-left: 6mm;
+}
+li {
+  margin-bottom: 1.2mm;
+}
+li > ul, li > ol {
+  margin-top: 1mm;
+  margin-bottom: 1mm;
+}
+
+strong { color: #0f172a; }
+em { color: #334155; }
+
+a { color: #0369a1; text-decoration: none; }
+
+/* ---------------- Inline code + code blocks ---------------- */
+
+code {
+  font-family: "JetBrains Mono", "Fira Mono", "Consolas", monospace;
+  font-size: 9pt;
+  background: #f1f5f9;
+  color: #be123c;
+  padding: 0.5mm 1.5mm;
+  border-radius: 2px;
+  border: 1px solid #e2e8f0;
+}
+
+pre {
+  background: #0f172a;
+  color: #e2e8f0;
+  padding: 4mm 5mm;
+  border-radius: 4px;
+  border-left: 3px solid #22d3ee;
+  font-size: 9pt;
+  line-height: 1.4;
+  overflow-x: auto;
+  page-break-inside: avoid;
+  break-inside: avoid;
+}
+pre code {
+  background: transparent;
+  color: inherit;
+  border: 0;
+  padding: 0;
+}
+
+/* ---------------- Blockquote ---------------- */
+
+blockquote {
+  border-left: 4px solid #0ea5e9;
+  padding: 3mm 5mm;
+  margin: 3mm 0 4mm 0;
+  background: #f0f9ff;
+  color: #075985;
+  font-size: 10pt;
+  page-break-inside: avoid;
+  break-inside: avoid;
+}
+blockquote p { margin: 0; }
+
+/* ---------------- Tables ---------------- */
+
+table {
+  border-collapse: collapse;
+  width: 100%;
+  margin: 4mm 0;
+  font-size: 9.5pt;
+  page-break-inside: avoid;
+  break-inside: avoid;
+}
+
+th {
+  background: #0f172a;
+  color: #f9fafb;
+  padding: 2mm 3mm;
+  text-align: left;
+  font-weight: 600;
+  border: 1px solid #0f172a;
+  font-family: "Inter", sans-serif;
+}
+
+td {
+  padding: 2mm 3mm;
+  border: 1px solid #e2e8f0;
+  vertical-align: top;
+}
+
+tr:nth-child(even) td { background: #f8fafc; }
+tr:hover td { background: #eef2ff; }
+
+/* ---------------- Callouts / trampas ---------------- */
+
+.callout {
+  border-radius: 4px;
+  padding: 4mm 5mm;
+  margin: 4mm 0;
+  font-size: 10pt;
+  page-break-inside: avoid;
+  break-inside: avoid;
+}
+
+.callout.warning {
+  background: #fff7ed;
+  border-left: 4px solid #f97316;
+  color: #7c2d12;
+}
+.callout.warning strong { color: #9a3412; }
+
+.callout.info {
+  background: #eff6ff;
+  border-left: 4px solid #3b82f6;
+  color: #1e3a8a;
+}
+
+.callout.success {
+  background: #f0fdf4;
+  border-left: 4px solid #22c55e;
+  color: #14532d;
+}
+
+.callout .callout-title {
+  font-weight: 700;
+  margin-bottom: 2mm;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  font-size: 9pt;
+  font-family: "JetBrains Mono", monospace;
+}
+
+/* ---------------- Diagrams ---------------- */
+
+.diagram {
+  margin: 5mm 0 6mm 0;
+  page-break-inside: avoid;
+  break-inside: avoid;
+  text-align: center;
+}
+.diagram svg {
+  max-width: 100%;
+  height: auto;
+}
+.diagram .caption {
+  font-size: 8.5pt;
+  color: #6b7280;
+  margin-top: 2mm;
+  font-style: italic;
+  text-align: center;
+}
+
+/* ---------------- Horizontal rule ---------------- */
+
+hr {
+  border: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, #cbd5e1, transparent);
+  margin: 6mm 0;
+}
+
+/* ---------------- TOC ---------------- */
+
+#TOC, nav#TOC {
+  page: toc;
+  page-break-after: always;
+  break-after: page;
+  padding: 6mm 3mm;
+}
+#TOC ul {
+  list-style: none;
+  padding-left: 0;
+}
+#TOC > ul > li {
+  margin: 2mm 0;
+  padding: 2mm 3mm;
+  border-left: 3px solid #22d3ee;
+  background: #f8fafc;
+  font-weight: 600;
+}
+#TOC ul ul {
+  padding-left: 4mm;
+  margin-top: 1mm;
+  font-weight: 400;
+  font-size: 10pt;
+}
+#TOC a {
+  color: #0f172a;
+  text-decoration: none;
+}
+#TOC a::after {
+  content: leader('.') target-counter(attr(href), page);
+  color: #94a3b8;
+  font-family: "JetBrains Mono", monospace;
+  font-weight: 400;
+}
+#TOC .toc-title {
+  font-family: "Inter", sans-serif;
+  font-size: 22pt;
+  font-weight: 800;
+  color: #0f172a;
+  border-bottom: 3px solid #22d3ee;
+  padding-bottom: 3mm;
+  margin-bottom: 6mm;
+}
+#TOC .toc-title::before {
+  content: "# ";
+  color: #22d3ee;
+  font-family: "JetBrains Mono", monospace;
+  font-weight: 400;
+}
+
+/* Handle pandoc TOC container */
+nav#TOC {
+  padding: 0;
+}
+nav#TOC > h1, nav#TOC > h2 { display: none; }
+
+/* ---------------- Utilities ---------------- */
+
+.two-col {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 5mm;
+}
+
+.small { font-size: 9pt; color: #475569; }
+.mono { font-family: "JetBrains Mono", monospace; }
+
+.tag {
+  display: inline-block;
+  padding: 0.5mm 2mm;
+  border-radius: 3px;
+  font-size: 8pt;
+  font-family: "JetBrains Mono", monospace;
+  vertical-align: middle;
+  margin: 0 1mm;
+}
+.tag.k { background: #fef3c7; color: #92400e; }
+.tag.u { background: #dbeafe; color: #1e40af; }
+.tag.v { background: #dcfce7; color: #14532d; }
+.tag.f { background: #fee2e2; color: #991b1b; }
+
+/* Página final tipo prompt */
+.end-marker {
+  margin-top: 10mm;
+  padding: 4mm;
+  text-align: center;
+  font-family: "JetBrains Mono", monospace;
+  color: #94a3b8;
+  font-size: 10pt;
+  border-top: 1px dashed #cbd5e1;
+}
+.end-marker::before { content: "$ "; color: #22c55e; }

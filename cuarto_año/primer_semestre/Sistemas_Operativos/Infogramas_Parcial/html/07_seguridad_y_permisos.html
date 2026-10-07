@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="es"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Infograma: Protección, Seguridad y Permisos en Linux</title>
+<style>
+:root { --accent:#dc2626; --accent2:#f87171; }
+* { box-sizing:border-box; }
+body {
+  font-family:'Segoe UI',system-ui,-apple-system,sans-serif;
+  margin:0; background:#0f172a; color:#1e293b; line-height:1.55;
+}
+.wrap { max-width:1100px; margin:0 auto; padding:0 16px 60px; }
+header.hero {
+  background:linear-gradient(135deg,var(--accent),var(--accent2));
+  color:#fff; padding:38px 28px; border-radius:0 0 24px 24px;
+  box-shadow:0 8px 30px rgba(0,0,0,.35); margin-bottom:26px;
+}
+header.hero h1 { margin:0; font-size:2.0rem; display:flex; align-items:center; gap:14px; }
+header.hero .sub { opacity:.92; margin-top:8px; font-size:.95rem; }
+.topbar { background:#0f172a; padding:10px 16px; }
+.topbar a { color:#cbd5e1; text-decoration:none; font-size:.88rem; font-weight:600; }
+.topbar a:hover { color:#fff; }
+section.card {
+  background:#fff; border-radius:16px; padding:18px 22px; margin:18px 0;
+  box-shadow:0 4px 18px rgba(0,0,0,.18); border-left:6px solid var(--accent);
+}
+section.card h2 {
+  margin:0 0 12px; font-size:1.28rem; color:var(--accent);
+  display:flex; align-items:center; gap:10px;
+}
+section.card h3 { font-size:1.05rem; color:#334155; margin:16px 0 6px; }
+section.trampas {
+  border-left:6px solid #f59e0b; background:#fffbeb;
+}
+section.trampas h2 { color:#b45309; }
+ul, ol { margin:8px 0 8px; padding-left:24px; }
+li { margin:4px 0; }
+table {
+  border-collapse:collapse; width:100%; margin:14px 0; font-size:.92rem;
+  border-radius:10px; overflow:hidden; box-shadow:0 2px 8px rgba(0,0,0,.10);
+}
+th { background:var(--accent); color:#fff; text-align:left; padding:9px 12px; }
+td { padding:8px 12px; border-top:1px solid #e2e8f0; vertical-align:top; }
+tr:nth-child(even) td { background:#f8fafc; }
+code { background:#eef2ff; color:#3730a3; padding:1px 6px; border-radius:5px;
+  font-family:'Fira Code',Consolas,monospace; font-size:.88em; }
+pre { background:#1e293b; color:#e2e8f0; padding:14px; border-radius:10px; overflow:auto; }
+pre code { background:none; color:inherit; padding:0; }
+strong { color:#0f172a; }
+blockquote { border-left:4px solid var(--accent2); margin:10px 0; padding:6px 16px;
+  background:#f1f5f9; border-radius:0 8px 8px 0; color:#475569; }
+.vf-true { background:#16a34a; color:#fff; padding:1px 8px; border-radius:20px;
+  font-weight:700; font-size:.8rem; letter-spacing:.3px; }
+.vf-false { background:#dc2626; color:#fff; padding:1px 8px; border-radius:20px;
+  font-weight:700; font-size:.8rem; letter-spacing:.3px; }
+a { color:var(--accent); }
+hr { border:none; border-top:1px dashed #cbd5e1; margin:22px 0; }
+.home-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(230px,1fr));
+  gap:16px; margin-top:10px; }
+.home-grid a { text-decoration:none; }
+.tile { background:#fff; border-radius:16px; padding:20px; box-shadow:0 4px 16px rgba(0,0,0,.18);
+  border-top:5px solid var(--accent); transition:transform .12s,box-shadow .12s; height:100%; }
+.tile:hover { transform:translateY(-4px); box-shadow:0 10px 28px rgba(0,0,0,.30); }
+.tile .ico { font-size:2rem; }
+.tile .t { font-weight:700; color:#1e293b; margin:8px 0 4px; font-size:1.05rem; }
+.tile .d { color:#64748b; font-size:.85rem; }
+.badge { display:inline-block; background:#fef3c7; color:#b45309; font-size:.72rem;
+  font-weight:700; padding:2px 8px; border-radius:20px; margin-top:8px; }
+@media print { body{background:#fff;} section.card{box-shadow:none;border:1px solid #e2e8f0;}
+  header.hero{box-shadow:none;} .topbar{display:none;} }
+</style></head>
+<body><div class="topbar"><a href="index.html">⟵ Índice de infogramas</a></div>
+<header class="hero"><h1><span>🔒</span>Infograma: Protección, Seguridad y Permisos en Linux</h1>
+<div class="sub">Repaso parcial · Sistemas Operativos UNLP</div></header>
+<div class="wrap"><section class="card intro"><blockquote>
+<p>Repaso denso para parcial de Sistemas Operativos (UNLP). <strong>NO</strong> cubre file systems, RAID ni LVM.</p>
+</blockquote>
+<hr /></section>
+<section class="card"><h2><span>🔒</span> 1. Protección vs Seguridad</h2>
+<table>
+<thead>
+<tr>
+<th>Concepto</th>
+<th>Definición</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Protección</strong></td>
+<td><strong>Mecanismos internos</strong> del SO para controlar el acceso de <strong>procesos/usuarios</strong> a los recursos del sistema. Es el "cómo" técnico (los candados).</td>
+</tr>
+<tr>
+<td><strong>Seguridad</strong></td>
+<td>Concepto <strong>más general</strong>: defensa frente a <strong>amenazas externas e internas</strong>. Mide cuánto se puede confiar en que el sistema y sus datos mantienen su integridad.</td>
+</tr>
+</tbody>
+</table>
+<p>La <strong>protección es una parte de la seguridad</strong>.</p>
+<h3>Políticas vs Mecanismos</h3>
+<ul>
+<li><strong>Políticas (QUÉ):</strong> definen qué se quiere hacer / qué está permitido. Decisión a alto nivel, <strong>rara vez incluyen configuraciones</strong>.</li>
+<li><strong>Mecanismos (CÓMO):</strong> herramientas, configuraciones e implementaciones reales que hacen cumplir la política.</li>
+<li>Primero se define la <strong>política</strong>, después el mecanismo. Una misma política admite <strong>varios mecanismos</strong> → da <strong>flexibilidad</strong> (cambiar el mecanismo sin tocar la política).</li>
+</ul>
+<h3>Qué garantiza la seguridad: la tríada <strong>CIA</strong></h3>
+<ul>
+<li><strong>Confidencialidad:</strong> evitar la intercepción/lectura no autorizada de datos.</li>
+<li><strong>Integridad:</strong> evitar la modificación no autorizada de datos.</li>
+<li><strong>Disponibilidad:</strong> evitar la interrupción del servicio/recursos.</li>
+</ul>
+<hr />
+</section>
+<section class="card"><h2><span>🔒</span> 2. Permisos UNIX (rwx)</h2>
+<p>Cada archivo/directorio tiene <strong>3 conjuntos</strong> de permisos, uno por categoría:</p>
+<table>
+<thead>
+<tr>
+<th>Categoría</th>
+<th>Significado</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>u</strong> (user/owner)</td>
+<td>El <strong>dueño</strong> del archivo</td>
+</tr>
+<tr>
+<td><strong>g</strong> (group)</td>
+<td>El <strong>grupo</strong> del archivo</td>
+</tr>
+<tr>
+<td><strong>o</strong> (others)</td>
+<td>Todos los <strong>demás</strong></td>
+</tr>
+</tbody>
+</table>
+<p>Permisos: <strong>r</strong> (read=4), <strong>w</strong> (write=2), <strong>x</strong> (execute=1).</p>
+<h3>Representación octal</h3>
+<p>Se suma por categoría. Ejemplo <code>rwxr-xr--</code>:
+- owner <code>rwx</code> = 4+2+1 = <strong>7</strong>
+- group <code>r-x</code> = 4+0+1 = <strong>5</strong>
+- others <code>r--</code> = 4+0+0 = <strong>4</strong>
+- → <strong>754</strong></p>
+<h3>Comandos</h3>
+<ul>
+<li><strong><code>chmod</code></strong> → cambia permisos (<code>chmod 754 f</code>, <code>chmod u+x f</code>).</li>
+<li><strong><code>chown</code></strong> → cambia el <strong>dueño</strong> (<code>chown usuario f</code>).</li>
+<li><strong><code>chgrp</code></strong> → cambia el <strong>grupo</strong> (<code>chgrp grupo f</code>).</li>
+</ul>
+<blockquote>
+<p>En UNIX el <strong>dominio</strong> de un proceso lo define el par <strong>(UID, GID)</strong>: determina a qué objetos accede y con qué derechos.</p>
+</blockquote>
+<hr />
+</section>
+<section class="card"><h2><span>🔒</span> 3. Permisos especiales (setuid, setgid, sticky)</h2>
+<p>Son un <strong>4º dígito octal</strong> que precede a los permisos normales (ej. <code>chmod 4755</code>).</p>
+<table>
+<thead>
+<tr>
+<th>Permiso</th>
+<th>Octal</th>
+<th>Efecto sobre un <strong>archivo (ejecutable)</strong></th>
+<th>Efecto sobre un <strong>directorio</strong></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>setuid (SUID)</strong></td>
+<td><strong>4</strong></td>
+<td>El ejecutable corre con los privilegios del <strong>DUEÑO del archivo</strong>, no del usuario que lo lanza (ej. <code>passwd</code> corre como <strong>root</strong>).</td>
+<td>(Generalmente sin efecto.)</td>
+</tr>
+<tr>
+<td><strong>setgid (SGID)</strong></td>
+<td><strong>2</strong></td>
+<td>El ejecutable corre con los privilegios del <strong>GRUPO</strong> del archivo.</td>
+<td>Los <strong>archivos nuevos heredan el grupo del directorio</strong> (no el del usuario que los crea).</td>
+</tr>
+<tr>
+<td><strong>sticky bit</strong></td>
+<td><strong>1</strong></td>
+<td>(Sin efecto relevante hoy en ejecutables.)</td>
+<td>Solo el <strong>DUEÑO del archivo</strong> (o el dueño del dir, o <strong>root</strong>) puede <strong>renombrar/eliminar</strong> sus archivos, aunque otros tengan permiso de escritura en el dir (ej. <strong><code>/tmp</code></strong>).</td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p><strong>setuid/setgid</strong> implementan el <strong>cambio de dominio dinámico</strong> en UNIX: el proceso pasa al dominio del dueño/grupo justo cuando necesita más privilegio. En la salida de <code>ls -l</code> aparecen como <strong>s</strong> (en x) o <strong>t</strong> (sticky).</p>
+</blockquote>
+<hr />
+</section>
+<section class="card"><h2><span>🔒</span> 4. UMASK</h2>
+<ul>
+<li><strong>Máscara</strong> que define los permisos <strong>por defecto</strong> al crear archivos/directorios.</li>
+<li>Funciona por <strong>resta</strong>: se <strong>quitan</strong> sus bits de los permisos base.</li>
+<li>Base archivos = <strong>666</strong>, base directorios = <strong>777</strong>.</li>
+<li>Con <code>umask 022</code>: archivo → <code>666 - 022</code> = <strong>644</strong> ; directorio → <code>777 - 022</code> = <strong>755</strong>.</li>
+<li>Comando: <strong><code>umask</code></strong> (ver/establecer la máscara).</li>
+</ul>
+<hr />
+</section>
+<section class="card"><h2><span>🔒</span> 5. /etc/passwd vs /etc/shadow</h2>
+<table>
+<thead>
+<tr>
+<th>Archivo</th>
+<th>Contiene</th>
+<th>Permisos</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong><code>/etc/passwd</code></strong></td>
+<td>Info de usuarios (login, UID, GID, home, shell).</td>
+<td><strong>Legible por todos</strong> (la contraseña NO está acá).</td>
+</tr>
+<tr>
+<td><strong><code>/etc/shadow</code></strong></td>
+<td><strong>Hashes de contraseñas</strong> y políticas de expiración.</td>
+<td><strong>Solo root</strong> puede leerlo/modificarlo.</td>
+</tr>
+</tbody>
+</table>
+<hr />
+</section>
+<section class="card"><h2><span>🔒</span> 6. ASLR (Address Space Layout Randomization)</h2>
+<ul>
+<li>Mecanismo que <strong>aleatoriza las direcciones</strong> del espacio de memoria de un proceso (<strong>stack, heap, librerías compartidas</strong> y, si es PIE, el <strong>código</strong>) en cada ejecución.</li>
+<li><strong>Objetivo:</strong> dificultar exploits de memoria (ej. buffer overflow / return-to-libc) que necesitan <strong>direcciones fijas conocidas</strong>. Si cambian, el atacante no puede predecirlas.</li>
+<li><strong>¿Linux lo provee para procesos de usuario?</strong> → <strong>SÍ</strong>.</li>
+<li><strong>¿Y para el kernel?</strong> → <strong>SÍ</strong>, mediante <strong>KASLR</strong> (Kernel ASLR), que aleatoriza la dirección base donde se carga el kernel al arrancar (mecanismo <strong>separado</strong>).</li>
+<li>Se controla con <strong><code>/proc/sys/kernel/randomize_va_space</code></strong>:</li>
+<li><code>0</code> = desactivado</li>
+<li><code>1</code> = parcial (stack, mmap/librerías, vdso)</li>
+<li><code>2</code> = completo (+ heap/brk) → <strong>valor por defecto</strong></li>
+</ul>
+<hr />
+</section>
+<section class="card"><h2><span>🔒</span> 7. Explotación de errores (contexto)</h2>
+<ul>
+<li><strong>Buffer overflow:</strong> se escribe más allá del área de memoria reservada (C <strong>no</strong> chequea límites). Si se sobrescribe un valor sensible, puede encadenar código malicioso.</li>
+<li><strong>Shellcode:</strong> código preparado para obtener los privilegios del programa atacado.</li>
+<li>ASLR y permisos especiales bien usados (POLA / mínimo privilegio) <strong>mitigan</strong> estos ataques.</li>
+</ul>
+<hr />
+</section>
+<section class="card trampas"><h2><span>🔒</span> ⚠️ Trampas típicas de parcial</h2>
+<ul>
+<li><strong>ASLR:</strong> Linux lo provee para <strong>procesos de usuario SÍ</strong>, y para el <strong>kernel también SÍ (KASLR)</strong>. → <strong><span class="vf-true">VERDADERO</span></strong> para ambos.</li>
+<li><strong>"Mediante UMASK es posible indicar los permisos por default al crear un archivo/directorio"</strong> → <strong><span class="vf-true">VERDADERO</span></strong>.</li>
+<li><strong>"El sticky-bit en un directorio indica que los archivos dentro solo pueden ser renombrados/eliminados por el dueño del archivo, el dueño del directorio o root"</strong> → <strong><span class="vf-true">VERDADERO</span></strong>.</li>
+<li><strong>"En Linux, <code>/etc/shadow</code> solo puede ser modificado por root"</strong> → <strong><span class="vf-true">VERDADERO</span></strong>.</li>
+<li><strong>"sticky-bit, setuid y setgid son permisos especiales"</strong> → <strong><span class="vf-true">VERDADERO</span></strong>.</li>
+<li>Cuidado: <strong>setuid</strong> usa privilegios del <strong>DUEÑO</strong> del archivo (no del que lo ejecuta); <strong>setgid en directorio</strong> hereda <strong>grupo</strong> (no dueño).</li>
+<li>Cuidado: la contraseña <strong>NO</strong> está en <code>/etc/passwd</code> (legible por todos), sino en <code>/etc/shadow</code> (solo root).</li>
+</ul></section></div>
+</body></html>

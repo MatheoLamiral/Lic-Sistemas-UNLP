@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="es"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Infograma: chroot, cgroups y Namespaces (base de contenedores)</title>
+<style>
+:root { --accent:#d97706; --accent2:#fbbf24; }
+* { box-sizing:border-box; }
+body {
+  font-family:'Segoe UI',system-ui,-apple-system,sans-serif;
+  margin:0; background:#0f172a; color:#1e293b; line-height:1.55;
+}
+.wrap { max-width:1100px; margin:0 auto; padding:0 16px 60px; }
+header.hero {
+  background:linear-gradient(135deg,var(--accent),var(--accent2));
+  color:#fff; padding:38px 28px; border-radius:0 0 24px 24px;
+  box-shadow:0 8px 30px rgba(0,0,0,.35); margin-bottom:26px;
+}
+header.hero h1 { margin:0; font-size:2.0rem; display:flex; align-items:center; gap:14px; }
+header.hero .sub { opacity:.92; margin-top:8px; font-size:.95rem; }
+.topbar { background:#0f172a; padding:10px 16px; }
+.topbar a { color:#cbd5e1; text-decoration:none; font-size:.88rem; font-weight:600; }
+.topbar a:hover { color:#fff; }
+section.card {
+  background:#fff; border-radius:16px; padding:18px 22px; margin:18px 0;
+  box-shadow:0 4px 18px rgba(0,0,0,.18); border-left:6px solid var(--accent);
+}
+section.card h2 {
+  margin:0 0 12px; font-size:1.28rem; color:var(--accent);
+  display:flex; align-items:center; gap:10px;
+}
+section.card h3 { font-size:1.05rem; color:#334155; margin:16px 0 6px; }
+section.trampas {
+  border-left:6px solid #f59e0b; background:#fffbeb;
+}
+section.trampas h2 { color:#b45309; }
+ul, ol { margin:8px 0 8px; padding-left:24px; }
+li { margin:4px 0; }
+table {
+  border-collapse:collapse; width:100%; margin:14px 0; font-size:.92rem;
+  border-radius:10px; overflow:hidden; box-shadow:0 2px 8px rgba(0,0,0,.10);
+}
+th { background:var(--accent); color:#fff; text-align:left; padding:9px 12px; }
+td { padding:8px 12px; border-top:1px solid #e2e8f0; vertical-align:top; }
+tr:nth-child(even) td { background:#f8fafc; }
+code { background:#eef2ff; color:#3730a3; padding:1px 6px; border-radius:5px;
+  font-family:'Fira Code',Consolas,monospace; font-size:.88em; }
+pre { background:#1e293b; color:#e2e8f0; padding:14px; border-radius:10px; overflow:auto; }
+pre code { background:none; color:inherit; padding:0; }
+strong { color:#0f172a; }
+blockquote { border-left:4px solid var(--accent2); margin:10px 0; padding:6px 16px;
+  background:#f1f5f9; border-radius:0 8px 8px 0; color:#475569; }
+.vf-true { background:#16a34a; color:#fff; padding:1px 8px; border-radius:20px;
+  font-weight:700; font-size:.8rem; letter-spacing:.3px; }
+.vf-false { background:#dc2626; color:#fff; padding:1px 8px; border-radius:20px;
+  font-weight:700; font-size:.8rem; letter-spacing:.3px; }
+a { color:var(--accent); }
+hr { border:none; border-top:1px dashed #cbd5e1; margin:22px 0; }
+.home-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(230px,1fr));
+  gap:16px; margin-top:10px; }
+.home-grid a { text-decoration:none; }
+.tile { background:#fff; border-radius:16px; padding:20px; box-shadow:0 4px 16px rgba(0,0,0,.18);
+  border-top:5px solid var(--accent); transition:transform .12s,box-shadow .12s; height:100%; }
+.tile:hover { transform:translateY(-4px); box-shadow:0 10px 28px rgba(0,0,0,.30); }
+.tile .ico { font-size:2rem; }
+.tile .t { font-weight:700; color:#1e293b; margin:8px 0 4px; font-size:1.05rem; }
+.tile .d { color:#64748b; font-size:.85rem; }
+.badge { display:inline-block; background:#fef3c7; color:#b45309; font-size:.72rem;
+  font-weight:700; padding:2px 8px; border-radius:20px; margin-top:8px; }
+@media print { body{background:#fff;} section.card{box-shadow:none;border:1px solid #e2e8f0;}
+  header.hero{box-shadow:none;} .topbar{display:none;} }
+</style></head>
+<body><div class="topbar"><a href="index.html">⟵ Índice de infogramas</a></div>
+<header class="hero"><h1><span>📦</span>Infograma: chroot, cgroups y Namespaces (base de contenedores)</h1>
+<div class="sub">Repaso parcial · Sistemas Operativos UNLP</div></header>
+<div class="wrap"><section class="card intro"><blockquote>
+<p>Los <strong>3 mecanismos del kernel de Linux</strong> que, combinados, hacen posible un contenedor:
+<strong>chroot</strong> aísla el <em>filesystem</em> · <strong>namespaces</strong> aíslan la <em>vista</em> de recursos · <strong>cgroups</strong> <em>limitan</em> el consumo.</p>
+</blockquote>
+<hr /></section>
+<section class="card"><h2><span>📦</span> chroot (Service Isolation)</h2>
+<ul>
+<li><strong>Cambia el directorio raíz (<code>/</code>) aparente</strong> de un proceso (y de sus hijos). UNIX v7, 1979.</li>
+<li>Aislamiento <strong>básico del filesystem</strong>: el proceso no puede ver/acceder archivos ni comandos <strong>fuera</strong> de ese directorio. Al entorno se lo llama <strong>jail chroot</strong>.</li>
+<li><strong>Docker</strong> lo usa para fijar el <strong>union-fs</strong> como raíz del contenedor.</li>
+<li>Por sí solo NO aísla procesos, red, etc. (para eso → namespaces).</li>
+</ul>
+<pre><code class="language-bash">chroot /new-root-dir comando
+</code></pre>
+<hr />
+</section>
+<section class="card"><h2><span>📦</span> CGROUPS (Control Groups)</h2>
+<blockquote>
+<p>Característica del kernel que organiza procesos en <strong>grupos jerárquicos</strong> para <strong>limitar, priorizar, contabilizar y controlar</strong> el uso de recursos (CPU, memoria, E/S, red).</p>
+</blockquote>
+<p><strong>4 funcionalidades</strong> (NO solo limitación):
+- <strong>Limitación (Resource Limiting):</strong> un grupo no puede exceder el uso de un recurso.
+- <strong>Priorización:</strong> un grupo obtiene prioridad en el uso de recursos.
+- <strong>Accounting:</strong> mide/monitorea el uso (estadísticas, billing).
+- <strong>Control:</strong> freezar y reiniciar un grupo de procesos.</p>
+<p><strong>Conceptos:</strong>
+- <strong>Controlador / subsistema:</strong> componente del kernel por recurso (<code>cpu</code>, <code>memory</code>, <code>blkio</code>/<code>io</code>, <code>cpuset</code>, <code>pids</code>...).
+- <strong>Jerarquía:</strong> árbol de cgroups (cada cgroup = un directorio en el pseudo-filesystem cgroup).
+- Un proceso <strong>NO necesita ser modificado</strong> para agregarse a un cgroup. Los procesos <strong>desconocen</strong> los límites.
+- Un proceso creado por <strong><code>fork</code> pertenece al MISMO cgroup que el padre</strong> (se hereda).
+- Los <strong>límites de un cgroup hijo NO pueden superar</strong> los del padre.</p>
+<p><strong>Receta: limitar la CPU de un proceso al 80%:</strong>
+1. Crear un cgroup en el controlador <strong><code>cpu</code></strong>.
+2. Escribir la <strong>cuota</strong> (quota/period) correspondiente al 80%.
+3. Agregar el <strong>PID</strong> del proceso al cgroup (<code>cgroup.procs</code>).</p>
+<h3>Tabla: cgroups v1 vs v2</h3>
+<table>
+<thead>
+<tr>
+<th>Aspecto</th>
+<th><strong>v1</strong></th>
+<th><strong>v2</strong></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Jerarquías</td>
+<td><strong>Múltiples</strong> (una por controlador)</td>
+<td><strong>Única / unificada</strong></td>
+</tr>
+<tr>
+<td>Montar controlador particular</td>
+<td><strong>Sí</strong> se puede</td>
+<td><strong>No</strong> (todos en la jerarquía única)</td>
+</tr>
+<tr>
+<td>Pertenencia de un proceso</td>
+<td>A <strong>un</strong> cgroup <strong>por jerarquía</strong> (varias jerarquías a la vez)</td>
+<td>A <strong>un solo</strong> cgroup en toda la jerarquía</td>
+</tr>
+<tr>
+<td>¿Procesos en cgroups internos?</td>
+<td>Permitidos</td>
+<td>Solo en cgroups <strong>sin hijos (hojas)</strong>, salvo el <strong>root</strong> (<em>no internal process constraint</em>)</td>
+</tr>
+<tr>
+<td>Desmontar un controlador</td>
+<td>Solo si <strong>no tiene cgroups hijos</strong></td>
+<td>—</td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p><strong>Coexistencia:</strong> ambas versiones <strong>pueden estar montadas a la vez</strong> en un sistema; lo que NO se puede es montar <strong>el mismo controlador</strong> en v1 y v2 simultáneamente.</p>
+</blockquote>
+<hr />
+</section>
+<section class="card"><h2><span>📦</span> NAMESPACES</h2>
+<blockquote>
+<p>Dan a un proceso una <strong>vista aislada</strong> de un recurso global del sistema: el proceso "cree" tener su propia instancia. Un proceso está en <strong>un namespace de cada tipo</strong> a la vez; un hijo <strong>hereda</strong> los del padre.</p>
+</blockquote>
+<h3>Tabla: tipos de namespace</h3>
+<table>
+<thead>
+<tr>
+<th>Namespace</th>
+<th>Flag</th>
+<th>Qué aísla</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>PID</strong></td>
+<td><code>CLONE_NEWPID</code></td>
+<td>Árbol de PIDs propio; el 1er proceso es <strong>PID 1 (init)</strong> del namespace</td>
+</tr>
+<tr>
+<td><strong>NET</strong></td>
+<td><code>CLONE_NEWNET</code></td>
+<td>Interfaces de red, pilas, IPs, puertos</td>
+</tr>
+<tr>
+<td><strong>MNT / Mount</strong></td>
+<td><code>CLONE_NEWNS</code></td>
+<td>Puntos de montaje (tabla de montajes propia)</td>
+</tr>
+<tr>
+<td><strong>UTS</strong></td>
+<td><code>CLONE_NEWUTS</code></td>
+<td>Hostname y nombre de dominio</td>
+</tr>
+<tr>
+<td><strong>IPC</strong></td>
+<td><code>CLONE_NEWIPC</code></td>
+<td>System V IPC, colas de mensajes POSIX</td>
+</tr>
+<tr>
+<td><strong>USER</strong></td>
+<td><code>CLONE_NEWUSER</code></td>
+<td>Mapeo de UIDs/GIDs → <strong>root dentro ≠ root host</strong></td>
+</tr>
+<tr>
+<td><strong>Cgroup</strong></td>
+<td><code>CLONE_NEWCGROUP</code></td>
+<td>cgroup root directory</td>
+</tr>
+<tr>
+<td><strong>Time</strong></td>
+<td><code>CLONE_NEWTIME</code></td>
+<td>Offset del clock por namespace</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Syscalls:</strong> <code>clone()</code> (crea proceso + namespace), <code>unshare()</code> (mueve el proceso actual a uno nuevo), <code>setns()</code> (lo une a uno existente).</p>
+<blockquote>
+<p><strong>PID namespace → doble PID:</strong> un proceso <code>mi_proceso</code> tiene <strong>PID 1</strong> dentro del contenedor y un <strong>PID alto</strong> real en el host. Desde el host se ven TODOS los procesos de los contenedores; al revés NO.</p>
+</blockquote>
+<hr />
+</section>
+<section class="card trampas"><h2><span>📦</span> ⚠️ Trampas típicas de parcial</h2>
+<ul>
+<li><strong>"¿Qué mecanismo del kernel limita el uso de CPU de un proceso al 80%?"</strong> → <strong>CGROUPS</strong> (controlador <code>cpu</code>, cuota).</li>
+<li>"cgroups proveen limitación pero <strong>NO priorización</strong>" → <strong><span class="vf-false">FALSO</span></strong> (proveen <strong>ambas</strong>: priorización + limitación).</li>
+<li>"Una vez agregado a un cgroup, un proceso <strong>no puede moverse</strong> a otro" → <strong><span class="vf-false">FALSO</span></strong>.</li>
+<li>"Los procesos <strong>deben ser modificados</strong> para incorporarse a un cgroup" → <strong><span class="vf-false">FALSO</span></strong>.</li>
+<li>"Un proceso creado por <code>fork</code> <strong>NO</strong> pertenece al cgroup del padre" → <strong><span class="vf-false">FALSO</span></strong> (sí pertenece, lo hereda).</li>
+<li><strong>v1:</strong> "están organizados jerárquicamente" → <strong>V</strong>. "Cada proceso pertenece a una sola jerarquía / un cgroup por jerarquía" → <strong>V</strong>. "Se puede montar un controlador en particular" → <strong>V</strong>. "Un controlador solo se desmonta si no tiene cgroups hijos" → <strong>V</strong>. "Una jerarquía/controlador no puede estar en v1 y v2 a la vez" → <strong>V</strong>.</li>
+<li>v1: "<strong>solo existe una jerarquía</strong> en todo el sistema" → <strong><span class="vf-false">FALSO</span></strong> (eso es <strong>v2</strong>).</li>
+<li>v1: "dentro de una jerarquía un proceso puede estar en <strong>varios cgroups</strong> a la vez" → <strong><span class="vf-false">FALSO</span></strong> (solo uno por jerarquía).</li>
+<li><strong>v2:</strong> "los procesos deben agregarse a cgroups <strong>sin hijos (hojas)</strong>, salvo el root" → <strong>V</strong>.</li>
+<li>"<strong>No es posible</strong> tener las dos versiones de cgroups montadas simultáneamente" → <strong><span class="vf-false">FALSO</span></strong> (sí se puede; lo que no, es el mismo controlador en ambas).</li>
+<li>"Un proceso tiene <strong>distinto PID</strong> dentro del contenedor y en el host" → <strong>V</strong> (por el <strong>PID namespace</strong>).</li>
+</ul></section></div>
+</body></html>

@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>JPA — representación visual</title>
+<style>
+  :root{
+    --bg:#0d1117; --card:#161b26; --card2:#1c2230;
+    --obj:#f59e0b;      /* objetos / Java  (mundo OO, cálido) */
+    --rel:#38bdf8;      /* relacional / tablas / SQL (frío) */
+    --jpa:#818cf8;      /* JPA: especificación (índigo) */
+    --hib:#2dd4bf;      /* Hibernate: motor (teal) */
+    --jdbc:#94a3b8;     /* JDBC (neutro) */
+    --text:#e6edf3; --muted:#8b949e; --line:#30363d;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{
+    font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+    background:radial-gradient(1200px 600px at 50% -10%,#1c2230 0%,var(--bg) 60%);
+    color:var(--text);line-height:1.55;padding:36px 18px 60px;
+  }
+  .wrap{max-width:1080px;margin:0 auto;}
+  header{text-align:center;margin-bottom:26px;}
+  header h1{font-size:1.9rem;font-weight:800;letter-spacing:-.5px;}
+  .grad{background:linear-gradient(90deg,var(--obj),var(--rel));-webkit-background-clip:text;background-clip:text;color:transparent;}
+  header p{color:var(--muted);margin-top:6px;font-size:.95rem;}
+  h2.sec{font-size:1.05rem;margin:34px 0 16px;color:var(--text);border-left:3px solid var(--rel);padding-left:10px;}
+  code,pre{font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace;}
+
+  /* mapping block */
+  .map{display:grid;grid-template-columns:1fr 70px 1fr;gap:0;align-items:center;}
+  .panel{background:linear-gradient(160deg,var(--card2),var(--card));border:1px solid var(--line);border-radius:14px;padding:16px 18px;box-shadow:0 10px 28px rgba(0,0,0,.35);}
+  .panel .ptitle{font-size:.72rem;text-transform:uppercase;letter-spacing:1px;color:var(--muted);font-weight:700;margin-bottom:10px;display:flex;align-items:center;gap:7px;}
+  .panel.java{border-color:var(--obj);} .panel.sql{border-color:var(--rel);}
+  pre{font-size:.78rem;white-space:pre;overflow-x:auto;}
+  .k{color:var(--jpa);} .a{color:var(--obj);} .s{color:var(--hib);} .c{color:var(--muted);} .t{color:var(--rel);}
+  .arrowmid{display:flex;flex-direction:column;align-items:center;color:var(--rel);font-size:.6rem;}
+  .arrowmid .big{font-size:1.6rem;line-height:1;}
+
+  table.tbl{width:100%;border-collapse:collapse;font-size:.78rem;margin-top:4px;}
+  table.tbl th{background:rgba(56,189,248,.12);color:var(--rel);padding:6px 8px;border:1px solid var(--line);text-align:left;}
+  table.tbl td{padding:6px 8px;border:1px solid var(--line);color:var(--text);}
+  table.tbl td.muted{color:var(--muted);}
+
+  .legend{display:flex;flex-wrap:wrap;gap:14px;justify-content:center;margin-top:14px;font-size:.78rem;color:var(--muted);}
+  .legend b{color:var(--obj);font-family:ui-monospace,monospace;font-weight:600;}
+
+  /* layers */
+  .layers{display:flex;flex-direction:column;gap:10px;max-width:680px;margin:0 auto;}
+  .layer{display:flex;align-items:center;gap:14px;border-radius:12px;padding:14px 18px;border:1px solid var(--line);background:var(--card);border-left-width:4px;}
+  .layer .num{width:26px;height:26px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:.8rem;flex:0 0 auto;color:var(--bg);}
+  .layer .body{flex:1;}
+  .layer .body h3{font-size:.95rem;}
+  .layer .body p{font-size:.78rem;color:var(--muted);}
+  .l1{border-left-color:var(--obj);}  .l1 .num{background:var(--obj);}
+  .l2{border-left-color:var(--jpa);}  .l2 .num{background:var(--jpa);}
+  .l3{border-left-color:var(--hib);}  .l3 .num{background:var(--hib);}
+  .l4{border-left-color:var(--jdbc);} .l4 .num{background:var(--jdbc);}
+  .l5{border-left-color:var(--rel);}  .l5 .num{background:var(--rel);}
+  .between{text-align:center;color:var(--line);font-size:1.1rem;line-height:.4;}
+  .tagk{font-family:ui-monospace,monospace;font-size:.68rem;background:rgba(129,140,248,.12);border:1px solid rgba(129,140,248,.35);color:var(--jpa);border-radius:6px;padding:2px 7px;margin-left:6px;}
+
+  .note{max-width:760px;margin:26px auto 0;text-align:center;font-size:.84rem;color:var(--text);background:rgba(56,189,248,.07);border:1px dashed rgba(56,189,248,.4);border-radius:12px;padding:14px 18px;}
+
+  /* section 3: flow */
+  .flow3{max-width:720px;margin:0 auto;}
+  .phase{text-align:center;font-weight:800;font-size:.82rem;letter-spacing:.5px;color:var(--obj);background:rgba(245,158,11,.1);border:1px solid rgba(245,158,11,.35);border-radius:10px;padding:8px;margin:6px 0;}
+  .phase.read{color:var(--rel);background:rgba(56,189,248,.1);border-color:rgba(56,189,248,.35);}
+  .step{border:1px solid var(--line);border-radius:12px;padding:12px 16px;background:var(--card);border-left-width:4px;}
+  .step .lbl{font-size:.8rem;font-weight:700;margin-bottom:8px;display:flex;align-items:center;gap:8px;}
+  .step .who{font-size:.64rem;text-transform:uppercase;letter-spacing:1px;color:var(--muted);font-weight:600;background:rgba(139,148,158,.14);border-radius:5px;padding:2px 7px;}
+  .step pre{font-size:.76rem;background:rgba(0,0,0,.28);border-radius:8px;padding:9px 11px;overflow-x:auto;}
+  .shape{font-size:.72rem;color:var(--muted);margin-top:8px;}
+  .shape code{color:var(--text);background:rgba(255,255,255,.05);padding:1px 5px;border-radius:4px;font-size:.72rem;}
+  .shape.obj{border-left:2px solid var(--obj);padding-left:8px;}
+  .shape.sql{border-left:2px solid var(--hib);padding-left:8px;}
+  .shape.row{border-left:2px solid var(--rel);padding-left:8px;}
+  .sJava{border-left-color:var(--obj);} .sHib{border-left-color:var(--hib);} .sDb{border-left-color:var(--rel);}
+  .conv{text-align:center;font-size:.72rem;color:var(--muted);padding:7px 10px;}
+  .conv.up{color:var(--hib);}
+  .conv code{color:var(--rel);font-size:.72rem;}
+  .divider{height:1px;background:var(--line);margin:14px 0;opacity:.6;}
+  @media(max-width:680px){.map{grid-template-columns:1fr;}.arrowmid{transform:rotate(90deg);margin:6px 0;}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>JPA — <span class="grad">representación visual</span></h1>
+    <p>Del objeto Java a la tabla relacional, y el rol de cada capa</p>
+  </header>
+
+  <!-- 1: MAPPING -->
+  <h2 class="sec">1 · Una entidad = un POJO + anotaciones → una tabla</h2>
+  <div class="map">
+    <div class="panel java">
+      <div class="ptitle">☕ Clase Java (entidad)</div>
+<pre><span class="a">@Entity</span>
+<span class="a">@Table</span>(name=<span class="s">"app_user"</span>)
+<span class="k">public class</span> <span class="t">User</span> {
+
+  <span class="a">@Id</span>
+  <span class="a">@GeneratedValue</span>
+  <span class="k">private</span> Long id;
+
+  <span class="a">@Column</span>(nullable=<span class="k">false</span>)
+  <span class="k">private</span> String name;
+
+  <span class="a">@Column</span>(unique=<span class="k">true</span>)
+  <span class="k">private</span> String email;
+
+  <span class="a">@OneToMany</span>(mappedBy=<span class="s">"user"</span>)
+  <span class="k">private</span> List&lt;Purchase&gt; purchases;
+}</pre>
+    </div>
+
+    <div class="arrowmid">
+      <span class="big">→</span>
+      <span>JPA<br>mapea</span>
+    </div>
+
+    <div class="panel sql">
+      <div class="ptitle">🗄️ Tabla relacional</div>
+      <table class="tbl">
+        <tr><th>id</th><th>name</th><th>email</th></tr>
+        <tr><td>1</td><td>Ana</td><td>ana@…</td></tr>
+        <tr><td>2</td><td>Beto</td><td>beto@…</td></tr>
+        <tr><td class="muted">…</td><td class="muted">…</td><td class="muted">…</td></tr>
+      </table>
+      <p style="font-size:.72rem;color:var(--muted);margin-top:10px;">
+        La relación <code style="color:var(--obj)">@OneToMany</code> se traduce en una
+        <b style="color:var(--rel)">FK</b> <code style="color:var(--text)">user_id</code> en la tabla <code style="color:var(--text)">purchase</code>.
+      </p>
+    </div>
+  </div>
+
+  <div class="legend">
+    <span><b>@Entity</b> = la clase corresponde a una tabla</span>
+    <span><b>@Id</b> = clave primaria</span>
+    <span><b>@Column</b> = columna (con sus restricciones)</span>
+    <span><b>@OneToMany</b> = relación (FK / JOIN)</span>
+  </div>
+
+  <!-- 2: LAYERS -->
+  <h2 class="sec">2 · Las capas: rol de cada componente</h2>
+  <div class="layers">
+    <div class="layer l1">
+      <div class="num">1</div>
+      <div class="body"><h3>Aplicación</h3><p>Opera sobre objetos: <code style="color:var(--obj)">em.persist(user)</code>, <code style="color:var(--obj)">em.find(User.class, 1L)</code>. No incluye SQL.</p></div>
+    </div>
+    <div class="between">▼</div>
+    <div class="layer l2">
+      <div class="num">2</div>
+      <div class="body"><h3>JPA <span class="tagk">especificación</span></h3><p>Define las <b>reglas</b>: interfaces (<code style="color:var(--jpa)">EntityManager</code>) y anotaciones (<code style="color:var(--jpa)">@Entity</code>, <code style="color:var(--jpa)">@Id</code>). Por sí sola no ejecuta nada.</p></div>
+    </div>
+    <div class="between">▼</div>
+    <div class="layer l3">
+      <div class="num">3</div>
+      <div class="body"><h3>Hibernate <span class="tagk" style="color:var(--hib);background:rgba(45,212,191,.12);border-color:rgba(45,212,191,.35)">implementación</span></h3><p>El <b>motor</b> concreto. Traduce las operaciones sobre objetos y <b>genera el SQL</b> según el dialecto del motor. Administra el persistence context y el caché.</p></div>
+    </div>
+    <div class="between">▼</div>
+    <div class="layer l4">
+      <div class="num">4</div>
+      <div class="body"><h3>JDBC</h3><p>La API estándar de bajo nivel. Envía el SQL ya generado a la base por la conexión.</p></div>
+    </div>
+    <div class="between">▼</div>
+    <div class="layer l5">
+      <div class="num">5</div>
+      <div class="body"><h3>Base de datos</h3><p>PostgreSQL / MySQL / Oracle… ejecuta el SQL y devuelve filas, que Hibernate reconvierte en objetos <code style="color:var(--rel)">User</code>.</p></div>
+    </div>
+  </div>
+
+  <div class="note">
+    <b>En síntesis:</b> la aplicación trabaja con <b style="color:var(--obj)">objetos</b> y la base de datos con <b style="color:var(--rel)">tablas</b>.
+    JPA define <i>cómo</i> describir el puente (anotaciones); <b style="color:var(--hib)">Hibernate</b> lo cruza traduciendo objeto ⇄ SQL.
+  </div>
+
+  <!-- 3: FLOW / DATA TRANSFORMATION -->
+  <h2 class="sec">3 · Flujo de una operación: la transformación del dato</h2>
+  <p style="text-align:center;color:var(--muted);font-size:.85rem;margin-bottom:18px;">
+    Ejemplo: un método que <b style="color:var(--obj)">guarda</b> un usuario y luego lo <b style="color:var(--rel)">lee</b>. En cada paso el dato adopta una forma distinta.
+  </p>
+
+  <div class="flow3">
+
+    <!-- WRITE PATH -->
+    <div class="phase">⬇ Camino de ESCRITURA &nbsp;·&nbsp; objeto → SQL</div>
+
+    <div class="step sJava">
+      <div class="lbl">1 · Aplicación <span class="who">capa de servicio</span></div>
+      <pre><span class="k">User</span> u = <span class="k">new</span> User(<span class="s">"Ana"</span>, <span class="s">"ana@mail.com"</span>);   <span class="c">// Transient</span>
+em.persist(u);                              <span class="c">// se solicita persistir</span></pre>
+      <div class="shape obj">objeto Java: <code>User{ id=null, name="Ana", email="ana@mail.com" }</code></div>
+    </div>
+    <div class="conv">Hibernate lee las anotaciones <code>@Entity/@Column</code> y construye el SQL ▾</div>
+
+    <div class="step sHib">
+      <div class="lbl">2 · Hibernate genera SQL <span class="who">motor</span></div>
+      <pre><span class="t">INSERT INTO</span> app_user (name, email) <span class="t">VALUES</span> (?, ?);</pre>
+      <div class="shape sql">sentencia SQL + parámetros <code>["Ana", "ana@mail.com"]</code></div>
+    </div>
+    <div class="conv">JDBC envía la sentencia por la conexión ▾</div>
+
+    <div class="step sDb">
+      <div class="lbl">3 · Base de datos <span class="who">RDBMS</span></div>
+      <pre><span class="c">-- ejecuta el INSERT y asigna la PK</span>
+id=<span class="a">1</span> | name=Ana | email=ana@mail.com</pre>
+      <div class="shape row">fila persistida — se genera <code>id = 1</code></div>
+    </div>
+    <div class="conv up">Hibernate recibe el id generado y lo escribe en el objeto ▴ → pasa a <b style="color:var(--hib)">Managed</b></div>
+
+    <div class="divider"></div>
+
+    <!-- READ PATH -->
+    <div class="phase read">⬆ Camino de LECTURA &nbsp;·&nbsp; SQL → objeto</div>
+
+    <div class="step sJava">
+      <div class="lbl">4 · Aplicación <span class="who">capa de servicio</span></div>
+      <pre><span class="k">User</span> u = em.find(User.<span class="k">class</span>, <span class="a">1L</span>);   <span class="c">// se solicita el id 1</span></pre>
+      <div class="shape obj">solicitud: el usuario con id 1</div>
+    </div>
+    <div class="conv">Hibernate traduce la consulta a SQL ▾</div>
+
+    <div class="step sHib">
+      <div class="lbl">5 · Hibernate genera SQL <span class="who">motor</span></div>
+      <pre><span class="t">SELECT</span> id, name, email <span class="t">FROM</span> app_user <span class="t">WHERE</span> id = <span class="a">1</span>;</pre>
+    </div>
+    <div class="conv">la base de datos devuelve la fila cruda ▾</div>
+
+    <div class="step sDb">
+      <div class="lbl">6 · Base de datos devuelve filas <span class="who">ResultSet</span></div>
+      <pre>┌────┬──────┬──────────────┐
+│ id │ name │ email        │
+├────┼──────┼──────────────┤
+│ <span class="a">1</span>  │ Ana  │ ana@mail.com │
+└────┴──────┴──────────────┘</pre>
+      <div class="shape row">datos tabulares (filas y columnas)</div>
+    </div>
+    <div class="conv up">Hibernate mapea cada columna a su atributo (<b>hidratación</b>) ▴</div>
+
+    <div class="step sJava">
+      <div class="lbl">7 · Retorno a la aplicación <span class="who">objeto listo</span></div>
+      <pre><span class="c">// se obtiene de nuevo un objeto, ya Managed</span>
+User{ id=<span class="a">1</span>, name=<span class="s">"Ana"</span>, email=<span class="s">"ana@mail.com"</span> }</pre>
+      <div class="shape obj">objeto Java reconstruido y rastreado por la Session</div>
+    </div>
+
+  </div>
+
+  <div class="note" style="border-color:rgba(245,158,11,.4);background:rgba(245,158,11,.07);">
+    <b>Constante en todo el flujo:</b> el dato cambia de forma —
+    <b style="color:var(--obj)">objeto</b> → <b style="color:var(--hib)">SQL</b> → <b style="color:var(--rel)">filas</b> → <b style="color:var(--obj)">objeto</b> —
+    pero la aplicación solo interactúa con los extremos. La generación de SQL, el envío por JDBC y el mapeo de filas a atributos los realiza Hibernate.
+  </div>
+
+</div>
+</body>
+</html>

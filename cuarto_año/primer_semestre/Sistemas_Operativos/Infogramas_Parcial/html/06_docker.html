@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html lang="es"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Infograma de Repaso: Docker y Contenedores</title>
+<style>
+:root { --accent:#0284c7; --accent2:#38bdf8; }
+* { box-sizing:border-box; }
+body {
+  font-family:'Segoe UI',system-ui,-apple-system,sans-serif;
+  margin:0; background:#0f172a; color:#1e293b; line-height:1.55;
+}
+.wrap { max-width:1100px; margin:0 auto; padding:0 16px 60px; }
+header.hero {
+  background:linear-gradient(135deg,var(--accent),var(--accent2));
+  color:#fff; padding:38px 28px; border-radius:0 0 24px 24px;
+  box-shadow:0 8px 30px rgba(0,0,0,.35); margin-bottom:26px;
+}
+header.hero h1 { margin:0; font-size:2.0rem; display:flex; align-items:center; gap:14px; }
+header.hero .sub { opacity:.92; margin-top:8px; font-size:.95rem; }
+.topbar { background:#0f172a; padding:10px 16px; }
+.topbar a { color:#cbd5e1; text-decoration:none; font-size:.88rem; font-weight:600; }
+.topbar a:hover { color:#fff; }
+section.card {
+  background:#fff; border-radius:16px; padding:18px 22px; margin:18px 0;
+  box-shadow:0 4px 18px rgba(0,0,0,.18); border-left:6px solid var(--accent);
+}
+section.card h2 {
+  margin:0 0 12px; font-size:1.28rem; color:var(--accent);
+  display:flex; align-items:center; gap:10px;
+}
+section.card h3 { font-size:1.05rem; color:#334155; margin:16px 0 6px; }
+section.trampas {
+  border-left:6px solid #f59e0b; background:#fffbeb;
+}
+section.trampas h2 { color:#b45309; }
+ul, ol { margin:8px 0 8px; padding-left:24px; }
+li { margin:4px 0; }
+table {
+  border-collapse:collapse; width:100%; margin:14px 0; font-size:.92rem;
+  border-radius:10px; overflow:hidden; box-shadow:0 2px 8px rgba(0,0,0,.10);
+}
+th { background:var(--accent); color:#fff; text-align:left; padding:9px 12px; }
+td { padding:8px 12px; border-top:1px solid #e2e8f0; vertical-align:top; }
+tr:nth-child(even) td { background:#f8fafc; }
+code { background:#eef2ff; color:#3730a3; padding:1px 6px; border-radius:5px;
+  font-family:'Fira Code',Consolas,monospace; font-size:.88em; }
+pre { background:#1e293b; color:#e2e8f0; padding:14px; border-radius:10px; overflow:auto; }
+pre code { background:none; color:inherit; padding:0; }
+strong { color:#0f172a; }
+blockquote { border-left:4px solid var(--accent2); margin:10px 0; padding:6px 16px;
+  background:#f1f5f9; border-radius:0 8px 8px 0; color:#475569; }
+.vf-true { background:#16a34a; color:#fff; padding:1px 8px; border-radius:20px;
+  font-weight:700; font-size:.8rem; letter-spacing:.3px; }
+.vf-false { background:#dc2626; color:#fff; padding:1px 8px; border-radius:20px;
+  font-weight:700; font-size:.8rem; letter-spacing:.3px; }
+a { color:var(--accent); }
+hr { border:none; border-top:1px dashed #cbd5e1; margin:22px 0; }
+.home-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(230px,1fr));
+  gap:16px; margin-top:10px; }
+.home-grid a { text-decoration:none; }
+.tile { background:#fff; border-radius:16px; padding:20px; box-shadow:0 4px 16px rgba(0,0,0,.18);
+  border-top:5px solid var(--accent); transition:transform .12s,box-shadow .12s; height:100%; }
+.tile:hover { transform:translateY(-4px); box-shadow:0 10px 28px rgba(0,0,0,.30); }
+.tile .ico { font-size:2rem; }
+.tile .t { font-weight:700; color:#1e293b; margin:8px 0 4px; font-size:1.05rem; }
+.tile .d { color:#64748b; font-size:.85rem; }
+.badge { display:inline-block; background:#fef3c7; color:#b45309; font-size:.72rem;
+  font-weight:700; padding:2px 8px; border-radius:20px; margin-top:8px; }
+@media print { body{background:#fff;} section.card{box-shadow:none;border:1px solid #e2e8f0;}
+  header.hero{box-shadow:none;} .topbar{display:none;} }
+</style></head>
+<body><div class="topbar"><a href="index.html">⟵ Índice de infogramas</a></div>
+<header class="hero"><h1><span>🐳</span>Infograma de Repaso: Docker y Contenedores</h1>
+<div class="sub">Repaso parcial · Sistemas Operativos UNLP</div></header>
+<div class="wrap"><section class="card intro"><blockquote>
+<p>Plataforma open-source para <strong>empaquetar y ejecutar apps en contenedores livianos</strong>. Trabaja a <strong>nivel SO</strong>, comparte el kernel del host y <strong>NO usa hypervisor</strong>.</p>
+</blockquote>
+<hr /></section>
+<section class="card"><h2><span>🐳</span> Imagen vs Contenedor</h2>
+<table>
+<thead>
+<tr>
+<th></th>
+<th><strong>Imagen</strong></th>
+<th><strong>Contenedor</strong></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Qué es</strong></td>
+<td>Template/molde de <strong>solo lectura</strong></td>
+<td>Instancia <strong>en ejecución</strong> de una imagen</td>
+</tr>
+<tr>
+<td><strong>Contenido</strong></td>
+<td>App + dependencias + librerías + instrucciones</td>
+<td>Imagen + capa escribible propia</td>
+</tr>
+<tr>
+<td><strong>Ejecución</strong></td>
+<td><strong>NO se ejecuta</strong> (es estática)</td>
+<td><strong>SÍ se ejecuta</strong> (proceso/s aislados)</td>
+</tr>
+<tr>
+<td><strong>Relación</strong></td>
+<td>De 1 imagen se crean <strong>VARIOS</strong> contenedores</td>
+<td>Cada uno autónomo y aislado</td>
+</tr>
+<tr>
+<td><strong>Analogía OOP</strong></td>
+<td>Clase</td>
+<td>Objeto/instancia</td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li>Una imagen puede <strong>basarse en otras</strong> (cadena de capas).</li>
+<li>Se puede generar una imagen <strong>a partir de un contenedor</strong> con <code>docker commit</code>.</li>
+<li><strong>Diferencia clave</strong>: la imagen es solo lectura; el contenedor le agrega encima una <strong>capa escribible</strong>.</li>
+</ul>
+<hr />
+</section>
+<section class="card"><h2><span>🐳</span> Cómo lo provee el kernel (NO necesita hypervisor)</h2>
+<p>Docker corre en <strong>espacio de usuario (Ring 3)</strong> y <strong>NO captura syscalls</strong> (lo hace el kernel). SÍ requiere funcionalidades del kernel:</p>
+<ul>
+<li><strong>chroot</strong>: cambia el <strong>directorio raíz</strong> del contenedor.</li>
+<li><strong>Namespaces</strong>: vista <strong>aislada</strong> del sistema → <code>PID</code>, <code>Net</code>, <code>Mount(mnt)</code>, <code>UTS</code>, <code>IPC</code>, <code>User</code>.</li>
+<li><strong>Cgroups (Control Groups)</strong>: <strong>limitan/controlan recursos</strong> (CPU, memoria, etc.).</li>
+<li><strong>Union Filesystem</strong>: apila capas como un solo FS.</li>
+</ul>
+<blockquote>
+<p>El contenedor tiene sus propios filesystem, librerías, red, nombre... <strong>excepto su propio kernel</strong> (lo comparte con el host).</p>
+</blockquote>
+<hr />
+</section>
+<section class="card"><h2><span>🐳</span> Union Filesystem (overlay) y Capas</h2>
+<p><strong>Mecanismo de montaje</strong> (no un FS nuevo): varios directorios montados en <strong>un mismo punto</strong> aparecen como <strong>uno solo</strong>.</p>
+<ul>
+<li>Capas <strong>inferiores → solo lectura (read-only)</strong>.</li>
+<li>Capa <strong>superior → escritura (writable)</strong>.</li>
+<li>Cada <strong>imagen = varias capas apiladas</strong>; cada capa guarda <strong>solo las DIFERENCIAS</strong> respecto de la anterior. <strong>Todas las capas de la imagen son de solo lectura</strong>.</li>
+<li>Las capas read-only se <strong>reutilizan entre imágenes</strong> (ahorra espacio/descargas).</li>
+</ul>
+<p><strong>Al ejecutar un contenedor</strong> (copy-on-write):
+1. Docker <strong>apila las capas read-only</strong> de la imagen.
+2. Con <strong>chroot</strong> establece ese union-FS como raíz del contenedor.
+3. Agrega encima una <strong>capa escribible propia</strong> del contenedor.
+4. Solo esa <strong>última capa</strong> puede modificarse → permite correr <strong>muchos contenedores</strong> sobre las <strong>mismas capas compartidas</strong>.</p>
+<blockquote>
+<p>Al borrar el contenedor se elimina su capa escribible; las inferiores quedan intactas.</p>
+</blockquote>
+<hr />
+</section>
+<section class="card"><h2><span>🐳</span> Containers vs VMs</h2>
+<table>
+<thead>
+<tr>
+<th><strong>Container</strong></th>
+<th><strong>VM</strong></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Comparte el <strong>kernel del host</strong></td>
+<td>SO <strong>guest completo + kernel propio</strong></td>
+</tr>
+<tr>
+<td><strong>Liviano y arranque rápido</strong></td>
+<td>Pesada, arranque lento</td>
+</tr>
+<tr>
+<td>Aislamiento a nivel de <strong>proceso</strong></td>
+<td>Aislamiento completo (HW virtual)</td>
+</tr>
+<tr>
+<td><strong>NO necesita hypervisor</strong></td>
+<td><strong>Requiere hypervisor</strong></td>
+</tr>
+</tbody>
+</table>
+<hr />
+</section>
+<section class="card"><h2><span>🐳</span> Dockerfile vs docker-compose</h2>
+<table>
+<thead>
+<tr>
+<th></th>
+<th><strong>Dockerfile</strong></th>
+<th><strong>docker-compose (compose.yaml)</strong></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Qué hace</strong></td>
+<td>Instrucciones para <strong>CONSTRUIR UNA imagen</strong> (paso a paso)</td>
+<td>Definición <strong>DECLARATIVA</strong> para levantar/<strong>orquestar</strong> una app de <strong>VARIOS contenedores</strong></td>
+</tr>
+<tr>
+<td><strong>Resultado</strong></td>
+<td>Una <strong>imagen</strong> (1 pieza)</td>
+<td>Conjunto de contenedores + redes + volúmenes</td>
+</tr>
+<tr>
+<td><strong>Lenguaje</strong></td>
+<td>Instrucciones (<code>FROM</code>, <code>RUN</code>, <code>COPY</code>, <code>CMD</code>...)</td>
+<td><strong>YAML</strong> (indentación, clave: valor)</td>
+</tr>
+<tr>
+<td><strong>Comando</strong></td>
+<td><code>docker build</code></td>
+<td><code>docker compose up</code> / <code>down</code></td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p><strong>No son excluyentes</strong>: compose puede usar <code>build:</code> apuntando a un Dockerfile. Cada instrucción del Dockerfile genera <strong>una nueva capa</strong>.</p>
+</blockquote>
+<hr />
+</section>
+<section class="card"><h2><span>🐳</span> Persistencia de datos (se guarda en el HOST)</h2>
+<p>Lo escrito en la capa del contenedor <strong>se pierde</strong> al destruirlo → para persistir hay que guardarlo en el host y montarlo.</p>
+<table>
+<thead>
+<tr>
+<th></th>
+<th><strong>Volumes</strong> (recomendado)</th>
+<th><strong>Bind Mounts</strong></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Ubicación</strong></td>
+<td>Gestionada por Docker en <code>/var/lib/docker/volumes</code></td>
+<td><strong>Cualquier ruta del host</strong> elegida por el usuario</td>
+</tr>
+<tr>
+<td><strong>Portabilidad</strong></td>
+<td>Más portables, <strong>desacoplados del host</strong></td>
+<td>Atados a una ruta concreta</td>
+</tr>
+<tr>
+<td><strong>Acceso externo</strong></td>
+<td>Manejados por Docker</td>
+<td>Pueden ser modificados por <strong>procesos ajenos a Docker</strong></td>
+</tr>
+</tbody>
+</table>
+<hr />
+</section>
+<section class="card trampas"><h2><span>🐳</span> ⚠️ Trampas típicas de parcial</h2>
+<table>
+<thead>
+<tr>
+<th>Afirmación</th>
+<th>Veredicto</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>"A partir de una imagen solo se puede generar un solo contenedor"</td>
+<td><strong><span class="vf-false">FALSO</span></strong> (varios)</td>
+</tr>
+<tr>
+<td>"Docker necesita un hypervisor para ejecutarse"</td>
+<td><strong><span class="vf-false">FALSO</span></strong> (trabaja a nivel SO)</td>
+</tr>
+<tr>
+<td>"Dockerfile es un archivo con instrucciones que permite crear un container"</td>
+<td><strong><span class="vf-false">FALSO</span></strong> (crea una <strong>IMAGEN</strong>, no un container)</td>
+</tr>
+<tr>
+<td>"Cada imagen está compuesta por capas de las cuales solo la última puede ser modificada"</td>
+<td><strong><span class="vf-true">VERDADERO</span></strong></td>
+</tr>
+<tr>
+<td>"Docker usa namespaces, cgroups y union filesystems para proveer contenedores"</td>
+<td><strong><span class="vf-true">VERDADERO</span></strong></td>
+</tr>
+<tr>
+<td>"No es posible generar una imagen a partir de un container"</td>
+<td><strong><span class="vf-false">FALSO</span></strong> (sí, <code>docker commit</code>)</td>
+</tr>
+<tr>
+<td>"Como trabaja en modo usuario no requiere ninguna funcionalidad del kernel"</td>
+<td><strong><span class="vf-false">FALSO</span></strong> (requiere chroot, namespaces, cgroups)</td>
+</tr>
+<tr>
+<td>"Todo archivo que se agrega en un container automáticamente pasa a ser parte de la imagen"</td>
+<td><strong><span class="vf-false">FALSO</span></strong> (va a la <strong>capa escribible</strong> del container)</td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p><strong>Relación union-FS ↔ imágenes/contenedores</strong>: capas <strong>read-only</strong> de la imagen + <strong>capa escribible</strong> del contenedor (copy-on-write).</p>
+</blockquote></section></div>
+</body></html>

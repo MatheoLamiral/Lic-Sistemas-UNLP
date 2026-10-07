@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ciclo de vida de una entidad — JPA / Hibernate</title>
+<style>
+  :root{
+    --bg:#0d1117; --card:#161b26; --card2:#1c2230;
+    --transient:#94a3b8;   /* aún no está en la BD (neutro) */
+    --managed:#34d399;     /* gestionado / rastreado (vivo) */
+    --detached:#f59e0b;    /* fuera del contexto (atención) */
+    --removed:#f87171;     /* marcado para borrar */
+    --op:#38bdf8;          /* operación explícita */
+    --cascade:#818cf8;     /* por cascada */
+    --text:#e6edf3; --muted:#8b949e; --line:#30363d;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{
+    font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+    background:radial-gradient(1200px 600px at 50% -10%,#1c2230 0%,var(--bg) 60%);
+    color:var(--text);line-height:1.55;padding:36px 18px 60px;
+  }
+  .wrap{max-width:1080px;margin:0 auto;}
+  header{text-align:center;margin-bottom:22px;}
+  header h1{font-size:1.9rem;font-weight:800;letter-spacing:-.5px;}
+  .grad{background:linear-gradient(90deg,var(--managed),var(--detached));-webkit-background-clip:text;background-clip:text;color:transparent;}
+  header p{color:var(--muted);margin-top:6px;font-size:.95rem;}
+  h2.sec{font-size:1.05rem;margin:34px 0 16px;color:var(--text);border-left:3px solid var(--managed);padding-left:10px;}
+  code,pre{font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace;}
+
+  .legend{display:flex;gap:16px;justify-content:center;flex-wrap:wrap;margin:18px 0 4px;font-size:.8rem;color:var(--muted);}
+  .legend span{display:inline-flex;align-items:center;gap:7px;}
+  .dot{width:11px;height:11px;border-radius:50%;display:inline-block;}
+
+  /* state cards */
+  .states{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;}
+  .scard{background:linear-gradient(160deg,var(--card2),var(--card));border:1px solid var(--line);border-top-width:3px;border-radius:14px;padding:15px 16px;box-shadow:0 10px 26px rgba(0,0,0,.32);}
+  .scard h3{font-size:1rem;display:flex;align-items:center;gap:8px;}
+  .scard .tag{font-size:.64rem;text-transform:uppercase;letter-spacing:1px;color:var(--muted);font-weight:700;}
+  .scard p{font-size:.78rem;color:var(--muted);margin-top:8px;}
+  .scard .trait{margin-top:10px;font-size:.72rem;border-radius:7px;padding:6px 9px;background:rgba(255,255,255,.04);}
+  .badge{width:13px;height:13px;border-radius:50%;display:inline-block;}
+  .c-tra{border-top-color:var(--transient);} .c-tra .badge{background:var(--transient);} .c-tra .trait{color:var(--transient);}
+  .c-man{border-top-color:var(--managed);}   .c-man .badge{background:var(--managed);}   .c-man .trait{color:var(--managed);}
+  .c-det{border-top-color:var(--detached);}  .c-det .badge{background:var(--detached);}  .c-det .trait{color:var(--detached);}
+  .c-rem{border-top-color:var(--removed);}   .c-rem .badge{background:var(--removed);}   .c-rem .trait{color:var(--removed);}
+
+  /* transition flow */
+  .flow{display:flex;flex-direction:column;align-items:center;gap:0;max-width:760px;margin:0 auto;}
+  .pill{font-family:ui-monospace,monospace;font-size:.72rem;border-radius:20px;padding:6px 16px;font-weight:700;color:var(--bg);}
+  .row{display:flex;align-items:stretch;justify-content:center;gap:0;flex-wrap:wrap;width:100%;}
+  .node{border:1px solid var(--line);border-left-width:4px;border-radius:12px;padding:12px 16px;width:230px;background:var(--card);}
+  .node h4{font-size:.92rem;display:flex;align-items:center;gap:8px;}
+  .node ul{list-style:none;margin-top:7px;font-size:.74rem;color:var(--muted);}
+  .node ul li{padding:2px 0 2px 14px;position:relative;}
+  .node ul li::before{content:"▹";position:absolute;left:0;color:var(--op);}
+  .n-tra{border-left-color:var(--transient);} .n-man{border-left-color:var(--managed);}
+  .n-det{border-left-color:var(--detached);}  .n-rem{border-left-color:var(--removed);}
+  .arrow{display:flex;flex-direction:column;align-items:center;justify-content:center;min-width:170px;padding:8px;text-align:center;}
+  .arrow .op{font-family:ui-monospace,monospace;font-size:.7rem;color:var(--op);background:rgba(56,189,248,.09);border:1px solid rgba(56,189,248,.28);border-radius:8px;padding:4px 9px;margin:3px 0;white-space:nowrap;}
+  .arrow .op.cas{color:var(--cascade);background:rgba(129,140,248,.1);border-color:rgba(129,140,248,.3);}
+  .arrow .line{font-size:1.4rem;color:var(--line);line-height:1;}
+  .arrow.vert{min-width:auto;width:230px;}
+  .note-inline{margin:8px auto;max-width:540px;text-align:center;font-size:.76rem;color:var(--managed);background:rgba(52,211,153,.08);border:1px dashed rgba(52,211,153,.4);border-radius:10px;padding:9px 14px;}
+
+  /* real case */
+  .case{max-width:760px;margin:0 auto;}
+  .cstep{display:flex;gap:13px;align-items:flex-start;border:1px solid var(--line);border-radius:12px;padding:12px 15px;background:var(--card);margin-bottom:9px;}
+  .cstep .ic{flex:0 0 auto;width:30px;height:30px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:.95rem;}
+  .cstep .ct{flex:1;}
+  .cstep .ct h4{font-size:.88rem;}
+  .cstep .ct p{font-size:.76rem;color:var(--muted);margin-top:3px;}
+  .state-pill{font-size:.64rem;font-weight:800;text-transform:uppercase;letter-spacing:.5px;border-radius:6px;padding:3px 8px;color:var(--bg);white-space:nowrap;}
+  .sp-man{background:var(--managed);} .sp-det{background:var(--detached);} .sp-tra{background:var(--transient);} .sp-rem{background:var(--removed);}
+
+  .note{max-width:780px;margin:26px auto 0;text-align:center;font-size:.84rem;color:var(--text);background:rgba(248,113,113,.07);border:1px dashed rgba(248,113,113,.4);border-radius:12px;padding:14px 18px;}
+  .note b{color:var(--removed);}
+  @media(max-width:760px){.states{grid-template-columns:1fr 1fr;}.arrow{transform:rotate(90deg);min-width:auto;}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>Ciclo de vida de una <span class="grad">entidad</span></h1>
+    <p>Los cuatro estados respecto del contexto de persistencia y las operaciones que disparan cada transición</p>
+  </header>
+
+  <div class="legend">
+    <span><i class="dot" style="background:var(--transient)"></i> Transient</span>
+    <span><i class="dot" style="background:var(--managed)"></i> Managed</span>
+    <span><i class="dot" style="background:var(--detached)"></i> Detached</span>
+    <span><i class="dot" style="background:var(--removed)"></i> Removed</span>
+    <span><i class="dot" style="background:var(--op)"></i> operación explícita</span>
+    <span><i class="dot" style="background:var(--cascade)"></i> por cascada</span>
+  </div>
+
+  <!-- 1: STATES -->
+  <h2 class="sec">1 · Los cuatro estados</h2>
+  <div class="states">
+    <div class="scard c-tra">
+      <span class="tag">Estado 1</span>
+      <h3><span class="badge"></span> Transient</h3>
+      <p>Objeto recién creado en memoria. No tiene identidad en la base ni fila asociada, y ninguna sesión lo conoce.</p>
+      <div class="trait">▸ No persistido · sin ID</div>
+    </div>
+    <div class="scard c-man">
+      <span class="tag">Estado 2</span>
+      <h3><span class="badge"></span> Managed</h3>
+      <p>Objeto con identidad en la base y vinculado a un contexto de persistencia activo. El ORM lo rastrea.</p>
+      <div class="trait">▸ Único estado sincronizado (dirty checking)</div>
+    </div>
+    <div class="scard c-det">
+      <span class="tag">Estado 3</span>
+      <h3><span class="badge"></span> Detached</h3>
+      <p>Objeto que tuvo identidad pero cuyo contexto se cerró. Conserva datos, pero el ORM ya no rastrea sus cambios.</p>
+      <div class="trait">▸ Fuera del contexto · cambios no sincronizados</div>
+    </div>
+    <div class="scard c-rem">
+      <span class="tag">Estado 4</span>
+      <h3><span class="badge"></span> Removed</h3>
+      <p>Objeto gestionado marcado para eliminación. Sigue en memoria, pero su fila se borrará al consolidar.</p>
+      <div class="trait">▸ El DELETE real ocurre en el commit</div>
+    </div>
+  </div>
+
+  <!-- 2: TRANSITIONS -->
+  <h2 class="sec">2 · Transiciones y operaciones que las disparan</h2>
+  <div style="overflow-x:auto;">
+  <svg viewBox="0 0 760 520" width="100%" style="max-width:760px;display:block;margin:0 auto;font-family:ui-monospace,'SF Mono',Menlo,monospace;">
+    <defs>
+      <marker id="ah"  markerWidth="9" markerHeight="9" refX="7" refY="3" orient="auto"><path d="M0,0 L7,3 L0,6 Z" fill="#38bdf8"/></marker>
+      <marker id="ahg" markerWidth="9" markerHeight="9" refX="7" refY="3" orient="auto"><path d="M0,0 L7,3 L0,6 Z" fill="#94a3b8"/></marker>
+      <marker id="ahr" markerWidth="9" markerHeight="9" refX="7" refY="3" orient="auto"><path d="M0,0 L7,3 L0,6 Z" fill="#f87171"/></marker>
+    </defs>
+
+    <!-- ===== edges (debajo de las etiquetas) ===== -->
+    <!-- new -> Transient -->
+    <path d="M145,30 L145,58" stroke="#94a3b8" stroke-width="2" fill="none" marker-end="url(#ahg)"/>
+    <!-- Transient -> Managed -->
+    <path d="M170,108 Q255,175 318,224" stroke="#38bdf8" stroke-width="2" fill="none" marker-end="url(#ah)"/>
+    <!-- BD -> Managed (recuperar) -->
+    <path d="M210,298 Q285,288 318,264" stroke="#38bdf8" stroke-width="2" fill="none" marker-end="url(#ah)"/>
+    <!-- Managed -> Detached (arriba) -->
+    <path d="M455,226 Q580,140 624,106" stroke="#38bdf8" stroke-width="2" fill="none" marker-end="url(#ah)"/>
+    <!-- Detached -> Managed (abajo, vuelve) -->
+    <path d="M596,108 Q468,170 430,224" stroke="#38bdf8" stroke-width="2" fill="none" marker-end="url(#ah)"/>
+    <!-- Managed -> Removed -->
+    <path d="M385,272 L385,406" stroke="#38bdf8" stroke-width="2" fill="none" marker-end="url(#ah)"/>
+    <!-- Removed -> commit -->
+    <path d="M385,456 L385,484" stroke="#f87171" stroke-width="2" fill="none" marker-end="url(#ahr)"/>
+
+    <!-- ===== etiquetas (en zonas libres, sin tocar las flechas) ===== -->
+    <text x="156" y="48" fill="#94a3b8" font-size="12">new</text>
+
+    <!-- persist/save : a la IZQUIERDA de su flecha (termina antes de tocarla) -->
+    <text x="200" y="146" fill="#38bdf8" font-size="11.5" text-anchor="end">persist() / save()</text>
+    <text x="200" y="160" fill="#8b949e" font-size="10.5" text-anchor="end">(o cascada PERSIST)</text>
+
+    <!-- find/get/load : DEBAJO de su flecha, sin llegar a la flecha vertical -->
+    <text x="278" y="346" fill="#38bdf8" font-size="11.5" text-anchor="middle">find() / get() / load() · HQL</text>
+
+    <!-- close/clear/evict : ARRIBA del corredor (por encima de ambas flechas) -->
+    <text x="498" y="127" fill="#38bdf8" font-size="11.5" text-anchor="middle">close() / clear() / evict()</text>
+
+    <!-- merge/update : DEBAJO del corredor (por debajo de ambas flechas) -->
+    <text x="520" y="210" fill="#38bdf8" font-size="11.5" text-anchor="middle">merge() / update()</text>
+
+    <!-- delete/remove : a la DERECHA de la flecha vertical (empieza después de ella) -->
+    <text x="400" y="330" fill="#38bdf8" font-size="11.5">delete() / remove()</text>
+    <text x="400" y="344" fill="#8b949e" font-size="10.5">(o cascada REMOVE)</text>
+
+    <!-- commit -->
+    <text x="400" y="476" fill="#f87171" font-size="11.5">commit → DELETE</text>
+
+    <!-- ===== nodes ===== -->
+    <circle cx="145" cy="22" r="6" fill="#94a3b8"/>
+
+    <!-- Transient -->
+    <rect x="70" y="60" width="150" height="48" rx="10" fill="#161b26" stroke="#94a3b8" stroke-width="2"/>
+    <text x="145" y="83" fill="#e6edf3" font-size="14" font-weight="700" text-anchor="middle">Transient</text>
+    <text x="145" y="99" fill="#8b949e" font-size="10" text-anchor="middle">en memoria · sin ID</text>
+
+    <!-- Base de datos -->
+    <rect x="60" y="280" width="150" height="44" rx="10" fill="#161b26" stroke="#30363d" stroke-width="1.5" stroke-dasharray="4 3"/>
+    <text x="135" y="307" fill="#8b949e" font-size="12" text-anchor="middle">Base de datos</text>
+
+    <!-- Managed (hub) -->
+    <rect x="305" y="222" width="160" height="50" rx="10" fill="#161b26" stroke="#34d399" stroke-width="2.5"/>
+    <text x="385" y="245" fill="#e6edf3" font-size="14.5" font-weight="800" text-anchor="middle">Managed</text>
+    <text x="385" y="262" fill="#34d399" font-size="10" text-anchor="middle">rastreado · dirty checking</text>
+
+    <!-- Detached -->
+    <rect x="545" y="60" width="150" height="48" rx="10" fill="#161b26" stroke="#f59e0b" stroke-width="2"/>
+    <text x="620" y="83" fill="#e6edf3" font-size="14" font-weight="700" text-anchor="middle">Detached</text>
+    <text x="620" y="99" fill="#8b949e" font-size="10" text-anchor="middle">fuera del contexto</text>
+
+    <!-- Removed -->
+    <rect x="310" y="408" width="150" height="48" rx="10" fill="#161b26" stroke="#f87171" stroke-width="2"/>
+    <text x="385" y="431" fill="#e6edf3" font-size="14" font-weight="700" text-anchor="middle">Removed</text>
+    <text x="385" y="447" fill="#8b949e" font-size="10" text-anchor="middle">marcado para borrar</text>
+  </svg>
+  </div>
+  <p style="text-align:center;color:var(--muted);font-size:.78rem;margin-top:6px;">
+    <b style="color:var(--managed)">Managed</b> es el estado central: se entra desde <b style="color:var(--transient)">Transient</b> (al persistir) o desde la base (al consultar), y desde él se sale hacia <b style="color:var(--detached)">Detached</b> o <b style="color:var(--removed)">Removed</b>.
+  </p>
+
+  <!-- 3: REAL CASE -->
+  <h2 class="sec">3 · El ciclo en un caso real (app web: editar un perfil)</h2>
+  <p style="text-align:center;color:var(--muted);font-size:.85rem;margin-bottom:16px;">
+    Una transacción dura milisegundos; el usuario, minutos. Por eso el objeto pasa la mayor parte del tiempo <b style="color:var(--detached)">fuera</b> del contexto.
+  </p>
+  <div class="case">
+    <div class="cstep">
+      <div class="ic" style="background:rgba(52,211,153,.15)">📥</div>
+      <div class="ct"><h4>1 · Cargar el perfil <span class="state-pill sp-man">Managed</span></h4>
+        <p>Dentro de una transacción corta se recupera el <code>User</code> con <code>find()</code>. Está gestionado y rastreado.</p></div>
+    </div>
+    <div class="cstep">
+      <div class="ic" style="background:rgba(245,158,11,.15)">📤</div>
+      <div class="ct"><h4>2 · Enviar a la vista / cliente <span class="state-pill sp-det">Detached</span></h4>
+        <p>Termina la transacción y el objeto viaja al navegador como JSON. Mientras el usuario edita el formulario, está desvinculado del contexto.</p></div>
+    </div>
+    <div class="cstep">
+      <div class="ic" style="background:rgba(245,158,11,.15)">✏️</div>
+      <div class="ct"><h4>3 · Modificar los datos <span class="state-pill sp-det">Detached</span></h4>
+        <p>Los cambios ocurren fuera de toda sesión. El ORM no los rastrea: por sí solos <b>no se guardan</b>.</p></div>
+    </div>
+    <div class="cstep">
+      <div class="ic" style="background:rgba(52,211,153,.15)">🔄</div>
+      <div class="ct"><h4>4 · Guardar — re-asociar <span class="state-pill sp-man">Managed</span></h4>
+        <p>En una nueva transacción, <code>merge()</code> reincorpora el objeto al contexto y devuelve una copia gestionada; al commit se genera el <code>UPDATE</code>.</p></div>
+    </div>
+  </div>
+
+  <div class="note">
+    <b>Errores típicos que explica este modelo:</b> modificar un objeto <span style="color:var(--detached)">Detached</span> y que "no se guarde" (falta <code style="color:var(--op)">merge()</code>);
+    o la <b>LazyInitializationException</b> al acceder a una colección perezosa cuando el objeto ya está fuera del contexto.
+    Saber en qué estado está el objeto explica por qué a veces se sincroniza solo (Managed) y por qué a veces no pasa nada (Detached).
+  </div>
+
+</div>
+</body>
+</html>

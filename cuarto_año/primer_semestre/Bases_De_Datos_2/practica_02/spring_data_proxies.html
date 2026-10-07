@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Spring Data JPA — proxies dinámicos en tiempo de ejecución</title>
+<style>
+  :root{
+    --bg:#0d1117; --card:#161b26; --card2:#1c2230;
+    --iface:#818cf8; --proxy:#f59e0b; --handler:#2dd4bf; --em:#38bdf8; --db:#34d399; --red:#f87171;
+    --text:#e6edf3; --muted:#8b949e; --line:#30363d;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;background:radial-gradient(1200px 600px at 50% -10%,#1c2230 0%,var(--bg) 60%);color:var(--text);line-height:1.55;padding:34px 18px 70px;}
+  .wrap{max-width:1080px;margin:0 auto;}
+  header{text-align:center;margin-bottom:20px;}
+  header h1{font-size:1.8rem;font-weight:800;letter-spacing:-.5px;}
+  .grad{background:linear-gradient(90deg,var(--proxy),var(--iface));-webkit-background-clip:text;background-clip:text;color:transparent;}
+  header p{color:var(--muted);margin-top:6px;font-size:.95rem;}
+  h2.sec{font-size:1.1rem;margin:36px 0 14px;color:var(--text);border-left:4px solid var(--proxy);padding-left:12px;}
+  code,pre{font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace;}
+  pre{font-size:.75rem;white-space:pre;overflow-x:auto;line-height:1.5;}
+  .k{color:#c4a8ff;} .a{color:var(--proxy);} .str{color:var(--db);} .c{color:var(--muted);} .t{color:var(--em);} .ty{color:var(--iface);}
+
+  /* you vs runtime */
+  .vs{display:grid;grid-template-columns:1fr 60px 1fr;gap:0;align-items:center;}
+  .pane{background:linear-gradient(160deg,var(--card2),var(--card));border:1px solid var(--line);border-radius:13px;padding:15px 17px;box-shadow:0 8px 24px rgba(0,0,0,.3);}
+  .pane.you{border-top:3px solid var(--iface);} .pane.run{border-top:3px solid var(--proxy);}
+  .pane .ph{font-size:.7rem;text-transform:uppercase;letter-spacing:1px;color:var(--muted);font-weight:700;margin-bottom:9px;}
+  .pane pre{background:rgba(0,0,0,.28);border-radius:8px;padding:10px 12px;}
+  .vsmid{text-align:center;color:var(--proxy);font-size:.6rem;}
+  .vsmid .big{font-size:1.6rem;}
+
+  /* runtime flow diagram */
+  .flow{max-width:720px;margin:0 auto;}
+  .fbox{border:1px solid var(--line);border-left-width:4px;border-radius:12px;padding:12px 16px;background:var(--card);}
+  .fbox h3{font-size:.9rem;display:flex;align-items:center;gap:8px;}
+  .fbox p{font-size:.76rem;color:var(--muted);margin-top:3px;}
+  .fbox code{font-size:.73rem;color:var(--text);}
+  .f-app{border-left-color:var(--iface);} .f-proxy{border-left-color:var(--proxy);} .f-handler{border-left-color:var(--handler);} .f-em{border-left-color:var(--em);} .f-db{border-left-color:var(--db);}
+  .fstep{text-align:center;color:var(--line);padding:5px 0;font-size:.72rem;}
+  .fstep .big{font-size:1.2rem;line-height:1;display:block;color:var(--line);}
+  .fstep b{color:var(--muted);}
+
+  /* routes */
+  .routes{display:grid;grid-template-columns:repeat(3,1fr);gap:13px;}
+  .rcard{background:var(--card);border:1px solid var(--line);border-top-width:3px;border-radius:12px;padding:14px 15px;}
+  .rcard h4{font-size:.85rem;}
+  .rcard .ex{font-family:ui-monospace,monospace;font-size:.7rem;color:var(--proxy);background:rgba(245,158,11,.08);border-radius:6px;padding:4px 7px;margin:7px 0;display:inline-block;}
+  .rcard p{font-size:.74rem;color:var(--muted);}
+  .r1{border-top-color:var(--em);} .r2{border-top-color:var(--handler);} .r3{border-top-color:var(--iface);}
+
+  /* derivation */
+  .deriv{max-width:820px;margin:0 auto;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px 18px;}
+  .deriv .src{font-family:ui-monospace,monospace;font-size:.9rem;text-align:center;margin-bottom:12px;}
+  .deriv .src .find{color:var(--db);} .deriv .src .prop{color:var(--proxy);} .deriv .src .kw{color:var(--iface);}
+  .tokens{display:flex;flex-direction:column;gap:7px;}
+  .tok{display:flex;gap:10px;align-items:center;font-size:.77rem;}
+  .tok .piece{font-family:ui-monospace,monospace;font-size:.73rem;border-radius:6px;padding:3px 9px;white-space:nowrap;min-width:120px;text-align:center;}
+  .tok .ar{color:var(--proxy);font-weight:800;}
+  .tok .res{color:var(--muted);font-family:ui-monospace,monospace;font-size:.73rem;}
+  .p-find{background:rgba(52,211,153,.14);color:var(--db);} .p-prop{background:rgba(245,158,11,.14);color:var(--proxy);} .p-kw{background:rgba(129,140,248,.14);color:var(--iface);}
+  .jpql{margin-top:13px;background:rgba(56,189,248,.07);border:1px solid rgba(56,189,248,.3);border-radius:8px;padding:10px 13px;font-family:ui-monospace,monospace;font-size:.76rem;color:var(--em);}
+
+  .note{max-width:860px;margin:28px auto 0;font-size:.85rem;color:var(--text);background:rgba(245,158,11,.07);border:1px dashed rgba(245,158,11,.45);border-radius:12px;padding:15px 19px;}
+  .note b{color:var(--proxy);}
+  @media(max-width:760px){.vs{grid-template-columns:1fr;}.vsmid{transform:rotate(90deg);margin:6px 0;}.routes{grid-template-columns:1fr;}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>Spring Data JPA — <span class="grad">proxies dinámicos</span></h1>
+    <p>Cómo se implementa un repositorio en tiempo de ejecución sin que escribas la implementación</p>
+  </header>
+
+  <!-- 1: LO QUE ESCRIBÍS VS LO QUE CORRE -->
+  <h2 class="sec">1 · Vos escribís una interfaz… ¿quién la implementa?</h2>
+  <div class="vs">
+    <div class="pane you">
+      <div class="ph">✍️ Lo que vos escribís</div>
+<pre><span class="a">@Repository</span>
+<span class="k">public interface</span> <span class="ty">UserRepository</span>
+    <span class="k">extends</span> JpaRepository&lt;User, Long&gt; {
+
+  Optional&lt;User&gt; findByUsername(String u);
+}
+<span class="c">// ¡es una INTERFAZ! no hay clase
+// que la implemente en tu código</span></pre>
+    </div>
+    <div class="vsmid"><span class="big">→</span><span>en el arranque<br>Spring genera</span></div>
+    <div class="pane run">
+      <div class="ph">⚙️ Lo que corre en runtime</div>
+<pre><span class="c">// Spring crea en memoria una clase
+// que NO existe en tu código fuente:</span>
+<span class="ty">$Proxy$UserRepository</span>
+   <span class="k">implements</span> UserRepository
+
+<span class="c">// es un PROXY DINÁMICO que intercepta
+// cada llamada a tus métodos y la enruta</span></pre>
+    </div>
+  </div>
+  <p style="text-align:center;color:var(--muted);font-size:.82rem;margin-top:12px;">
+    Nunca escribís una clase <code>UserRepositoryImpl</code>. Spring Data <b>fabrica la implementación sola</b>, en tiempo de arranque, como un <b style="color:var(--proxy)">proxy dinámico</b>.
+  </p>
+
+  <!-- 2: CÓMO SE CREA -->
+  <h2 class="sec">2 · Cómo se fabrica el proxy (en el arranque)</h2>
+  <div class="flow">
+    <div class="fbox f-app">
+      <h3>1 · Escaneo de repositorios</h3>
+      <p>Al iniciar, Spring detecta todas las interfaces que extienden <code>Repository</code>/<code>JpaRepository</code>.</p>
+    </div>
+    <div class="fstep"><span class="big">↓</span> por cada interfaz, la <b>RepositoryFactory</b> …</div>
+    <div class="fbox f-proxy">
+      <h3>2 · Crea un proxy dinámico</h3>
+      <p>Usa <code>java.lang.reflect.Proxy</code> (proxy JDK) para generar, <b>en memoria</b>, un objeto que implementa la interfaz. Le asocia un <b>InvocationHandler</b> que interceptará las llamadas.</p>
+    </div>
+    <div class="fstep"><span class="big">↓</span></div>
+    <div class="fbox f-handler">
+      <h3>3 · Registra el proxy como bean</h3>
+      <p>Ese proxy se mete en el contenedor de Spring. Cuando hacés <code>@Autowired UserRepository</code>, te inyectan <b>el proxy</b> (no una clase tuya).</p>
+    </div>
+  </div>
+
+  <!-- 3: FLUJO EN RUNTIME -->
+  <h2 class="sec">3 · Qué pasa al llamar un método (en runtime)</h2>
+  <div class="flow">
+    <div class="fbox f-app">
+      <h3>🧩 Tu servicio</h3>
+      <p><code>userRepository.findByUsername("ana")</code></p>
+    </div>
+    <div class="fstep"><span class="big">↓</span> la llamada NO va a una clase tuya, va al…</div>
+    <div class="fbox f-proxy">
+      <h3>🎭 Proxy dinámico</h3>
+      <p>Intercepta la llamada y se la pasa a su <b>InvocationHandler</b> (el "cerebro" que decide qué hacer con cada método).</p>
+    </div>
+    <div class="fstep"><span class="big">↓</span> el handler <b>clasifica</b> el método (ver sección 4)</div>
+    <div class="fbox f-em">
+      <h3>🔧 Ejecución</h3>
+      <p>Según el tipo de método, delega en <code>SimpleJpaRepository</code> o arma y ejecuta una consulta a través del <b>EntityManager</b> (que por debajo es Hibernate).</p>
+    </div>
+    <div class="fstep"><span class="big">↓</span></div>
+    <div class="fbox f-db">
+      <h3>🗄️ Hibernate → SQL → Base de datos</h3>
+      <p>El EntityManager traduce a SQL, ejecuta y devuelve el resultado mapeado a entidades, que sube de vuelta por la misma cadena.</p>
+    </div>
+  </div>
+
+  <!-- 4: LAS TRES RUTAS -->
+  <h2 class="sec">4 · Las tres rutas que decide el handler</h2>
+  <div class="routes">
+    <div class="rcard r1">
+      <h4>① Método CRUD heredado</h4>
+      <span class="ex">save() · findById() · delete()</span>
+      <p>Viene de <code>JpaRepository</code>. El handler delega en la implementación por defecto <b>SimpleJpaRepository</b>, que usa el <code>EntityManager</code>.</p>
+    </div>
+    <div class="rcard r2">
+      <h4>② Query derivada del nombre</h4>
+      <span class="ex">findByUsername(...)</span>
+      <p>El handler <b>parsea el nombre del método</b> (con un <code>PartTree</code>) y <b>construye la JPQL</b> automáticamente. Ver sección 5.</p>
+    </div>
+    <div class="rcard r3">
+      <h4>③ Método con @Query</h4>
+      <span class="ex">@Query("select u …")</span>
+      <p>Si el método tiene <code>@Query</code>, el handler <b>ejecuta esa consulta</b> directamente, sin parsear el nombre.</p>
+    </div>
+  </div>
+
+  <!-- 5: DERIVACIÓN -->
+  <h2 class="sec">5 · Ejemplo: cómo se deriva una query del nombre</h2>
+  <div class="deriv">
+    <div class="src"><span class="find">findBy</span><span class="prop">Username</span><span class="kw">And</span><span class="prop">Active</span><span class="kw">True</span><span style="color:var(--muted)">(String u)</span></div>
+    <div class="tokens">
+      <div class="tok"><span class="piece p-find">find … By</span><span class="ar">→</span><span class="res">SELECT u FROM User u WHERE</span></div>
+      <div class="tok"><span class="piece p-prop">Username</span><span class="ar">→</span><span class="res">u.username = ?1   <span style="color:var(--muted)">(toma el 1er parámetro)</span></span></div>
+      <div class="tok"><span class="piece p-kw">And</span><span class="ar">→</span><span class="res">AND</span></div>
+      <div class="tok"><span class="piece p-prop">Active</span><span class="piece p-kw" style="margin-left:-4px">True</span><span class="ar">→</span><span class="res">u.active = true</span></div>
+    </div>
+    <div class="jpql">SELECT u FROM User u WHERE u.username = ?1 AND u.active = true</div>
+    <p style="font-size:.74rem;color:var(--muted);margin-top:10px;">El <b>PartTree</b> tokeniza el nombre del método en palabras clave (<code>find</code>, <code>By</code>, <code>And</code>, <code>True</code>, <code>OrderBy</code>…) y propiedades de la entidad (<code>Username</code>, <code>Active</code>), y arma la JPQL. Por eso los nombres deben coincidir con los atributos de la entidad — si escribís <code>findByUserName</code> y el campo es <code>username</code>, falla al arrancar.</p>
+  </div>
+
+  <div class="note">
+    <b>La idea central:</b> en Spring Data <b>no implementás el repositorio</b> — declarás una <b style="color:var(--iface)">interfaz</b> y, en el arranque, Spring fabrica un <b style="color:var(--proxy)">proxy dinámico</b> que la implementa. Ese proxy intercepta cada llamada con un <b style="color:var(--handler)">InvocationHandler</b> que la clasifica en tres rutas: <b>CRUD heredado</b> (→ <code>SimpleJpaRepository</code>), <b>query derivada del nombre</b> (→ parsea y arma la JPQL) o <b>@Query</b> (→ ejecuta la consulta dada). Todo termina pasando por el <code>EntityManager</code> (Hibernate) → SQL. Por eso "escribís menos": el código que en el TP1 escribías a mano (la <code>Session</code>, el HQL del CRUD) ahora lo <b>genera el proxy</b>.
+  </div>
+
+</div>
+</body>
+</html>

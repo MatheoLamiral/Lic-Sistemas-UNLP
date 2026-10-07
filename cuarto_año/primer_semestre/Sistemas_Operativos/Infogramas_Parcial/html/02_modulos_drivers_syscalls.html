@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="es"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Infograma de Repaso: Módulos, Drivers, /dev, /proc y System Calls</title>
+<style>
+:root { --accent:#0891b2; --accent2:#22d3ee; }
+* { box-sizing:border-box; }
+body {
+  font-family:'Segoe UI',system-ui,-apple-system,sans-serif;
+  margin:0; background:#0f172a; color:#1e293b; line-height:1.55;
+}
+.wrap { max-width:1100px; margin:0 auto; padding:0 16px 60px; }
+header.hero {
+  background:linear-gradient(135deg,var(--accent),var(--accent2));
+  color:#fff; padding:38px 28px; border-radius:0 0 24px 24px;
+  box-shadow:0 8px 30px rgba(0,0,0,.35); margin-bottom:26px;
+}
+header.hero h1 { margin:0; font-size:2.0rem; display:flex; align-items:center; gap:14px; }
+header.hero .sub { opacity:.92; margin-top:8px; font-size:.95rem; }
+.topbar { background:#0f172a; padding:10px 16px; }
+.topbar a { color:#cbd5e1; text-decoration:none; font-size:.88rem; font-weight:600; }
+.topbar a:hover { color:#fff; }
+section.card {
+  background:#fff; border-radius:16px; padding:18px 22px; margin:18px 0;
+  box-shadow:0 4px 18px rgba(0,0,0,.18); border-left:6px solid var(--accent);
+}
+section.card h2 {
+  margin:0 0 12px; font-size:1.28rem; color:var(--accent);
+  display:flex; align-items:center; gap:10px;
+}
+section.card h3 { font-size:1.05rem; color:#334155; margin:16px 0 6px; }
+section.trampas {
+  border-left:6px solid #f59e0b; background:#fffbeb;
+}
+section.trampas h2 { color:#b45309; }
+ul, ol { margin:8px 0 8px; padding-left:24px; }
+li { margin:4px 0; }
+table {
+  border-collapse:collapse; width:100%; margin:14px 0; font-size:.92rem;
+  border-radius:10px; overflow:hidden; box-shadow:0 2px 8px rgba(0,0,0,.10);
+}
+th { background:var(--accent); color:#fff; text-align:left; padding:9px 12px; }
+td { padding:8px 12px; border-top:1px solid #e2e8f0; vertical-align:top; }
+tr:nth-child(even) td { background:#f8fafc; }
+code { background:#eef2ff; color:#3730a3; padding:1px 6px; border-radius:5px;
+  font-family:'Fira Code',Consolas,monospace; font-size:.88em; }
+pre { background:#1e293b; color:#e2e8f0; padding:14px; border-radius:10px; overflow:auto; }
+pre code { background:none; color:inherit; padding:0; }
+strong { color:#0f172a; }
+blockquote { border-left:4px solid var(--accent2); margin:10px 0; padding:6px 16px;
+  background:#f1f5f9; border-radius:0 8px 8px 0; color:#475569; }
+.vf-true { background:#16a34a; color:#fff; padding:1px 8px; border-radius:20px;
+  font-weight:700; font-size:.8rem; letter-spacing:.3px; }
+.vf-false { background:#dc2626; color:#fff; padding:1px 8px; border-radius:20px;
+  font-weight:700; font-size:.8rem; letter-spacing:.3px; }
+a { color:var(--accent); }
+hr { border:none; border-top:1px dashed #cbd5e1; margin:22px 0; }
+.home-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(230px,1fr));
+  gap:16px; margin-top:10px; }
+.home-grid a { text-decoration:none; }
+.tile { background:#fff; border-radius:16px; padding:20px; box-shadow:0 4px 16px rgba(0,0,0,.18);
+  border-top:5px solid var(--accent); transition:transform .12s,box-shadow .12s; height:100%; }
+.tile:hover { transform:translateY(-4px); box-shadow:0 10px 28px rgba(0,0,0,.30); }
+.tile .ico { font-size:2rem; }
+.tile .t { font-weight:700; color:#1e293b; margin:8px 0 4px; font-size:1.05rem; }
+.tile .d { color:#64748b; font-size:.85rem; }
+.badge { display:inline-block; background:#fef3c7; color:#b45309; font-size:.72rem;
+  font-weight:700; padding:2px 8px; border-radius:20px; margin-top:8px; }
+@media print { body{background:#fff;} section.card{box-shadow:none;border:1px solid #e2e8f0;}
+  header.hero{box-shadow:none;} .topbar{display:none;} }
+</style></head>
+<body><div class="topbar"><a href="index.html">⟵ Índice de infogramas</a></div>
+<header class="hero"><h1><span>🔌</span>Infograma de Repaso: Módulos, Drivers, /dev, /proc y System Calls</h1>
+<div class="sub">Repaso parcial · Sistemas Operativos UNLP</div></header>
+<div class="wrap"><section class="card intro"><blockquote>
+<p>Repaso denso para parcial de SO (UNLP). Tema 2.</p>
+</blockquote>
+<hr /></section>
+<section class="card"><h2><span>🔌</span> Módulos (LKM — <em>Loadable Kernel Module</em>)</h2>
+<ul>
+<li><strong>Qué es:</strong> fragmento de código (<code>.ko</code>) <strong>cargable/descargable en runtime SIN recompilar ni reiniciar</strong> el kernel.</li>
+<li><strong>Dónde se ejecuta:</strong> en <strong>ESPACIO DE KERNEL / modo supervisor (privilegiado)</strong>. Comparten el espacio de direcciones del kernel → <strong>un bug puede crashear todo el SO</strong> (Kernel Panic / BSOD), no solo un proceso.</li>
+<li><strong>Dónde se instalan:</strong> <code>/lib/modules/&lt;version&gt;/</code> (con <code>modules.dep</code>, mapa de dependencias generado por <code>depmod</code>).</li>
+<li><strong>Ciclo de vida:</strong> función <strong>init</strong> (<code>module_init</code>, corre al <strong>cargar</strong>; devuelve 0 si OK) y función <strong>exit</strong> (<code>module_exit</code>, corre al <strong>descargar</strong>).</li>
+<li><strong>Built-in vs módulo:</strong> <em>built-in</em> = compilado dentro de la imagen del kernel (no se descarga); <em>módulo</em> = <code>.ko</code> cargable en caliente.</li>
+<li><strong>Pueden registrar entradas en <code>/proc</code></strong> (tanto built-in <strong>como</strong> cargables).</li>
+<li><strong>Alternativa si no hubiera módulos:</strong> modificar fuente + recompilar kernel completo + reinstalar + <strong>reiniciar</strong>.</li>
+</ul>
+<table>
+<thead>
+<tr>
+<th>Comando</th>
+<th>Función</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>insmod &lt;archivo.ko&gt;</code></td>
+<td>Carga UN módulo por ruta (no resuelve dependencias)</td>
+</tr>
+<tr>
+<td><code>modprobe &lt;nombre&gt;</code></td>
+<td>Carga por nombre desde <code>/lib/modules</code>, <strong>resuelve dependencias</strong> (<code>modules.dep</code>); <code>-r</code> descarga</td>
+</tr>
+<tr>
+<td><code>rmmod &lt;nombre&gt;</code></td>
+<td>Descarga (solo si uso = 0)</td>
+</tr>
+<tr>
+<td><code>lsmod</code></td>
+<td>Lista módulos cargados (= vista "linda" de <code>/proc/modules</code>)</td>
+</tr>
+<tr>
+<td><code>modinfo</code></td>
+<td>Muestra info/metadatos del módulo</td>
+</tr>
+</tbody>
+</table>
+<hr />
+</section>
+<section class="card"><h2><span>🔌</span> Drivers (controladores de dispositivo)</h2>
+<ul>
+<li><strong>Qué es:</strong> código que actúa de <strong>intermediario entre el SO y un dispositivo de hardware</strong>; traduce operaciones genéricas (open/read/write/close) a instrucciones concretas del HW.</li>
+<li><strong>Forma correcta de implementarlo:</strong> <strong>COMO UN MÓDULO</strong> (no como servicio, ni syscall, ni kthread). Todo driver puede ser módulo, pero no todo módulo es driver.</li>
+<li><strong><code>register_chrdev(major, "nombre", &amp;fops)</code>:</strong> registra un <strong>character device</strong> asociando major + tabla de operaciones. <strong>Solo se invoca en espacio de kernel.</strong> Inverso: <code>unregister_chrdev</code>.</li>
+<li><strong><code>struct file_operations</code> (fops):</strong> tabla que asocia cada operación con una función del driver (<code>read</code>→<code>memory_read</code>, <code>write</code>→<code>memory_write</code>, etc.). Es cómo el kernel sabe <strong>qué función invocar</strong>.</li>
+<li><strong>Acceso al kernel:</strong> los drivers usan <strong>directamente la API interna del kernel</strong> (<code>kmalloc</code>, <code>printk</code>, <code>register_chrdev</code>, <code>copy_to_user</code>/<code>copy_from_user</code>) — <strong>NO</strong> vía system calls.</li>
+<li>Representan ~68.8% del código del kernel; tasa de errores ~7× mayor que el resto.</li>
+</ul>
+<table>
+<thead>
+<tr>
+<th>Concepto</th>
+<th>Identifica</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>MAJOR number</strong></td>
+<td>El <strong>DRIVER</strong> asociado a un <strong>tipo</strong> de dispositivo (con qué driver redirigir la operación)</td>
+</tr>
+<tr>
+<td><strong>MINOR number</strong></td>
+<td>El <strong>dispositivo concreto / instancia</strong> dentro de ese driver</td>
+</tr>
+</tbody>
+</table>
+<hr />
+</section>
+<section class="card"><h2><span>🔌</span> /dev — device files</h2>
+<ul>
+<li><strong>Qué es:</strong> archivos de dispositivo; <strong>punto de acceso desde espacio de usuario</strong> al driver ("todo es un archivo": <code>open</code>, <code>read</code>, <code>write</code>, <code>close</code>).</li>
+<li><strong>No contienen datos</strong>, son punteros al driver (vía major number).</li>
+<li>Se crean con <code>mknod &lt;ruta&gt; [b|c] &lt;major&gt; &lt;minor&gt;</code>.</li>
+</ul>
+<table>
+<thead>
+<tr>
+<th>Tipo</th>
+<th>Marca <code>ls -l</code></th>
+<th>Acceso</th>
+<th>Ejemplos</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Carácter</strong></td>
+<td><code>c</code> (ej. <code>crw-...</code>)</td>
+<td><strong>byte a byte, secuencial</strong></td>
+<td>teclado, mouse, tty, <code>/dev/null</code>, <code>/dev/random</code></td>
+</tr>
+<tr>
+<td><strong>Bloque</strong></td>
+<td><code>b</code> (ej. <code>brw-...</code>)</td>
+<td><strong>bloques de tamaño fijo, acceso aleatorio</strong></td>
+<td>discos: <code>/dev/sda</code>, <code>/dev/nvme0n1</code></td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p>Dispositivos de <strong>red</strong> NO se representan como archivos en <code>/dev</code> (se usan vía sockets, <code>eth0</code>/<code>wlan0</code>).</p>
+</blockquote>
+<hr />
+</section>
+<section class="card"><h2><span>🔌</span> /proc — pseudo-filesystem</h2>
+<ul>
+<li><strong>Pseudo-FS / sistema de archivos virtual:</strong> interfaz a las <strong>estructuras internas del kernel</strong>.</li>
+<li><strong>NO ocupa espacio en disco</strong>; la mayoría de sus archivos tienen <strong>tamaño 0</strong>.</li>
+<li>Contiene <strong>info de procesos</strong> y del kernel (<code>/proc/modules</code>, <code>/proc/self/fd/...</code>).</li>
+<li><strong>Al leer/escribir un archivo de <code>/proc</code> se ejecuta una función del kernel</strong> (se genera al vuelo).</li>
+</ul>
+<hr />
+</section>
+<section class="card"><h2><span>🔌</span> System Calls (llamadas al sistema)</h2>
+<ul>
+<li><strong>Qué es:</strong> la <strong>API del kernel</strong> para que un proceso de usuario solicite un servicio (pasar de <strong>modo usuario → modo kernel</strong>).</li>
+<li><strong>Mecanismo:</strong> <strong>interrupción de software (TRAP)</strong>: <code>int 0x80</code> (x86 32b) / <code>syscall</code> (x86_64). <strong>Todas usan la misma interrupción</strong>.</li>
+<li><strong>Se identifican por un NÚMERO único</strong> (cargado en <code>EAX</code>/<code>RAX</code>). Máx. <strong>6 parámetros</strong>. El <strong>dispatcher</strong> busca el número en la tabla y ejecuta el handler.</li>
+<li><strong>Dónde se definen:</strong> en el <strong>código fuente del kernel</strong> — <strong>NO en módulos, NO en libc</strong>.</li>
+<li><strong>Cómo se adjuntan:</strong> <strong>estáticamente, en tiempo de COMPILACIÓN</strong> del kernel.</li>
+<li><strong>Cómo se agrega una nueva:</strong> (A) <strong>declararla en la tabla de syscalls</strong> (<code>syscall_32.tbl</code> / <code>syscall_64.tbl</code>) con un <strong>número único</strong> + (B) <strong>implementar el handler en espacio de kernel</strong>. <em>(A y B correctas)</em></li>
+<li><strong>libc:</strong> <strong>wrapper de usuario</strong> que <strong>envuelve</strong> las syscalls (carga número + params + trap). <strong>NO las implementa.</strong> <code>syscall()</code> permite invocar una syscall por número <strong>sin</strong> wrapper específico.</li>
+<li><strong>POSIX:</strong> interfaz <strong>uniforme</strong> para <strong>portabilidad</strong> de aplicaciones; en Unix la libc es el API que respeta POSIX. <strong>Se puede invocar una syscall sin libc</strong> (assembler directo).</li>
+<li><strong><code>strace</code></strong> monitorea syscalls en runtime; <strong><code>ausyscall</code></strong> mapea nombre↔número estáticamente.</li>
+<li>Manejo de punteros de usuario: validar con <code>get_user</code>/<code>put_user</code>/<code>copy_from_user</code>/<code>copy_to_user</code> (riesgo de Kernel Panic / fuga de memoria del kernel).</li>
+</ul>
+<blockquote>
+<p><strong>3 file descriptors de todo proceso:</strong> <code>0</code> = stdin, <code>1</code> = stdout, <code>2</code> = stderr.</p>
+</blockquote>
+<hr />
+</section>
+<section class="card trampas"><h2><span>🔌</span> ⚠️ Trampas típicas de parcial</h2>
+<table>
+<thead>
+<tr>
+<th>Afirmación</th>
+<th>V/F</th>
+<th>Por qué</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>"libc es el componente del kernel donde se definen las syscalls"</td>
+<td><strong><span class="vf-false">FALSO</span></strong></td>
+<td>libc es wrapper de USUARIO; las syscalls se definen en el kernel</td>
+</tr>
+<tr>
+<td>"Las syscalls se definen en módulos administrables con insmod/modprobe/rmmod"</td>
+<td><strong><span class="vf-false">FALSO</span></strong></td>
+<td>Son parte del kernel base, estáticas</td>
+</tr>
+<tr>
+<td>"Las syscalls se implementan como módulos del kernel"</td>
+<td><strong><span class="vf-false">FALSO</span></strong></td>
+<td>(la falsa típica) son estáticas, en compilación</td>
+</tr>
+<tr>
+<td>"Las syscalls se ejecutan en modo privilegiado y se identifican por un número"</td>
+<td><strong><span class="vf-true">VERDADERO</span></strong></td>
+<td>—</td>
+</tr>
+<tr>
+<td>"Cada driver implementa una system call"</td>
+<td><strong><span class="vf-false">FALSO</span></strong></td>
+<td>Implementa <code>file_operations</code>; <strong>usa</strong> syscalls, no las define</td>
+</tr>
+<tr>
+<td>"Los drivers acceden a funcionalidades del kernel a través de system calls"</td>
+<td><strong><span class="vf-false">FALSO</span></strong></td>
+<td>Acceso <strong>directo</strong> por API interna (kmalloc, printk, register_chrdev)</td>
+</tr>
+<tr>
+<td>Forma correcta de implementar un driver</td>
+<td><strong>COMO UN MÓDULO</strong></td>
+<td>No servicio, no syscall, no kthread</td>
+</tr>
+<tr>
+<td>"register_chrdev se puede invocar desde espacio de usuario"</td>
+<td><strong><span class="vf-false">FALSO</span></strong></td>
+<td>Solo espacio de kernel; asocia major + tabla de operaciones</td>
+</tr>
+<tr>
+<td>"Los módulos se ejecutan en espacio de usuario"</td>
+<td><strong><span class="vf-false">FALSO</span></strong></td>
+<td>Modo supervisor / kernel</td>
+</tr>
+<tr>
+<td>"Un módulo permite implementar system calls dinámicas"</td>
+<td><strong><span class="vf-false">FALSO</span></strong></td>
+<td>No describe a un módulo</td>
+</tr>
+<tr>
+<td>"Solo los módulos built-in pueden crear entradas en /proc"</td>
+<td><strong><span class="vf-false">FALSO</span></strong></td>
+<td>También los módulos <strong>cargables</strong></td>
+</tr>
+<tr>
+<td>Major number</td>
+<td>identifica el <strong>driver</strong> de un <strong>tipo</strong> de dispositivo (un mismo major puede referenciar HW distinto vía minor)</td>
+<td>—</td>
+</tr>
+<tr>
+<td>Agregar syscall</td>
+<td>declarar en <strong>tabla</strong> + <strong>número unívoco</strong> + implementación en kernel</td>
+<td>A y B correctas</td>
+</tr>
+</tbody>
+</table></section></div>
+</body></html>

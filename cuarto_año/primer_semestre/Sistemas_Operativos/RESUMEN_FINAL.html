@@ -1,0 +1,3087 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="es" xml:lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="generator" content="pandoc" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
+  <title>Sistemas Operativos — Resumen Final</title>
+  <style>
+    code{white-space: pre-wrap;}
+    span.smallcaps{font-variant: small-caps;}
+    div.columns{display: flex; gap: min(4vw, 1.5em);}
+    div.column{flex: auto; overflow-x: auto;}
+    div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+    /* The extra [class] is a hack that increases specificity enough to
+       override a similar rule in reveal.js */
+    ul.task-list[class]{list-style: none;}
+    ul.task-list li input[type="checkbox"] {
+      font-size: inherit;
+      width: 0.8em;
+      margin: 0 0.8em 0.2em -1.6em;
+      vertical-align: middle;
+    }
+    .display.math{display: block; text-align: center; margin: 0.5rem auto;}
+  </style>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+<div class="cover">
+<div class="grid-bg"></div>
+<div class="title-big">Sistemas<br/><span class="accent">Operativos</span><br/><span class="amber">// resumen final</span></div>
+<div class="topics">
+<span>kernel &amp; compilación</span>
+<span>módulos, drivers, syscalls</span>
+<span>threads (ULT/KLT)</span>
+<span>virtualización</span>
+<span>cgroups + namespaces</span>
+<span>docker + containers</span>
+<span>protección &amp; seguridad</span>
+<span>filesystems, RAID, LVM</span>
+<span>multiprocesadores</span>
+<span>deadlocks</span>
+</div>
+</div>
+<header id="title-block-header">
+<h1 class="title">Sistemas Operativos — Resumen Final</h1>
+</header>
+<h2 id="kernel-de-linux-y-compilación">1. Kernel de Linux y
+compilación</h2>
+<h3 id="qué-es-el-kernel">Qué es el kernel</h3>
+<p>El <strong>kernel</strong> es la porción de código que reside en
+<strong>memoria principal</strong> y actúa como <strong>intermediario
+entre el hardware y las aplicaciones</strong>. Se ejecuta en modo
+privilegiado, ofrece a los procesos de usuario una interfaz controlada a
+través de <strong>system calls</strong> y es, en sentido estricto, el
+sistema operativo en sí mismo. El resto de piezas —shell, utilidades,
+librerías como <code>libc</code>— forman parte del “SO en sentido
+amplio” (Linux + GNU = GNU/Linux), pero el núcleo, lo mínimo
+indispensable, es el kernel.</p>
+<p>Sus <strong>cinco funciones principales</strong> son la
+administración de la <strong>memoria principal</strong>, el manejo del
+uso de la <strong>CPU</strong> (scheduling), la administración de
+<strong>procesos</strong>, la gestión de <strong>entrada/salida</strong>
+y la coordinación de <strong>comunicación y concurrencia</strong> entre
+procesos. Ningún proceso de usuario puede acceder al hardware ni salirse
+de su propio espacio de direcciones sin pedírselo al kernel a través de
+una syscall.</p>
+<h3 id="modos-de-ejecución">Modos de ejecución</h3>
+<p>El hardware provee al menos dos <strong>modos de ejecución</strong>,
+señalizados por un <strong>bit de modo</strong> en la CPU:</p>
+<ul>
+<li><strong>Modo supervisor / kernel / privilegiado:</strong> habilita
+el conjunto completo de instrucciones, incluyendo las privilegiadas
+(acceso a HW, cambio de tablas de páginas, deshabilitar interrupciones,
+etc.). Solo se ejecutan acá.</li>
+<li><strong>Modo usuario:</strong> el proceso ve únicamente su propio
+espacio de direcciones y un subconjunto reducido de instrucciones.</li>
+</ul>
+<p>La CPU arranca en modo supervisor y desciende a modo usuario cuando
+le cede el control a un proceso. La <strong>única</strong> forma de
+volver a modo kernel es a través de un <strong>trap o
+interrupción</strong> (una syscall es exactamente eso: una interrupción
+de software controlada). Un proceso no puede “decidir” cambiar de modo
+por su cuenta.</p>
+<div class="diagram">
+<svg viewBox="0 0 620 220" xmlns="http://www.w3.org/2000/svg" font-family="sans-serif" font-size="11">
+<rect x="20" y="20" width="580" height="70" fill="#dbeafe" stroke="#1e40af"/><text xml:space="preserve" x="30" y="40" fill="#1e40af" font-weight="700">Modo
+usuario (Ring
+3)</text><text xml:space="preserve" x="30" y="58" fill="#1e3a8a" font-size="10">-
+proceso solo accede a su espacio de
+direcciones</text><text xml:space="preserve" x="30" y="72" fill="#1e3a8a" font-size="10">-
+subconjunto reducido de
+instrucciones</text><line x1="20" y1="100" x2="600" y2="100" stroke="#f97316" stroke-width="2" stroke-dasharray="6,3"/><rect x="230" y="90" width="160" height="20" fill="#fff7ed" stroke="#f97316"/><text xml:space="preserve" x="310" y="104" text-anchor="middle" fill="#9a3412" font-size="10" font-weight="700">TRAP
+/
+INTERRUPCIÓN</text><rect x="20" y="120" width="580" height="80" fill="#fecaca" stroke="#991b1b"/><text xml:space="preserve" x="30" y="140" fill="#7f1d1d" font-weight="700">Modo
+supervisor / kernel (Ring
+0)</text><text xml:space="preserve" x="30" y="158" fill="#7f1d1d" font-size="10">-
+conjunto completo de instrucciones
+(incl. privilegiadas)</text><text xml:space="preserve" x="30" y="172" fill="#7f1d1d" font-size="10">-
+acceso al HW, tablas de páginas, deshabilitar
+interrupciones</text><text xml:space="preserve" x="30" y="186" fill="#7f1d1d" font-size="10">-
+syscalls, drivers, módulos,
+planificador</text><path d="M 470 90 L 470 60" stroke="#22c55e" stroke-width="2" fill="none" marker-end="url(#ar-up)"/><text xml:space="preserve" x="490" y="70" font-size="9" fill="#166534">return</text><path d="M 500 60 L 500 110" stroke="#0284c7" stroke-width="2" fill="none" marker-end="url(#ar-dn)"/><text xml:space="preserve" x="510" y="90" font-size="9" fill="#0369a1">syscall</text><defs><marker id="ar-up" markerWidth="10" markerHeight="10" refX="5" refY="5" orient="auto"><path d="M 0 10 L 5 0 L 10 10 z" fill="#22c55e"/></marker><marker id="ar-dn" markerWidth="10" markerHeight="10" refX="5" refY="5" orient="auto"><path d="M 0 0 L 5 10 L 10 0 z" fill="#0284c7"/></marker></defs>
+</svg>
+<div class="caption">
+Fig. 1.2 — El bit de modo divide el mundo en dos. La barrera se cruza
+<strong>solo</strong> vía trap/interrupción.
+</div>
+</div>
+<h3 id="tipos-de-kernel">Tipos de kernel</h3>
+<p>Hay tres arquitecturas clásicas:</p>
+<ul>
+<li><strong>Monolítico</strong> (Unix, FreeBSD): toda la funcionalidad
+linkeada en una única imagen, todo corre en modo supervisor. Máxima
+eficiencia (no hay cambios de modo internos entre subsistemas) pero un
+bug en cualquier parte cae todo.</li>
+<li><strong>Microkernel</strong> (Minix, QNX): en modo supervisor solo
+lo mínimo (procesos, memoria, IPC básica). Los drivers, filesystem, red,
+etc. corren en <strong>espacio de usuario</strong> como servicios. Da
+aislamiento y robustez a costa de rendimiento (más cambios de
+modo).</li>
+<li><strong>Monolítico híbrido</strong> (GNU/Linux, Windows NT,
+macOS/XNU): es monolítico pero admite <strong>cargar y descargar módulos
+en tiempo de ejecución</strong>, sin recompilar ni reiniciar. Es el
+modelo de Linux.</li>
+</ul>
+<p>Que Linux sea “<strong>monolítico híbrido</strong>” quiere decir que
+su base es una única imagen monolítica y sus módulos se cargan en
+caliente. Cuidado con la trampa: aunque el módulo se cargue
+dinámicamente, una vez cargado <strong>corre en modo kernel</strong>
+exactamente igual que el resto — un bug en un módulo puede provocar un
+Kernel Panic.</p>
+<div class="diagram">
+<svg viewBox="0 0 720 260" xmlns="http://www.w3.org/2000/svg" font-family="sans-serif" font-size="11">
+<g transform="translate(0,0)"><text xml:space="preserve" x="110" y="18" text-anchor="middle" font-weight="700" fill="#0f172a">Monolítico</text><rect x="10" y="30" width="200" height="30" fill="#dbeafe" stroke="#1e40af"/><text xml:space="preserve" x="110" y="49" text-anchor="middle" fill="#1e40af">Aplicaciones
+(modo
+usuario)</text><rect x="10" y="75" width="200" height="150" fill="#fecaca" stroke="#991b1b"/><text xml:space="preserve" x="110" y="95" text-anchor="middle" fill="#7f1d1d" font-weight="600">Modo
+kernel</text><text xml:space="preserve" x="110" y="115" text-anchor="middle" fill="#7f1d1d" font-size="9">Scheduler
+· Memoria ·
+FS</text><text xml:space="preserve" x="110" y="130" text-anchor="middle" fill="#7f1d1d" font-size="9">Drivers
+· Red ·
+IPC</text><text xml:space="preserve" x="110" y="145" text-anchor="middle" fill="#7f1d1d" font-size="9">—
+todo linkeado
+—</text><text xml:space="preserve" x="110" y="180" text-anchor="middle" fill="#7f1d1d" font-size="9" font-style="italic">1
+sola
+imagen</text><text xml:space="preserve" x="110" y="245" text-anchor="middle" font-size="9" fill="#475569">Unix,
+FreeBSD</text></g><g transform="translate(240,0)"><text xml:space="preserve" x="110" y="18" text-anchor="middle" font-weight="700" fill="#0f172a">Microkernel</text><rect x="10" y="30" width="200" height="80" fill="#dbeafe" stroke="#1e40af"/><text xml:space="preserve" x="110" y="48" text-anchor="middle" fill="#1e40af" font-size="9">Aplicaciones
++ servicios (modo
+usuario)</text><rect x="20" y="55" width="55" height="18" fill="#bfdbfe" stroke="#1e40af"/><text xml:space="preserve" x="47.5" y="67" text-anchor="middle" font-size="8" fill="#1e40af">Drivers</text><rect x="82" y="55" width="55" height="18" fill="#bfdbfe" stroke="#1e40af"/><text xml:space="preserve" x="109.5" y="67" text-anchor="middle" font-size="8" fill="#1e40af">FS</text><rect x="144" y="55" width="55" height="18" fill="#bfdbfe" stroke="#1e40af"/><text xml:space="preserve" x="171.5" y="67" text-anchor="middle" font-size="8" fill="#1e40af">Red</text><rect x="20" y="80" width="80" height="18" fill="#bfdbfe" stroke="#1e40af"/><text xml:space="preserve" x="60" y="92" text-anchor="middle" font-size="8" fill="#1e40af">Otros
+servicios</text><rect x="10" y="130" width="200" height="60" fill="#fecaca" stroke="#991b1b"/><text xml:space="preserve" x="110" y="150" text-anchor="middle" fill="#7f1d1d" font-weight="600" font-size="10">Modo
+kernel
+(mínimo)</text><text xml:space="preserve" x="110" y="168" text-anchor="middle" fill="#7f1d1d" font-size="9">IPC
+· scheduling
+básico</text><text xml:space="preserve" x="110" y="183" text-anchor="middle" fill="#7f1d1d" font-size="9">memoria
+básica</text><text xml:space="preserve" x="110" y="245" text-anchor="middle" font-size="9" fill="#475569">Minix,
+QNX</text></g><g transform="translate(480,0)"><text xml:space="preserve" x="110" y="18" text-anchor="middle" font-weight="700" fill="#0f172a">Monolítico
+híbrido</text><rect x="10" y="30" width="200" height="30" fill="#dbeafe" stroke="#1e40af"/><text xml:space="preserve" x="110" y="49" text-anchor="middle" fill="#1e40af">Aplicaciones
+(modo
+usuario)</text><rect x="10" y="75" width="200" height="150" fill="#fecaca" stroke="#991b1b"/><text xml:space="preserve" x="110" y="95" text-anchor="middle" fill="#7f1d1d" font-weight="600">Modo
+kernel</text><text xml:space="preserve" x="110" y="115" text-anchor="middle" fill="#7f1d1d" font-size="9">Scheduler
+· Memoria ·
+FS</text><text xml:space="preserve" x="110" y="130" text-anchor="middle" fill="#7f1d1d" font-size="9">Red
+· IPC · Drivers
+built-in</text><rect x="30" y="150" width="45" height="22" fill="#fde68a" stroke="#b45309" stroke-dasharray="2,2"/><text xml:space="preserve" x="52.5" y="164" text-anchor="middle" font-size="8" fill="#78350f">.ko</text><rect x="85" y="150" width="45" height="22" fill="#fde68a" stroke="#b45309" stroke-dasharray="2,2"/><text xml:space="preserve" x="107.5" y="164" text-anchor="middle" font-size="8" fill="#78350f">.ko</text><rect x="140" y="150" width="45" height="22" fill="#fde68a" stroke="#b45309" stroke-dasharray="2,2"/><text xml:space="preserve" x="162.5" y="164" text-anchor="middle" font-size="8" fill="#78350f">.ko</text><text xml:space="preserve" x="110" y="192" text-anchor="middle" font-size="9" fill="#78350f" font-style="italic">módulos
+(runtime)</text><text xml:space="preserve" x="110" y="207" text-anchor="middle" font-size="9" fill="#7f1d1d">↕
+carga/descarga en
+caliente</text><text xml:space="preserve" x="110" y="245" text-anchor="middle" font-size="9" fill="#475569" font-weight="700">GNU/Linux,
+WinNT, XNU</text></g>
+</svg>
+<div class="caption">
+Fig. 1.1 — Los tres tipos de kernel. Linux es monolítico híbrido: base
+linkeada + módulos <code>.ko</code> cargables en caliente, pero todo
+ejecuta en modo supervisor.
+</div>
+</div>
+<h3 id="portabilidad">Portabilidad</h3>
+<p>Linux es <strong>altamente portable</strong>: una misma estructura de
+código fuente soporta muchas arquitecturas de CPU (x86, ARM, RISC-V,
+PowerPC, etc.). Esto es posible porque está escrito <strong>mayormente
+en C</strong> —fácilmente adaptable/recompilable a cualquier
+arquitectura— reservando <strong>Assembler solo para lo específico de
+bajo nivel</strong> de cada plataforma. Desde la versión 6.1 también
+admite Rust, sobre todo para módulos.</p>
+<p>Detalle importante: la portabilidad <strong>no significa</strong> que
+el <strong>mismo binario</strong> corra en cualquier arquitectura.
+Significa que el <strong>código fuente</strong> se adapta y se
+recompila. El binario de x86 no arranca en ARM.</p>
+<h3 id="por-qué-recompilar-el-kernel">Por qué recompilar el kernel</h3>
+<p>Los motivos típicos son: <strong>soportar nuevos
+dispositivos</strong> (drivers de hardware nuevo), <strong>agregar
+funcionalidad</strong> (soporte para nuevos filesystems, protocolos),
+<strong>optimizar</strong> el rendimiento según el HW donde corre,
+<strong>adaptar/limpiar</strong> quitando soporte no usado (kernel más
+liviano) y <strong>corregir bugs</strong> de seguridad o programación.
+Cosas como “agregar nuevos usuarios” no tienen nada que ver con
+recompilar el kernel.</p>
+<h3 id="los-siete-pasos-de-la-compilación-en-orden">Los siete pasos de
+la compilación (en orden)</h3>
+<div class="diagram">
+<svg viewBox="0 0 720 130" xmlns="http://www.w3.org/2000/svg" font-family="sans-serif" font-size="10">
+<defs><marker id="flow" markerWidth="8" markerHeight="8" refX="4" refY="4" orient="auto"><path d="M 0 0 L 8 4 L 0 8 z" fill="#0f172a"/></marker></defs><g><circle cx="45" cy="50" r="22" fill="#22d3ee" stroke="#0e7490" stroke-width="2"/><text xml:space="preserve" x="45" y="55" text-anchor="middle" font-weight="700" fill="#0f172a">1</text><text xml:space="preserve" x="45" y="90" text-anchor="middle" font-size="9" fill="#334155">Fuente</text><text xml:space="preserve" x="45" y="102" text-anchor="middle" font-size="8" fill="#64748b">kernel.org</text><line x1="70" y1="50" x2="90" y2="50" stroke="#0f172a" stroke-width="1.5" marker-end="url(#flow)"/><circle cx="115" cy="50" r="22" fill="#22d3ee" stroke="#0e7490" stroke-width="2"/><text xml:space="preserve" x="115" y="55" text-anchor="middle" font-weight="700" fill="#0f172a">2</text><text xml:space="preserve" x="115" y="90" text-anchor="middle" font-size="9" fill="#334155">Preparar</text><text xml:space="preserve" x="115" y="102" text-anchor="middle" font-size="8" fill="#64748b">patch</text><line x1="140" y1="50" x2="160" y2="50" stroke="#0f172a" stroke-width="1.5" marker-end="url(#flow)"/><circle cx="185" cy="50" r="22" fill="#22d3ee" stroke="#0e7490" stroke-width="2"/><text xml:space="preserve" x="185" y="55" text-anchor="middle" font-weight="700" fill="#0f172a">3</text><text xml:space="preserve" x="185" y="90" text-anchor="middle" font-size="9" fill="#334155">Configurar</text><text xml:space="preserve" x="185" y="102" text-anchor="middle" font-size="8" fill="#64748b">.config</text><line x1="210" y1="50" x2="230" y2="50" stroke="#0f172a" stroke-width="1.5" marker-end="url(#flow)"/><circle cx="255" cy="50" r="22" fill="#facc15" stroke="#a16207" stroke-width="2"/><text xml:space="preserve" x="255" y="55" text-anchor="middle" font-weight="700" fill="#0f172a">4</text><text xml:space="preserve" x="255" y="90" text-anchor="middle" font-size="9" fill="#334155">Compilar</text><text xml:space="preserve" x="255" y="102" text-anchor="middle" font-size="8" fill="#64748b">make
++
+modules</text><line x1="280" y1="50" x2="300" y2="50" stroke="#0f172a" stroke-width="1.5" marker-end="url(#flow)"/><circle cx="335" cy="50" r="22" fill="#facc15" stroke="#a16207" stroke-width="2"/><text xml:space="preserve" x="335" y="55" text-anchor="middle" font-weight="700" fill="#0f172a">5</text><text xml:space="preserve" x="335" y="90" text-anchor="middle" font-size="9" fill="#334155">Reubicar</text><text xml:space="preserve" x="335" y="102" text-anchor="middle" font-size="8" fill="#64748b">/boot
++
+initrd</text><line x1="360" y1="50" x2="380" y2="50" stroke="#0f172a" stroke-width="1.5" marker-end="url(#flow)"/><circle cx="415" cy="50" r="22" fill="#a3e635" stroke="#3f6212" stroke-width="2"/><text xml:space="preserve" x="415" y="55" text-anchor="middle" font-weight="700" fill="#0f172a">6</text><text xml:space="preserve" x="415" y="90" text-anchor="middle" font-size="9" fill="#334155">GRUB</text><text xml:space="preserve" x="415" y="102" text-anchor="middle" font-size="8" fill="#64748b">update-grub</text><line x1="440" y1="50" x2="460" y2="50" stroke="#0f172a" stroke-width="1.5" marker-end="url(#flow)"/><circle cx="495" cy="50" r="22" fill="#a3e635" stroke="#3f6212" stroke-width="2"/><text xml:space="preserve" x="495" y="55" text-anchor="middle" font-weight="700" fill="#0f172a">7</text><text xml:space="preserve" x="495" y="90" text-anchor="middle" font-size="9" fill="#334155">Reboot</text><text xml:space="preserve" x="495" y="102" text-anchor="middle" font-size="8" fill="#64748b">y
+probar</text><rect x="545" y="30" width="160" height="40" fill="#f0fdf4" stroke="#166534" stroke-dasharray="3,2"/><text xml:space="preserve" x="625" y="46" text-anchor="middle" font-size="9" fill="#166534" font-weight="700">Artefactos</text><text xml:space="preserve" x="625" y="60" text-anchor="middle" font-size="8" fill="#166534">/boot/vmlinuz
+· /boot/initrd</text></g>
+</svg>
+<div class="caption">
+Fig. 1.3 — Flujo canónico de compilación e instalación de un kernel
+Linux.
+</div>
+</div>
+<ol type="1">
+<li><strong>Obtener el código fuente</strong> (típicamente desde
+<code>kernel.org</code>).</li>
+<li><strong>Preparar el árbol de archivos</strong> (descomprimir,
+aplicar parches).</li>
+<li><strong>Configurar el kernel</strong> (generar el
+<code>.config</code>).</li>
+<li><strong>Construir el kernel e instalar los módulos</strong>
+(<code>make &amp;&amp; make modules_install</code>).</li>
+<li><strong>Reubicar el kernel y crear el initrd/initramfs</strong>
+(<code>make install</code> lo automatiza en muchas distros).</li>
+<li><strong>Configurar el gestor de arranque</strong> (GRUB / LILO) para
+que reconozca el nuevo kernel.</li>
+<li><strong>Reiniciar y probar</strong> el nuevo kernel.</li>
+</ol>
+<p>Al hacer <code>make modules_install &amp;&amp; make install</code>,
+los <strong>módulos</strong> se copian a
+<code>/lib/modules/&lt;versión&gt;/</code> y la <strong>imagen del
+kernel</strong> (<code>vmlinuz</code>/<code>bzImage</code>), el
+<code>System.map</code>, el <code>.config</code> y el initramfs se
+copian a <code>/boot/</code>. Después hay que actualizar GRUB.</p>
+<p><strong>Herramientas</strong> que se usan: <code>gcc</code>
+(compilador), <code>make</code> (ejecuta las directivas de los
+Makefiles), <code>binutils</code> (assembler/linker), <code>libc</code>,
+<code>ncurses</code> (solo si usás <code>menuconfig</code>) y
+<code>initrd-tools</code>. <code>make</code> compara la fecha de
+modificación de cada target con sus dependencias y solo recompila lo
+desactualizado; se le puede pasar <code>-j$(nproc)</code> para
+paralelizar.</p>
+<p><strong>Configuración (<code>make config</code>)</strong>: la
+variante <code>menuconfig</code> es la más usada (menús en terminal, no
+requiere entorno gráfico, ideal por SSH); <code>config</code> es texto
+secuencial y <code>xconfig</code> es GUI. En <code>menuconfig</code>, la
+barra espaciadora cicla entre <code>&lt;*&gt;</code> (built-in, va
+dentro de la imagen), <code>&lt;M&gt;</code> (módulo cargable) y
+<code>&lt; &gt;</code> (deshabilitado).</p>
+<p><strong>Parches</strong>: un parche es un archivo de
+<code>diff</code> con los cambios respecto a una versión base. Se aplica
+con el comando <code>patch</code>, típicamente por pipe:
+<code>xzcat ../patch-6.13.7.xz | patch -p1</code> (el <code>-p1</code>
+ignora el primer nivel <code>a/</code>/<code>b/</code>). Pueden ser
+incrementales (uno sobre otro) o no incrementales (sobre el mainline).
+<code>patch --dry-run</code> simula sin modificar.</p>
+<h3 id="por-qué-hay-que-reconfigurar-el-gestor-de-arranque">Por qué hay
+que reconfigurar el gestor de arranque</h3>
+<p>Una vez compilado e instalado el nuevo kernel, GRUB <strong>no lo
+detecta automáticamente</strong>. Hay que ejecutar
+<code>update-grub</code> (o equivalente) para <strong>actualizar el menú
+de arranque</strong> incorporando el nuevo kernel en
+<code>grub.cfg</code>. Es fundamental entender que esto <strong>no
+reinstala el binario del gestor</strong>: solo actualiza el archivo de
+configuración con las rutas de la nueva imagen y su initramfs. Por eso
+podés tener varios kernels compilados en la misma máquina y elegir cuál
+arrancar desde el menú de GRUB.</p>
+<h3 id="initramfs-initrd">initramfs / initrd</h3>
+<p>Es un <strong>sistema de archivos temporal en RAM</strong> que se
+monta durante el arranque, <strong>antes</strong> de montar el
+filesystem raíz real. Contiene los <strong>módulos, drivers y programas
+mínimos</strong> que el kernel necesita para poder llegar al root
+definitivo (drivers del controlador de disco, del filesystem del root,
+LVM/RAID/cifrado si aplica, un shell mínimo tipo <code>busybox</code>,
+<code>udev</code> y el init temporal). Una vez que el kernel monta el
+root real, el initramfs se desmonta y le cede el control al init
+definitivo.</p>
+<p><strong>Puede no ser necesario</strong> si todos esos drivers y
+filesystems críticos están compilados <strong>built-in</strong>
+(<code>&lt;*&gt;</code>) dentro del kernel: entonces el kernel monta el
+root directamente sin ayuda. En un desktop común esto no es habitual
+porque el kernel genérico de la distro trae casi todo como módulo para
+ser universal.</p>
+<h3 id="built-in-vs-módulo">Built-in vs módulo</h3>
+<p>Cuando configurás una funcionalidad en el <code>.config</code>, tenés
+tres opciones:</p>
+<ul>
+<li><strong>Built-in (<code>&lt;*&gt;</code>):</strong> compilada dentro
+de la imagen del kernel. Acceso directo, sin carga en runtime, pero
+ocupa memoria aunque no la uses y para modificarla tenés que recompilar
+y reiniciar.</li>
+<li><strong>Módulo (<code>&lt;M&gt;</code>):</strong> archivo
+<code>.ko</code> cargable en caliente. Solo consume memoria cuando se
+necesita, se puede actualizar sin reiniciar
+(<code>insmod</code>/<code>rmmod</code>) y facilita el desarrollo.
+Contra: corre en modo kernel igual que el resto — un bug puede colgar el
+sistema.</li>
+<li><strong>Deshabilitada (<code>&lt; &gt;</code>):</strong> no
+está.</li>
+</ul>
+<div class="callout warning">
+<div class="callout-title">
+⚠ Trampas típicas del parcial
+</div>
+<ul>
+<li>“Linux es monolítico híbrido <strong>porque</strong> permite
+cargar/descargar funcionalidades vía módulos” → <span
+class="tag v">V</span>.</li>
+<li>“Linux es portable porque su código puede modificarse fácilmente
+para distintas arquitecturas” → <span class="tag v">V</span>. NO es
+porque el mismo binario corra en cualquier arquitectura.</li>
+<li>“Reconfigurar el gestor de arranque = reinstalar GRUB” → <span
+class="tag f">F</span>. Solo actualiza el menú.</li>
+<li>“El initramfs siempre es imprescindible” → <span
+class="tag f">F</span>: si todo lo necesario para montar el root está
+built-in, no hace falta.</li>
+<li>“El kernel de Linux es un SO en sentido estricto porque contiene
+todo lo necesario para gestionar HW y procesos” → <span
+class="tag f">F</span>: es el núcleo; el SO completo agrega utilidades,
+bibliotecas, shell, etc.</li>
+<li>“En un microkernel los drivers corren en modo kernel para mejorar
+rendimiento” → <span class="tag f">F</span>: corren en espacio de
+usuario. Correr todo en modo kernel es lo del monolítico.</li>
+<li>“Se puede tener más de un kernel compilado en la misma máquina” →
+<span class="tag v">V</span>: GRUB los lista, permite volver atrás si el
+nuevo no arranca.</li>
+</ul>
+</div>
+<hr />
+<h2 id="módulos-drivers-dev-proc-y-system-calls">2. Módulos, drivers,
+/dev, /proc y System Calls</h2>
+<h3 id="módulos-lkm-loadable-kernel-modules">Módulos (LKM — Loadable
+Kernel Modules)</h3>
+<p>Un <strong>módulo del kernel</strong> es un fragmento de código
+(archivo <code>.ko</code>, <em>kernel object</em>) que puede
+<strong>cargarse y descargarse en tiempo de ejecución sin recompilar ni
+reiniciar</strong> el kernel. Se instala en
+<code>/lib/modules/&lt;versión&gt;/</code>, comparte el espacio de
+direcciones del kernel y <strong>se ejecuta en modo supervisor</strong>
+(privilegiado). Por eso, un bug en un módulo puede llevarse todo el
+sistema por delante (Kernel Panic en Linux / BSOD en Windows), no solo
+el proceso que lo invocó.</p>
+<p>Todo módulo define una <strong>función de inicialización</strong>
+(<code>module_init</code>, se corre al cargar; devuelve 0 si todo salió
+bien) y una <strong>función de cleanup</strong>
+(<code>module_exit</code>, se corre al descargar). Los módulos pueden
+registrar entradas en <code>/proc</code> (no es exclusivo de los
+built-in) y también podés compilar la misma funcionalidad
+<strong>built-in</strong> dentro de la imagen — en ese caso ya no podés
+descargarla en caliente.</p>
+<p>Los <strong>comandos</strong> clave son:</p>
+<table>
+<colgroup>
+<col style="width: 50%" />
+<col style="width: 50%" />
+</colgroup>
+<thead>
+<tr>
+<th>Comando</th>
+<th>Función</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>insmod &lt;archivo.ko&gt;</code></td>
+<td>Carga UN módulo por ruta; no resuelve dependencias, falla si faltan
+símbolos.</td>
+</tr>
+<tr>
+<td><code>modprobe &lt;nombre&gt;</code></td>
+<td>Carga por nombre desde <code>/lib/modules</code>, resuelve
+automáticamente dependencias usando <code>modules.dep</code>.</td>
+</tr>
+<tr>
+<td><code>rmmod &lt;nombre&gt;</code></td>
+<td>Descarga el módulo (solo si su contador de uso está en 0).</td>
+</tr>
+<tr>
+<td><code>lsmod</code></td>
+<td>Lista módulos cargados (es una vista “linda” de
+<code>/proc/modules</code>).</td>
+</tr>
+<tr>
+<td><code>modinfo &lt;nombre&gt;</code></td>
+<td>Muestra metadatos del módulo (autor, licencia, descripción,
+params).</td>
+</tr>
+</tbody>
+</table>
+<p>El archivo
+<strong><code>/lib/modules/&lt;versión&gt;/modules.dep</code></strong>
+es el mapa de dependencias entre módulos. Lo genera automáticamente
+<code>depmod -a</code> y lo consulta <code>modprobe</code> para cargar
+en el orden correcto todo lo que un módulo necesita.
+<code>insmod</code>, en cambio, no consulta este archivo y falla si le
+faltan dependencias.</p>
+<h3 id="drivers">Drivers</h3>
+<p>Un <strong>driver</strong> es código que actúa de
+<strong>intermediario entre el kernel y un dispositivo de
+hardware</strong>. Traduce operaciones genéricas (<code>open</code>,
+<code>read</code>, <code>write</code>, <code>close</code>,
+<code>ioctl</code>) a las instrucciones concretas del hardware
+particular. En Linux la <strong>forma correcta</strong> de implementar
+un driver es <strong>como un módulo</strong> (no como servicio, no como
+syscall, no como kthread) — aunque también podés compilarlo built-in.
+<strong>Todo driver puede ser un módulo, pero no todo módulo es un
+driver</strong>: los módulos son un mecanismo genérico de extensión, y
+los drivers son un uso particular de ese mecanismo.</p>
+<p>Los drivers representan aproximadamente el <strong>68.8% del
+código</strong> del kernel Linux y tienen una tasa de errores unas
+<strong>7× mayor</strong> que el resto del kernel, lo cual —sumado a que
+corren en modo privilegiado— los convierte en la principal fuente de
+inestabilidad.</p>
+<p><strong>Muy importante:</strong> los drivers <strong>no acceden a las
+funcionalidades del kernel a través de syscalls</strong>. Corren en
+espacio de kernel, así que invocan <strong>directamente la API interna
+del kernel</strong> (<code>kmalloc</code>, <code>printk</code>,
+<code>register_chrdev</code>, <code>copy_to_user</code>,
+<code>copy_from_user</code>, etc.). Las syscalls son el mecanismo del
+espacio de usuario para pedir servicios al kernel.</p>
+<p>La función
+<strong><code>register_chrdev(major, "nombre", &amp;fops)</code></strong>
+registra un dispositivo de caracter en el kernel, asociando un
+<strong>major number</strong> con una <strong>tabla de
+operaciones</strong> (<code>struct file_operations</code>). Solo puede
+invocarse desde <strong>espacio de kernel</strong> (código del driver o
+módulo). La <code>struct file_operations</code> es una tabla que indica
+al kernel qué función del driver ejecutar ante cada operación:
+<code>read</code> → <code>memory_read</code>, <code>write</code> →
+<code>memory_write</code>, etc. Su inverso es
+<code>unregister_chrdev</code>.</p>
+<h3 id="major-y-minor-number">Major y minor number</h3>
+<p>Cada device file tiene dos números asociados:</p>
+<ul>
+<li><strong>Major number:</strong> identifica el <strong>driver</strong>
+asociado a un <strong>tipo</strong> de dispositivo. Le dice al kernel a
+qué driver derivar la operación.</li>
+<li><strong>Minor number:</strong> identifica el <strong>dispositivo
+concreto o instancia</strong> dentro de ese driver. Por ejemplo,
+<code>/dev/sda1</code> y <code>/dev/sda2</code> comparten major (mismo
+driver de disco SCSI) pero difieren en minor (particiones
+distintas).</li>
+</ul>
+<h3 id="dev-device-files">/dev — device files</h3>
+<p><code>/dev</code> contiene los <strong>device files</strong>:
+archivos que representan dispositivos y son el <strong>punto de acceso
+desde espacio de usuario</strong> al driver. Encajan con la filosofía
+UNIX de “todo es un archivo”: los abrís, leés, escribís y cerrás como
+cualquier archivo, y el kernel se encarga de redirigir esas operaciones
+al driver adecuado usando el major number.</p>
+<p>Los device files <strong>no contienen datos</strong>; son “punteros”
+al driver. Se crean con
+<code>mknod [-m &lt;mode&gt;] &lt;ruta&gt; [b|c] &lt;major&gt; &lt;minor&gt;</code>.
+En un <code>ls -l</code> aparecen con un prefijo especial:</p>
+<table>
+<colgroup>
+<col style="width: 25%" />
+<col style="width: 25%" />
+<col style="width: 25%" />
+<col style="width: 25%" />
+</colgroup>
+<thead>
+<tr>
+<th>Tipo</th>
+<th>Marca</th>
+<th>Acceso</th>
+<th>Ejemplos</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Carácter</strong></td>
+<td><code>c</code> (<code>crw-...</code>)</td>
+<td>Byte a byte, secuencial</td>
+<td>teclado, mouse, tty, <code>/dev/null</code>,
+<code>/dev/random</code></td>
+</tr>
+<tr>
+<td><strong>Bloque</strong></td>
+<td><code>b</code> (<code>brw-...</code>)</td>
+<td>Bloques de tamaño fijo, acceso aleatorio</td>
+<td>discos: <code>/dev/sda</code>, <code>/dev/nvme0n1</code></td>
+</tr>
+</tbody>
+</table>
+<p>Los <strong>dispositivos de red</strong> NO se representan como
+archivos en <code>/dev</code>. Se acceden a través de la API de sockets
+y se identifican por nombre de interfaz (<code>eth0</code>,
+<code>wlan0</code>). En <code>/dev</code> también podés encontrar
+enlaces simbólicos (<code>/dev/stdin</code> →
+<code>/proc/self/fd/0</code>) y sockets/pipes especiales.</p>
+<h3 id="proc-pseudo-filesystem">/proc — pseudo-filesystem</h3>
+<p><code>/proc</code> es un <strong>filesystem virtual</strong> que
+expone las <strong>estructuras internas del kernel</strong> como
+archivos. <strong>No ocupa espacio en disco</strong>: la mayoría de sus
+archivos tienen tamaño 0 y su contenido se <strong>genera al
+vuelo</strong> al leerlo (se ejecuta una función del kernel que devuelve
+la información). Contiene datos de cada proceso
+(<code>/proc/&lt;pid&gt;/</code>), información del sistema y también
+configuración escribible.</p>
+<p>Un módulo cargable (no solo los built-in) <strong>puede registrar
+entradas en <code>/proc</code></strong>. Es un mito frecuente en el
+parcial pensar que solo los built-in pueden.</p>
+<h3 id="system-calls">System Calls</h3>
+<p>Una <strong>system call</strong> es la <strong>API que expone el
+kernel al espacio de usuario</strong> para pedirle servicios que
+requieren modo privilegiado (acceder a archivos, dispositivos, red,
+crear procesos, etc.). Es el puente controlado usuario → kernel. El
+mecanismo es una <strong>interrupción de software (TRAP)</strong>:
+<code>int 0x80</code> en x86 de 32 bits o la instrucción
+<code>syscall</code> en x86-64. Todas las syscalls usan la misma
+interrupción; se distinguen entre sí por el <strong>número</strong>
+cargado en el registro <code>EAX</code>/<code>RAX</code>, y admiten
+hasta 6 parámetros en registros. Al recibir el trap, el
+<strong>dispatcher</strong> busca el número en la <strong>tabla de
+syscalls</strong> (<code>syscall_64.tbl</code> en x86-64) y ejecuta el
+handler correspondiente.</p>
+<div class="diagram">
+<svg viewBox="0 0 720 280" xmlns="http://www.w3.org/2000/svg" font-family="sans-serif" font-size="10">
+<defs><marker id="sar" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto"><path d="M 0 0 L 10 5 L 0 10 z" fill="#0f172a"/></marker></defs><text xml:space="preserve" x="360" y="16" text-anchor="middle" font-weight="700" fill="#0f172a">Mecanismo
+de una system call
+(x86-64)</text><rect x="20" y="30" width="680" height="80" fill="#dbeafe" stroke="#1e40af"/><text xml:space="preserve" x="35" y="48" font-weight="700" fill="#1e3a8a">Modo
+usuario</text><rect x="45" y="58" width="130" height="42" fill="#f8fafc" stroke="#334155"/><text xml:space="preserve" x="110" y="76" text-anchor="middle" font-size="9" fill="#0f172a">programa
+(main)</text><text xml:space="preserve" x="110" y="90" text-anchor="middle" font-size="8" font-family="monospace" fill="#475569">printf(“hola”)</text><rect x="220" y="58" width="130" height="42" fill="#fde68a" stroke="#b45309"/><text xml:space="preserve" x="285" y="76" text-anchor="middle" font-size="9" fill="#78350f" font-weight="700">libc
+(wrapper)</text><text xml:space="preserve" x="285" y="90" text-anchor="middle" font-size="8" font-family="monospace" fill="#78350f">RAX=1,
+RDI=1,
+…</text><rect x="395" y="58" width="120" height="42" fill="#fecaca" stroke="#991b1b"/><text xml:space="preserve" x="455" y="76" text-anchor="middle" font-size="9" fill="#7f1d1d" font-weight="700">syscall
+(instr)</text><text xml:space="preserve" x="455" y="90" text-anchor="middle" font-size="8" fill="#7f1d1d">TRAP</text><line x1="175" y1="79" x2="220" y2="79" stroke="#0f172a" marker-end="url(#sar)"/><line x1="350" y1="79" x2="395" y2="79" stroke="#0f172a" marker-end="url(#sar)"/><line x1="20" y1="115" x2="700" y2="115" stroke="#f97316" stroke-width="2" stroke-dasharray="6,3"/><rect x="20" y="125" width="680" height="140" fill="#fef2f2" stroke="#991b1b"/><text xml:space="preserve" x="35" y="143" font-weight="700" fill="#7f1d1d">Modo
+kernel (Ring
+0)</text><rect x="45" y="155" width="130" height="45" fill="#fecaca" stroke="#991b1b"/><text xml:space="preserve" x="110" y="173" text-anchor="middle" font-size="9" fill="#7f1d1d" font-weight="700">dispatcher</text><text xml:space="preserve" x="110" y="188" text-anchor="middle" font-size="8" fill="#7f1d1d">lee
+RAX, indexa
+tabla</text><rect x="220" y="155" width="180" height="90" fill="#ffe4e6" stroke="#9f1239"/><text xml:space="preserve" x="310" y="172" text-anchor="middle" font-size="9" font-weight="700" fill="#881337">syscall_64.tbl</text><line x1="230" y1="180" x2="390" y2="180" stroke="#9f1239"/><text xml:space="preserve" x="230" y="196" font-size="8" font-family="monospace" fill="#881337">0
+read
+sys_read</text><text xml:space="preserve" x="230" y="210" font-size="8" font-family="monospace" fill="#881337">1
+write sys_write
+←</text><text xml:space="preserve" x="230" y="224" font-size="8" font-family="monospace" fill="#881337">2
+open
+sys_open</text><text xml:space="preserve" x="230" y="238" font-size="8" font-family="monospace" fill="#881337">…</text><rect x="445" y="155" width="130" height="45" fill="#fecaca" stroke="#991b1b"/><text xml:space="preserve" x="510" y="173" text-anchor="middle" font-size="9" fill="#7f1d1d" font-weight="700">sys_write()</text><text xml:space="preserve" x="510" y="188" text-anchor="middle" font-size="8" fill="#7f1d1d">handler
+en
+kernel</text><rect x="600" y="155" width="90" height="45" fill="#fbbf24" stroke="#78350f"/><text xml:space="preserve" x="645" y="173" text-anchor="middle" font-size="9" fill="#78350f" font-weight="700">driver
+TTY</text><text xml:space="preserve" x="645" y="188" text-anchor="middle" font-size="8" fill="#78350f">file_operations</text><line x1="175" y1="177" x2="220" y2="177" stroke="#0f172a" marker-end="url(#sar)"/><line x1="400" y1="177" x2="445" y2="177" stroke="#0f172a" marker-end="url(#sar)"/><line x1="575" y1="177" x2="600" y2="177" stroke="#0f172a" marker-end="url(#sar)"/><text xml:space="preserve" x="360" y="255" text-anchor="middle" font-size="8" fill="#7c2d12" font-style="italic">Cada
+syscall se identifica por un número único (registro RAX) y máx. 6
+parámetros. Todas usan la misma instrucción TRAP.</text>
+</svg>
+<div class="caption">
+Fig. 2.1 — Ciclo de una syscall: programa → wrapper de libc →
+instrucción <code>syscall</code> (trap) → dispatcher del kernel → tabla
+→ handler → (opcionalmente) driver.
+</div>
+</div>
+<p>Puntos que suelen confundir:</p>
+<ul>
+<li>Las syscalls <strong>se definen en el código del kernel</strong>, no
+en <code>libc</code> ni en módulos.</li>
+<li>Se <strong>adjuntan estáticamente en tiempo de compilación</strong>
+del kernel.</li>
+<li>Para <strong>agregar una nueva</strong> hay que (a) declararla en la
+tabla (<code>syscall_32.tbl</code> / <code>syscall_64.tbl</code>) con un
+<strong>número único</strong>, (b) implementar el handler en espacio de
+kernel y (c) recompilar. No alcanza con reiniciar.</li>
+<li><strong><code>libc</code> es una biblioteca de usuario</strong> que
+provee wrappers: acomoda los argumentos, carga el número de syscall y
+dispara el trap. NO implementa la syscall en sí. La función
+<code>syscall()</code> de la propia libc permite invocar una syscall por
+número <strong>sin</strong> wrapper específico.</li>
+<li><strong>POSIX</strong> es un estándar de interfaz que busca la
+portabilidad de aplicaciones entre Unix; libc respeta POSIX. No toda
+función de libc es una syscall (muchas son puramente de biblioteca), y
+técnicamente se puede invocar una syscall sin libc (assembler
+directo).</li>
+<li>Para monitorear qué syscalls invoca un proceso en runtime se usa
+<strong><code>strace</code></strong>; para mapear nombre ↔︎ número
+estáticamente, <strong><code>ausyscall</code></strong>.</li>
+<li>Manejo cuidadoso de punteros de usuario: hay que validar con
+<code>get_user</code>/<code>put_user</code>/<code>copy_from_user</code>/<code>copy_to_user</code>.
+Un puntero mal usado puede provocar Kernel Panic o fugar memoria del
+kernel.</li>
+</ul>
+<p>Todo proceso arranca con <strong>tres file descriptors
+abiertos</strong>: <code>0</code> = stdin (entrada), <code>1</code> =
+stdout (salida), <code>2</code> = stderr (errores). Por eso un
+<code>printf</code> termina en un <code>write(1, ...)</code>.</p>
+<div class="callout warning">
+<div class="callout-title">
+⚠ Trampas típicas del parcial
+</div>
+<ul>
+<li>“<code>libc</code> es el componente del kernel donde se definen las
+syscalls” → <span class="tag f">F</span>. <code>libc</code> es wrapper
+de usuario.</li>
+<li>“Las syscalls se implementan como módulos del kernel administrables
+con <code>insmod</code>/<code>rmmod</code>” → <span
+class="tag f">F</span>. Son parte del kernel base, estáticas.</li>
+<li>“Las syscalls se ejecutan en modo privilegiado y se identifican por
+un número” → <span class="tag v">V</span>.</li>
+<li>“Cada driver implementa una system call” → <span
+class="tag f">F</span>. Implementa <code>file_operations</code>, no una
+syscall.</li>
+<li>“Los drivers acceden a las funcionalidades del kernel a través de
+syscalls” → <span class="tag f">F</span>. Acceso directo por API
+interna.</li>
+<li>“<code>register_chrdev</code> puede invocarse desde espacio de
+usuario” → <span class="tag f">F</span>. Solo espacio de kernel.</li>
+<li>“Los módulos se ejecutan en espacio de usuario” → <span
+class="tag f">F</span>. Modo supervisor.</li>
+<li>“Un módulo permite implementar syscalls dinámicas” → <span
+class="tag f">F</span>.</li>
+<li>“Solo los módulos built-in pueden crear entradas en /proc” → <span
+class="tag f">F</span>. También los cargables.</li>
+<li>Sobre el output <code>brw-rw---- 1 root root 240, 0 weird</code>: la
+<code>b</code> inicial indica dispositivo de bloques y
+<strong>240</strong> es el <strong>major</strong> (identifica al driver,
+NO son 240 bytes de tamaño). Escribir con
+<code>echo "hola" &gt; weird</code> no incrementa el tamaño porque no es
+un archivo regular, es un punto de acceso al driver.</li>
+</ul>
+</div>
+<hr />
+<h2 id="threads-hilos">3. Threads (hilos)</h2>
+<h3 id="proceso-vs-hilo">Proceso vs hilo</h3>
+<p>Un <strong>hilo</strong> (o <em>lightweight process</em>) es la
+<strong>unidad básica de ejecución</strong> dentro de un proceso. En los
+SO modernos, el hilo es la unidad de utilización de CPU / planificación,
+mientras que el <strong>proceso</strong> es la unidad de
+<strong>propiedad de recursos</strong>: un proceso es una colección de
+uno o más hilos que comparten el mismo espacio de direcciones y los
+mismos recursos.</p>
+<p>Los hilos de un mismo proceso <strong>comparten</strong>:</p>
+<ul>
+<li>El espacio de direcciones completo: <strong>código (TEXT), datos,
+heap</strong>.</li>
+<li>Los recursos del proceso: <strong>archivos abiertos, señales,
+sockets</strong>.</li>
+<li>El <strong>PID</strong> del proceso.</li>
+<li>El único <strong>PCB</strong> (Process Control Block).</li>
+</ul>
+<p>Y cada hilo tiene lo suyo:</p>
+<ul>
+<li><strong>Stack propio</strong>.</li>
+<li><strong>Registros y Program Counter (PC)</strong> propios.</li>
+<li><strong>Estado de ejecución</strong> y contexto del procesador.</li>
+<li>Su propio <strong>TCB</strong> (Thread Control Block) con un
+<strong>TID</strong> único.</li>
+</ul>
+<p>Por eso los hilos son “más baratos”: crear/destruir un hilo solo
+requiere un TCB + stack + registros, y el cambio de contexto entre hilos
+del mismo proceso no cambia el espacio de direcciones (solo cambia
+registros y PC). En cambio, un proceso nuevo obliga al SO a crear un
+espacio de direcciones aislado, un PCB, etc. La contrapartida es que
+como los hilos comparten memoria, la <strong>protección entre hilos es
+responsabilidad del programador</strong> (mutex, semáforos, etc.), no
+del SO.</p>
+<div class="diagram">
+<svg viewBox="0 0 640 260" xmlns="http://www.w3.org/2000/svg" font-family="sans-serif" font-size="10">
+<g transform="translate(0,0)"><text xml:space="preserve" x="140" y="18" text-anchor="middle" font-weight="700" fill="#0f172a">Proceso
+con 1
+hilo</text><rect x="20" y="30" width="240" height="200" fill="#f8fafc" stroke="#334155"/><text xml:space="preserve" x="30" y="46" fill="#64748b" font-size="8">PID
+único · PCB
+único</text><rect x="35" y="55" width="210" height="26" fill="#dbeafe" stroke="#1e40af"/><text xml:space="preserve" x="140" y="72" text-anchor="middle" fill="#1e3a8a" font-size="9">TEXT
+(código)</text><rect x="35" y="84" width="210" height="26" fill="#dbeafe" stroke="#1e40af"/><text xml:space="preserve" x="140" y="101" text-anchor="middle" fill="#1e3a8a" font-size="9">DATA
+(datos
+globales)</text><rect x="35" y="113" width="210" height="42" fill="#e0e7ff" stroke="#4338ca"/><text xml:space="preserve" x="140" y="130" text-anchor="middle" fill="#3730a3" font-size="9">HEAP</text><text xml:space="preserve" x="140" y="145" text-anchor="middle" fill="#4338ca" font-size="8" font-style="italic">memoria
+dinámica</text><rect x="35" y="160" width="210" height="42" fill="#fef3c7" stroke="#b45309"/><text xml:space="preserve" x="140" y="177" text-anchor="middle" fill="#78350f" font-size="9">STACK</text><text xml:space="preserve" x="140" y="192" text-anchor="middle" fill="#78350f" font-size="8" font-style="italic">variables
+locales,
+retornos</text><rect x="35" y="207" width="210" height="18" fill="#f0abfc" stroke="#a21caf"/><text xml:space="preserve" x="140" y="220" text-anchor="middle" fill="#701a75" font-size="9">Recursos:
+FDs, señales,
+sockets</text></g><g transform="translate(320,0)"><text xml:space="preserve" x="140" y="18" text-anchor="middle" font-weight="700" fill="#0f172a">Proceso
+con 3
+hilos</text><rect x="20" y="30" width="280" height="200" fill="#f8fafc" stroke="#334155"/><text xml:space="preserve" x="30" y="46" fill="#64748b" font-size="8">PID
+único · PCB único · TIDs: T1, T2,
+T3</text><rect x="35" y="55" width="250" height="20" fill="#dbeafe" stroke="#1e40af"/><text xml:space="preserve" x="160" y="70" text-anchor="middle" fill="#1e3a8a" font-size="9">TEXT
+(compartido)</text><rect x="35" y="78" width="250" height="20" fill="#dbeafe" stroke="#1e40af"/><text xml:space="preserve" x="160" y="93" text-anchor="middle" fill="#1e3a8a" font-size="9">DATA
+(compartido)</text><rect x="35" y="101" width="250" height="30" fill="#e0e7ff" stroke="#4338ca"/><text xml:space="preserve" x="160" y="121" text-anchor="middle" fill="#3730a3" font-size="9">HEAP
+(compartido)</text><text xml:space="preserve" x="35" y="145" fill="#78350f" font-size="8">Stacks
+propios (uno por
+hilo):</text><rect x="35" y="150" width="78" height="55" fill="#fef3c7" stroke="#b45309"/><text xml:space="preserve" x="74" y="167" text-anchor="middle" fill="#78350f" font-size="9" font-weight="700">Stack
+T1</text><text xml:space="preserve" x="74" y="182" text-anchor="middle" fill="#78350f" font-size="8">registros</text><text xml:space="preserve" x="74" y="194" text-anchor="middle" fill="#78350f" font-size="8">PC
+·
+TCB</text><rect x="121" y="150" width="78" height="55" fill="#fef3c7" stroke="#b45309"/><text xml:space="preserve" x="160" y="167" text-anchor="middle" fill="#78350f" font-size="9" font-weight="700">Stack
+T2</text><text xml:space="preserve" x="160" y="182" text-anchor="middle" fill="#78350f" font-size="8">registros</text><text xml:space="preserve" x="160" y="194" text-anchor="middle" fill="#78350f" font-size="8">PC
+·
+TCB</text><rect x="207" y="150" width="78" height="55" fill="#fef3c7" stroke="#b45309"/><text xml:space="preserve" x="246" y="167" text-anchor="middle" fill="#78350f" font-size="9" font-weight="700">Stack
+T3</text><text xml:space="preserve" x="246" y="182" text-anchor="middle" fill="#78350f" font-size="8">registros</text><text xml:space="preserve" x="246" y="194" text-anchor="middle" fill="#78350f" font-size="8">PC
+·
+TCB</text><rect x="35" y="210" width="250" height="15" fill="#f0abfc" stroke="#a21caf"/><text xml:space="preserve" x="160" y="221" text-anchor="middle" fill="#701a75" font-size="9">Recursos:
+FDs, señales, sockets (compartidos)</text></g>
+</svg>
+<div class="caption">
+Fig. 3.1 — Qué comparten y qué es propio. TEXT/DATA/HEAP y recursos son
+del proceso; stack, registros, PC y TCB son de cada hilo.
+</div>
+</div>
+<h3 id="concurrencia-vs-paralelismo">Concurrencia vs paralelismo</h3>
+<ul>
+<li><strong>Concurrencia:</strong> múltiples tareas <strong>progresan
+intercaladas</strong> en el tiempo. Puede darse con un único core
+(multiplexación temporal): da la ilusión de simultaneidad.</li>
+<li><strong>Paralelismo:</strong> múltiples tareas se ejecutan
+<strong>realmente al mismo tiempo</strong> en <strong>múltiples
+cores</strong>.</li>
+</ul>
+<p>Todo paralelismo implica concurrencia, pero no toda concurrencia es
+paralelismo. Un programa concurrente puede correr sin paralelismo en un
+uniprocesador.</p>
+<h3 id="ult-vs-klt">ULT vs KLT</h3>
+<p>Hay dos tipos de hilos según quién los gestiona:</p>
+<ul>
+<li><strong>ULT (User Level Threads):</strong> la <strong>biblioteca de
+hilos en espacio de usuario</strong> los crea, gestiona y planifica (por
+ejemplo GNU Pth, versiones de Pthreads sin soporte de kernel). El
+<strong>kernel no sabe que existen</strong>: ve un único proceso con un
+único flujo de ejecución.</li>
+<li><strong>KLT (Kernel Level Threads):</strong> los <strong>conoce y
+planifica el kernel</strong>, hilo por hilo. En Linux se crean con la
+syscall <code>clone()</code>/<code>clone3()</code> con los flags
+<code>CLONE_VM</code> + <code>CLONE_THREAD</code>.</li>
+</ul>
+<p>La comparación clave:</p>
+<table>
+<colgroup>
+<col style="width: 33%" />
+<col style="width: 33%" />
+<col style="width: 33%" />
+</colgroup>
+<thead>
+<tr>
+<th>Criterio</th>
+<th><strong>ULT</strong></th>
+<th><strong>KLT</strong></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>¿Quién planifica?</td>
+<td>La biblioteca (espacio de usuario)</td>
+<td>El kernel</td>
+</tr>
+<tr>
+<td>Visibilidad al kernel</td>
+<td>Invisible: ve 1 solo proceso</td>
+<td>Cada hilo es entidad planificable</td>
+</tr>
+<tr>
+<td>Paralelismo en multicore</td>
+<td><strong>NO</strong> (no puede repartirlos en núcleos)</td>
+<td><strong>SÍ</strong> (paralelismo real)</td>
+</tr>
+<tr>
+<td>Costo de cambio de contexto</td>
+<td><strong>Barato</strong> (sin pasar a modo kernel)</td>
+<td><strong>Caro</strong> (cada operación es syscall)</td>
+</tr>
+<tr>
+<td>Bloqueo por syscall</td>
+<td>Bloquea <strong>TODO el proceso</strong></td>
+<td>Solo bloquea al hilo llamador</td>
+</tr>
+<tr>
+<td>Portabilidad</td>
+<td>Alta (funcionan sin soporte del kernel)</td>
+<td>Dependen del soporte del SO</td>
+</tr>
+</tbody>
+</table>
+<p>El trade-off es claro: los <strong>KLT</strong> ganan en paralelismo
+real y en robustez ante bloqueos (si un hilo hace una syscall
+bloqueante, solo se bloquea él, los demás siguen), pero pagan
+<strong>overhead</strong> por operar en modo kernel. Los
+<strong>ULT</strong> son rápidos y portables (corren incluso sin soporte
+del SO) pero <strong>no aprovechan múltiples núcleos</strong> y un
+bloqueo de un hilo bloquea a todos.</p>
+<p>Regla práctica de rendimiento: <strong>KLT / procesos</strong> son
+mejores para tareas <strong>CPU-bound</strong> (necesitan paralelismo
+real). <strong>ULT</strong> brillan en <strong>IO-bound</strong>: las
+esperas se solapan haciendo yields dentro de la biblioteca, sin overhead
+de kernel.</p>
+<h3 id="modelos-de-mapeo-ult-klt">Modelos de mapeo ULT ↔︎ KLT</h3>
+<p>Los ULT no pueden ejecutarse directamente: necesitan mapearse sobre
+un KLT para obtener CPU. Hay tres modelos:</p>
+<ul>
+<li><strong>N:1 (Muchos a Uno):</strong> varios ULT sobre un solo KLT.
+Sin paralelismo real; si un hilo se bloquea, todos se bloquean. Típico
+de bibliotecas de threads sin soporte del kernel.</li>
+<li><strong>1:1 (Uno a Uno):</strong> cada ULT tiene su KLT propio. Es
+el modelo de <strong>Linux, Windows NT y Solaris moderno</strong>.
+Paralelismo máximo pero costo alto (1 KLT por hilo).</li>
+<li><strong>M:N (Muchos a Muchos):</strong> M ULT sobre N KLT, con N
+ajustable. Balance entre paralelismo y costo (Solaris con LWP,
+TRIX).</li>
+</ul>
+<div class="diagram">
+<svg viewBox="0 0 700 260" xmlns="http://www.w3.org/2000/svg" font-family="sans-serif" font-size="10">
+<g transform="translate(0,0)"><text xml:space="preserve" x="110" y="18" text-anchor="middle" font-weight="700" fill="#0f172a">N:1
+(Muchos a
+Uno)</text><text xml:space="preserve" x="110" y="34" text-anchor="middle" font-size="8" fill="#64748b">sin
+paralelismo
+real</text><circle cx="45" cy="70" r="14" fill="#a7f3d0" stroke="#065f46"/><text xml:space="preserve" x="45" y="74" text-anchor="middle" font-size="9">U1</text><circle cx="90" cy="70" r="14" fill="#a7f3d0" stroke="#065f46"/><text xml:space="preserve" x="90" y="74" text-anchor="middle" font-size="9">U2</text><circle cx="135" cy="70" r="14" fill="#a7f3d0" stroke="#065f46"/><text xml:space="preserve" x="135" y="74" text-anchor="middle" font-size="9">U3</text><circle cx="180" cy="70" r="14" fill="#a7f3d0" stroke="#065f46"/><text xml:space="preserve" x="180" y="74" text-anchor="middle" font-size="9">U4</text><rect x="30" y="100" width="165" height="22" fill="#fde68a" stroke="#b45309"/><text xml:space="preserve" x="112" y="115" text-anchor="middle" font-size="9" fill="#78350f">biblioteca
+de
+hilos</text><line x1="45" y1="84" x2="112" y2="100" stroke="#0f172a"/><line x1="90" y1="84" x2="112" y2="100" stroke="#0f172a"/><line x1="135" y1="84" x2="112" y2="100" stroke="#0f172a"/><line x1="180" y1="84" x2="112" y2="100" stroke="#0f172a"/><circle cx="112" cy="150" r="16" fill="#fecaca" stroke="#991b1b"/><text xml:space="preserve" x="112" y="154" text-anchor="middle" font-size="9">K</text><line x1="112" y1="122" x2="112" y2="134" stroke="#0f172a"/><rect x="20" y="190" width="185" height="26" fill="#e2e8f0" stroke="#334155"/><text xml:space="preserve" x="112" y="207" text-anchor="middle" font-size="9" fill="#0f172a">Kernel
++
+CPUs</text><line x1="112" y1="166" x2="112" y2="190" stroke="#0f172a"/><text xml:space="preserve" x="112" y="236" text-anchor="middle" font-size="8" fill="#475569">1
+solo hilo corre a la
+vez</text></g><g transform="translate(240,0)"><text xml:space="preserve" x="110" y="18" text-anchor="middle" font-weight="700" fill="#0f172a">1:1
+(Uno a
+Uno)</text><text xml:space="preserve" x="110" y="34" text-anchor="middle" font-size="8" fill="#64748b">Linux,
+WinNT — paralelismo
+real</text><circle cx="45" cy="70" r="14" fill="#a7f3d0" stroke="#065f46"/><text xml:space="preserve" x="45" y="74" text-anchor="middle" font-size="9">U1</text><circle cx="90" cy="70" r="14" fill="#a7f3d0" stroke="#065f46"/><text xml:space="preserve" x="90" y="74" text-anchor="middle" font-size="9">U2</text><circle cx="135" cy="70" r="14" fill="#a7f3d0" stroke="#065f46"/><text xml:space="preserve" x="135" y="74" text-anchor="middle" font-size="9">U3</text><circle cx="180" cy="70" r="14" fill="#a7f3d0" stroke="#065f46"/><text xml:space="preserve" x="180" y="74" text-anchor="middle" font-size="9">U4</text><line x1="45" y1="84" x2="45" y2="134" stroke="#0f172a"/><line x1="90" y1="84" x2="90" y2="134" stroke="#0f172a"/><line x1="135" y1="84" x2="135" y2="134" stroke="#0f172a"/><line x1="180" y1="84" x2="180" y2="134" stroke="#0f172a"/><circle cx="45" cy="150" r="14" fill="#fecaca" stroke="#991b1b"/><text xml:space="preserve" x="45" y="154" text-anchor="middle" font-size="9">K1</text><circle cx="90" cy="150" r="14" fill="#fecaca" stroke="#991b1b"/><text xml:space="preserve" x="90" y="154" text-anchor="middle" font-size="9">K2</text><circle cx="135" cy="150" r="14" fill="#fecaca" stroke="#991b1b"/><text xml:space="preserve" x="135" y="154" text-anchor="middle" font-size="9">K3</text><circle cx="180" cy="150" r="14" fill="#fecaca" stroke="#991b1b"/><text xml:space="preserve" x="180" y="154" text-anchor="middle" font-size="9">K4</text><rect x="20" y="190" width="185" height="26" fill="#e2e8f0" stroke="#334155"/><text xml:space="preserve" x="112" y="207" text-anchor="middle" font-size="9" fill="#0f172a">Kernel
++
+CPUs</text><line x1="45" y1="164" x2="45" y2="190" stroke="#0f172a"/><line x1="90" y1="164" x2="90" y2="190" stroke="#0f172a"/><line x1="135" y1="164" x2="135" y2="190" stroke="#0f172a"/><line x1="180" y1="164" x2="180" y2="190" stroke="#0f172a"/><text xml:space="preserve" x="112" y="236" text-anchor="middle" font-size="8" fill="#475569">1
+KLT por hilo — costo
+alto</text></g><g transform="translate(480,0)"><text xml:space="preserve" x="110" y="18" text-anchor="middle" font-weight="700" fill="#0f172a">M:N
+(Muchos a
+Muchos)</text><text xml:space="preserve" x="110" y="34" text-anchor="middle" font-size="8" fill="#64748b">balance
+(Solaris
+LWP)</text><circle cx="45" cy="70" r="14" fill="#a7f3d0" stroke="#065f46"/><text xml:space="preserve" x="45" y="74" text-anchor="middle" font-size="9">U1</text><circle cx="90" cy="70" r="14" fill="#a7f3d0" stroke="#065f46"/><text xml:space="preserve" x="90" y="74" text-anchor="middle" font-size="9">U2</text><circle cx="135" cy="70" r="14" fill="#a7f3d0" stroke="#065f46"/><text xml:space="preserve" x="135" y="74" text-anchor="middle" font-size="9">U3</text><circle cx="180" cy="70" r="14" fill="#a7f3d0" stroke="#065f46"/><text xml:space="preserve" x="180" y="74" text-anchor="middle" font-size="9">U4</text><line x1="45" y1="84" x2="70" y2="134" stroke="#0f172a"/><line x1="90" y1="84" x2="70" y2="134" stroke="#0f172a"/><line x1="135" y1="84" x2="155" y2="134" stroke="#0f172a"/><line x1="180" y1="84" x2="155" y2="134" stroke="#0f172a"/><circle cx="70" cy="150" r="14" fill="#fecaca" stroke="#991b1b"/><text xml:space="preserve" x="70" y="154" text-anchor="middle" font-size="9">K1</text><circle cx="155" cy="150" r="14" fill="#fecaca" stroke="#991b1b"/><text xml:space="preserve" x="155" y="154" text-anchor="middle" font-size="9">K2</text><rect x="20" y="190" width="185" height="26" fill="#e2e8f0" stroke="#334155"/><text xml:space="preserve" x="112" y="207" text-anchor="middle" font-size="9" fill="#0f172a">Kernel
++
+CPUs</text><line x1="70" y1="164" x2="70" y2="190" stroke="#0f172a"/><line x1="155" y1="164" x2="155" y2="190" stroke="#0f172a"/><text xml:space="preserve" x="112" y="236" text-anchor="middle" font-size="8" fill="#475569">M
+ULT sobre N KLT</text></g>
+</svg>
+<div class="caption">
+Fig. 3.2 — Modelos de mapeo ULT↔︎KLT. Solo 1:1 y M:N logran paralelismo
+real en varios núcleos.
+</div>
+</div>
+<h3 id="fork-y-exec">fork() y exec()</h3>
+<ul>
+<li><strong><code>fork()</code></strong> crea un <strong>proceso
+hijo</strong>, copia (casi) idéntica del padre. Usa
+<strong>Copy-On-Write</strong>: padre e hijo comparten las páginas en
+solo lectura y se copian recién cuando alguna de las partes escribe. Es
+<strong><code>fork()</code> el que asigna el nuevo PID</strong> al
+hijo.</li>
+<li><strong><code>exec()</code></strong> <strong>reemplaza la imagen del
+proceso</strong> por otro programa. NO crea proceso ni cambia el
+PID.</li>
+<li>El patrón clásico de la shell para lanzar un comando externo es
+<strong><code>fork()</code> + <code>exec()</code></strong>: el padre
+crea un hijo, y el hijo reemplaza su código por el del programa a
+ejecutar.</li>
+</ul>
+<p><strong><code>fork()</code> sin <code>exec()</code> — cae mucho en
+parcial.</strong> El hijo es una copia (casi) idéntica del padre:</p>
+<ul>
+<li>Ejecuta el <strong>mismo programa/código, mismos datos</strong> que
+el padre (no se reemplaza).</li>
+<li><strong>Hereda los descriptores de archivo abiertos</strong>,
+señales, cwd, etc.</li>
+<li>Tiene <strong>PID propio</strong> (distinto del padre) y su
+<strong>PPID</strong> apunta al padre.</li>
+<li>Se diferencian por el <strong>valor de retorno de
+<code>fork()</code></strong>: <code>0</code> en el hijo, PID del hijo en
+el padre. Cada uno usa esa diferencia para tomar un camino distinto en
+el código.</li>
+</ul>
+<p>En Linux, tanto <code>fork()</code> como
+<code>pthread_create()</code> terminan invocando la syscall
+<strong><code>clone()</code></strong>. Lo que cambia son los flags:
+<code>fork()</code> da espacio aislado (COW);
+<code>pthread_create()</code> pasa <code>CLONE_VM</code> +
+<code>CLONE_THREAD</code> para compartir espacio de direcciones y
+recursos con el padre. Por eso <code>pthread_create</code> sí aparece en
+<code>strace</code> como un <code>clone3</code>, pero <strong>crear ULT
+no lo hace</strong>: la biblioteca los gestiona internamente sin llamar
+al kernel.</p>
+<h3 id="detalle-gil-en-python">Detalle: GIL en Python</h3>
+<p>En CPython el <strong>Global Interpreter Lock (GIL)</strong> permite
+que solo un hilo ejecute bytecode a la vez, incluso si hay varios cores
+disponibles. Por eso los hilos no logran paralelismo real en tareas
+CPU-bound; la solución típica es usar <strong>procesos</strong>
+(<code>multiprocessing</code>), porque cada proceso tiene su propio
+intérprete y su propio GIL. En tareas IO-bound el GIL se libera durante
+la espera, así que los hilos sí ayudan.</p>
+<div class="callout warning">
+<div class="callout-title">
+⚠ Trampas típicas del parcial
+</div>
+<ul>
+<li>“¿Quién planifica los ULT?” → <strong>La biblioteca en espacio de
+usuario</strong>. “¿Y los KLT?” → <strong>El kernel</strong>.</li>
+<li>“Los ULT en modelo M:1 pueden aprovechar directamente múltiples
+procesadores físicos” → <span class="tag f">F</span>. Sin mecanismo
+adicional (KLT), no.</li>
+<li>“Si un proceso crea N ULT, con <code>strace</code> se ven N
+<code>clone3</code>” → <span class="tag f">F</span>. Los ULT no invocan
+al kernel; <code>clone3</code> aparece con procesos y con KLT
+(pthread_create), no con ULT.</li>
+<li>“<code>fork()</code> sin <code>exec()</code>” → hijo es copia del
+padre, mismo programa, distinto PID, hereda descriptores.</li>
+<li>“¿Quién asigna el PID nuevo?” →
+<strong><code>fork()</code></strong>, no <code>exec()</code>
+(<code>exec()</code> conserva el PID).</li>
+<li>Hilo principal: <code>gettid() == getpid()</code>. En ULT (GNU Pth)
+todos comparten el mismo <code>gettid()</code> porque el kernel ve una
+sola entidad; solo <code>pth_self()</code> los distingue.</li>
+<li>“Un hilo es la unidad básica de utilización de CPU en los SO
+modernos” → <span class="tag v">V</span>.</li>
+</ul>
+</div>
+<hr />
+<h2 id="virtualización">4. Virtualización</h2>
+<h3 id="qué-es-virtualizar-y-para-qué">Qué es virtualizar y para
+qué</h3>
+<p>Virtualizar es una técnica de <strong>abstracción de
+recursos</strong>: una capa de software desacopla el hardware físico del
+software que corre encima, oculta detalles y permite que <strong>una
+única máquina haga el trabajo de varias</strong>, compartiendo el
+hardware entre múltiples entornos aislados.</p>
+<p>Los motivos para virtualizar son variados:
+<strong>consolidación</strong> (servidores subutilizados que pasan de
+~10-18% de uso a ~70%), <strong>aislamiento</strong> (probar apps
+inseguras o correr software legacy sin contaminar el sistema principal),
+<strong>aprovechamiento del HW</strong> (varios SO distintos en
+simultáneo, ahorro energético) y <strong>flexibilidad</strong> (las VMs
+se encapsulan en archivos, así que backup, copia y migración entre
+servidores son triviales).</p>
+<p>Se distinguen dos actores: el <strong>host</strong> (SO anfitrión +
+capa de virtualización) y el <strong>guest</strong> (lo que se está
+simulando: un SO completo).</p>
+<h3 id="hypervisor-vmm">Hypervisor / VMM</h3>
+<p>El <strong>hypervisor</strong> o <strong>VMM (Virtual Machine
+Monitor)</strong> es el programa que implementa las máquinas virtuales,
+gestiona el reparto de recursos y planifica la ejecución de los guests.
+Corre en modo supervisor y los guests corren en modo usuario. Cuando el
+guest intenta ejecutar una instrucción privilegiada, se genera un
+<strong>trap al VMM</strong>, que la interpreta o emula.</p>
+<p>Hay dos tipos:</p>
+<table>
+<colgroup>
+<col style="width: 33%" />
+<col style="width: 33%" />
+<col style="width: 33%" />
+</colgroup>
+<thead>
+<tr>
+<th></th>
+<th><strong>Tipo 1 (bare-metal)</strong></th>
+<th><strong>Tipo 2 (hosted)</strong></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Dónde corre</td>
+<td><strong>Directo sobre el hardware</strong></td>
+<td>Como aplicación <strong>sobre un SO anfitrión</strong></td>
+</tr>
+<tr>
+<td>¿SO anfitrión?</td>
+<td><strong>No</strong> (el hypervisor es “el SO base”)</td>
+<td><strong>Sí</strong></td>
+</tr>
+<tr>
+<td>Rendimiento</td>
+<td>Mayor</td>
+<td>Menor (capa extra)</td>
+</tr>
+<tr>
+<td>Uso típico</td>
+<td>Servidores, data center</td>
+<td>Escritorio, pruebas</td>
+</tr>
+<tr>
+<td>Ejemplos</td>
+<td><strong>ESXi, Xen, Hyper-V, KVM</strong></td>
+<td><strong>VirtualBox, VMware Workstation</strong></td>
+</tr>
+</tbody>
+</table>
+<p>La diferencia clave es que el <strong>tipo 1 no necesita SO
+anfitrión</strong> (corre sobre el bare-metal directamente); el
+<strong>tipo 2 sí requiere un host</strong> que gestiona los drivers
+reales del hardware.</p>
+<div class="diagram">
+<svg viewBox="0 0 720 260" xmlns="http://www.w3.org/2000/svg" font-family="sans-serif" font-size="9">
+<g transform="translate(0,0)"><text xml:space="preserve" x="115" y="16" text-anchor="middle" font-weight="700" fill="#0f172a">Hypervisor
+Tipo
+1</text><text xml:space="preserve" x="115" y="30" text-anchor="middle" font-size="8" fill="#64748b">bare-metal
+(ESXi, Xen,
+KVM)</text><rect x="10" y="40" width="70" height="55" fill="#dbeafe" stroke="#1e40af"/><text xml:space="preserve" x="45" y="58" text-anchor="middle" font-size="8" fill="#1e3a8a">App</text><line x1="10" y1="65" x2="80" y2="65" stroke="#1e40af"/><text xml:space="preserve" x="45" y="82" text-anchor="middle" font-size="8" fill="#1e3a8a">SO
+guest</text><rect x="85" y="40" width="70" height="55" fill="#dbeafe" stroke="#1e40af"/><text xml:space="preserve" x="120" y="58" text-anchor="middle" font-size="8" fill="#1e3a8a">App</text><line x1="85" y1="65" x2="155" y2="65" stroke="#1e40af"/><text xml:space="preserve" x="120" y="82" text-anchor="middle" font-size="8" fill="#1e3a8a">SO
+guest</text><rect x="160" y="40" width="70" height="55" fill="#dbeafe" stroke="#1e40af"/><text xml:space="preserve" x="195" y="58" text-anchor="middle" font-size="8" fill="#1e3a8a">App</text><line x1="160" y1="65" x2="230" y2="65" stroke="#1e40af"/><text xml:space="preserve" x="195" y="82" text-anchor="middle" font-size="8" fill="#1e3a8a">SO
+guest</text><rect x="10" y="100" width="220" height="30" fill="#fecaca" stroke="#991b1b"/><text xml:space="preserve" x="120" y="119" text-anchor="middle" font-size="10" font-weight="700" fill="#7f1d1d">Hypervisor
+(VMM)</text><rect x="10" y="135" width="220" height="30" fill="#e5e7eb" stroke="#374151"/><text xml:space="preserve" x="120" y="154" text-anchor="middle" font-size="10" font-weight="700" fill="#111827">HARDWARE</text><text xml:space="preserve" x="120" y="200" text-anchor="middle" font-size="8" fill="#475569">no
+hay SO
+anfitrión</text><text xml:space="preserve" x="120" y="215" text-anchor="middle" font-size="8" fill="#475569">mejor
+rendimiento</text></g><g transform="translate(250,0)"><text xml:space="preserve" x="115" y="16" text-anchor="middle" font-weight="700" fill="#0f172a">Hypervisor
+Tipo
+2</text><text xml:space="preserve" x="115" y="30" text-anchor="middle" font-size="8" fill="#64748b">hosted
+(VirtualBox,
+VMware)</text><rect x="10" y="40" width="70" height="55" fill="#dbeafe" stroke="#1e40af"/><text xml:space="preserve" x="45" y="58" text-anchor="middle" font-size="8" fill="#1e3a8a">App</text><line x1="10" y1="65" x2="80" y2="65" stroke="#1e40af"/><text xml:space="preserve" x="45" y="82" text-anchor="middle" font-size="8" fill="#1e3a8a">SO
+guest</text><rect x="85" y="40" width="70" height="55" fill="#dbeafe" stroke="#1e40af"/><text xml:space="preserve" x="120" y="58" text-anchor="middle" font-size="8" fill="#1e3a8a">App</text><line x1="85" y1="65" x2="155" y2="65" stroke="#1e40af"/><text xml:space="preserve" x="120" y="82" text-anchor="middle" font-size="8" fill="#1e3a8a">SO
+guest</text><rect x="160" y="40" width="70" height="55" fill="#fef3c7" stroke="#b45309"/><text xml:space="preserve" x="195" y="70" text-anchor="middle" font-size="8" fill="#78350f">Otras
+apps</text><text xml:space="preserve" x="195" y="82" text-anchor="middle" font-size="8" fill="#78350f">del
+host</text><rect x="10" y="100" width="145" height="30" fill="#fecaca" stroke="#991b1b"/><text xml:space="preserve" x="82" y="119" text-anchor="middle" font-size="10" font-weight="700" fill="#7f1d1d">Hypervisor</text><rect x="10" y="135" width="220" height="30" fill="#fde68a" stroke="#b45309"/><text xml:space="preserve" x="120" y="154" text-anchor="middle" font-size="10" font-weight="700" fill="#78350f">SO
+anfitrión
+(host)</text><rect x="10" y="170" width="220" height="26" fill="#e5e7eb" stroke="#374151"/><text xml:space="preserve" x="120" y="187" text-anchor="middle" font-size="10" font-weight="700" fill="#111827">HARDWARE</text><text xml:space="preserve" x="120" y="215" text-anchor="middle" font-size="8" fill="#475569">host
+maneja drivers
+reales</text></g><g transform="translate(490,0)"><text xml:space="preserve" x="115" y="16" text-anchor="middle" font-weight="700" fill="#0f172a">Containers
+(Docker/LXC)</text><text xml:space="preserve" x="115" y="30" text-anchor="middle" font-size="8" fill="#64748b">virtualización
+a nivel
+SO</text><rect x="10" y="40" width="65" height="50" fill="#a7f3d0" stroke="#065f46"/><text xml:space="preserve" x="42" y="60" text-anchor="middle" font-size="8" fill="#064e3b">App</text><text xml:space="preserve" x="42" y="74" text-anchor="middle" font-size="7" fill="#064e3b">+
+libs</text><rect x="80" y="40" width="65" height="50" fill="#a7f3d0" stroke="#065f46"/><text xml:space="preserve" x="112" y="60" text-anchor="middle" font-size="8" fill="#064e3b">App</text><text xml:space="preserve" x="112" y="74" text-anchor="middle" font-size="7" fill="#064e3b">+
+libs</text><rect x="150" y="40" width="65" height="50" fill="#a7f3d0" stroke="#065f46"/><text xml:space="preserve" x="182" y="60" text-anchor="middle" font-size="8" fill="#064e3b">App</text><text xml:space="preserve" x="182" y="74" text-anchor="middle" font-size="7" fill="#064e3b">+
+libs</text><text xml:space="preserve" x="42" y="105" text-anchor="middle" font-size="7" fill="#065f46" font-style="italic">container</text><text xml:space="preserve" x="112" y="105" text-anchor="middle" font-size="7" fill="#065f46" font-style="italic">container</text><text xml:space="preserve" x="182" y="105" text-anchor="middle" font-size="7" fill="#065f46" font-style="italic">container</text><rect x="10" y="115" width="215" height="24" fill="#e0e7ff" stroke="#4338ca"/><text xml:space="preserve" x="117" y="131" text-anchor="middle" font-size="9" fill="#3730a3">Docker
+daemon ·
+runc</text><rect x="10" y="142" width="215" height="30" fill="#fecaca" stroke="#991b1b"/><text xml:space="preserve" x="117" y="161" text-anchor="middle" font-size="10" font-weight="700" fill="#7f1d1d">KERNEL
+(host)</text><text xml:space="preserve" x="117" y="171" text-anchor="middle" font-size="7" fill="#7f1d1d">namespaces
++ cgroups +
+chroot</text><rect x="10" y="176" width="215" height="22" fill="#e5e7eb" stroke="#374151"/><text xml:space="preserve" x="117" y="191" text-anchor="middle" font-size="9" font-weight="700" fill="#111827">HARDWARE</text><text xml:space="preserve" x="117" y="215" text-anchor="middle" font-size="8" fill="#475569">mismo
+kernel · sin hypervisor</text></g>
+</svg>
+<div class="caption">
+Fig. 4.1 — Tipo 1 vs Tipo 2 vs Containers. Los containers comparten el
+kernel del host y no usan hypervisor.
+</div>
+</div>
+<p><strong>Cuidado:</strong> el SO guest <strong>nunca tiene acceso
+directo y completo al hardware real</strong>. El VMM siempre intermedia:
+crea hardware virtual, controla los recursos e intercepta/emula las
+instrucciones privilegiadas. El guest ve hardware virtual, no el
+real.</p>
+<h3 id="técnicas-de-virtualización">Técnicas de virtualización</h3>
+<ul>
+<li><strong>Full virtualization con Binary Translation:</strong> el
+hypervisor <strong>escanea y reescribe en tiempo de ejecución</strong>
+las instrucciones sensibles del guest (aquellas que en x86 no generaban
+trap correctamente), reemplazándolas por llamadas seguras al VMM. El
+<strong>SO guest no se modifica</strong> — no sabe que está
+virtualizado. Costo alto porque hay que emular todo el HW.</li>
+<li><strong>Paravirtualización:</strong> el <strong>kernel del SO guest
+SE MODIFICA</strong> para reemplazar las instrucciones privilegiadas por
+<strong>hypercalls</strong> (llamadas a la API del hypervisor).
+<strong>Mejor rendimiento</strong>, pero solo sirve para SO cuyo código
+puede modificarse. <strong>Windows cerrado NO se puede
+paravirtualizar.</strong></li>
+<li><strong>Virtualización asistida por hardware:</strong> las
+extensiones <strong>Intel VT-x / AMD-V</strong> en la CPU dan soporte
+directo a la virtualización (require flag habilitado en BIOS para VMs).
+Reduce el overhead del binary translation.</li>
+<li><strong>Emulación:</strong> simula por software un hardware o
+arquitectura completo, y <strong>puede correr una arquitectura
+distinta</strong> de la del host (por ejemplo ARM sobre x86). Es la más
+lenta (ej. QEMU sin aceleración).</li>
+</ul>
+<p>Resumen comparativo:</p>
+<table>
+<colgroup>
+<col style="width: 25%" />
+<col style="width: 25%" />
+<col style="width: 25%" />
+<col style="width: 25%" />
+</colgroup>
+<thead>
+<tr>
+<th>Técnica</th>
+<th>¿Modifica el guest?</th>
+<th>Rendimiento</th>
+<th>Nota</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Binary translation</td>
+<td><strong>No</strong></td>
+<td>Medio</td>
+<td>Reescribe instr. privilegiadas en runtime</td>
+</tr>
+<tr>
+<td>Paravirtualización</td>
+<td><strong>Sí (kernel modificado)</strong></td>
+<td>Alto</td>
+<td>Usa hypercalls; no sirve para SO cerrados</td>
+</tr>
+<tr>
+<td>Emulación</td>
+<td>No</td>
+<td>Bajo</td>
+<td>Puede simular otra arquitectura</td>
+</tr>
+</tbody>
+</table>
+<h3 id="contenedores-virtualización-a-nivel-so">Contenedores
+(virtualización a nivel SO)</h3>
+<p><strong>LXC / Docker</strong> son “virtualización a nivel SO”:</p>
+<ul>
+<li><strong>NO usan hypervisor.</strong></li>
+<li><strong>Usan el mismo kernel que el host</strong> (no instalan su
+propio kernel) → mucho más livianos que una VM.</li>
+<li>El aislamiento del espacio de usuario lo dan
+<strong>namespaces</strong> (vista aislada de recursos) y
+<strong>cgroups</strong> (límites de consumo).</li>
+<li><strong>No pueden correr un SO con kernel distinto</strong> al del
+host (no virtualizan Windows sobre Linux).</li>
+<li>A diferencia de las VMs, los <strong>procesos del container aparecen
+como procesos en el host</strong> (con distinto PID gracias al PID
+namespace).</li>
+</ul>
+<div class="callout warning">
+<div class="callout-title">
+⚠ Trampas típicas del parcial
+</div>
+<ul>
+<li>“En cuál técnica se debe modificar el kernel del guest” →
+<strong>Paravirtualización</strong>.</li>
+<li>“En paravirtualización el SO guest NO se modifica” → <span
+class="tag f">F</span>.</li>
+<li>“La paravirtualización permite virtualizar Windows sobre Linux” →
+<span class="tag f">F</span>.</li>
+<li>“Los containers usan el mismo kernel que el host” → <span
+class="tag v">V</span>. “Instalan su propio kernel” → <span
+class="tag f">F</span>.</li>
+<li>“Los containers necesitan habilitar el flag de virtualización en
+BIOS” → <span class="tag f">F</span>.</li>
+<li>“Docker/containers necesitan un hypervisor tipo 2” → <span
+class="tag f">F</span>.</li>
+<li>“El SO guest tiene acceso directo y completo al HW real” → <span
+class="tag f">F</span>: siempre intermedia el VMM.</li>
+<li>“En hypervisor tipo 2 el SO host se ejecuta directamente sobre el
+hardware y gestiona los drivers reales” → <span
+class="tag v">V</span>.</li>
+<li>“En VMs los PIDs del guest aparecen como procesos en el anfitrión” →
+<span class="tag f">F</span> (esto sí pasa con containers).</li>
+</ul>
+</div>
+<hr />
+<h2 id="chroot-cgroups-y-namespaces">5. chroot, cgroups y
+namespaces</h2>
+<p>Estos son los <strong>tres mecanismos del kernel de Linux</strong>
+que, combinados, hacen posibles los contenedores. Individualmente:</p>
+<ul>
+<li><strong><code>chroot</code></strong> aísla el
+<strong>filesystem</strong> (raíz aparente).</li>
+<li><strong><code>namespaces</code></strong> aíslan la
+<strong>vista</strong> que un proceso tiene de recursos globales.</li>
+<li><strong><code>cgroups</code></strong> <strong>limitan y
+controlan</strong> el consumo de recursos.</li>
+</ul>
+<h3 id="chroot-service-isolation">chroot (Service Isolation)</h3>
+<p>Data de UNIX v7 (1979). <strong>Cambia el directorio raíz
+(<code>/</code>) aparente</strong> de un proceso y de todos sus hijos.
+Aislamiento básico del filesystem: el proceso no puede ver ni acceder a
+archivos o comandos <strong>fuera</strong> de ese nuevo directorio raíz.
+Al entorno resultante se lo llama <strong>“jail chroot”</strong>. Docker
+lo usa para fijar el <strong>union-FS</strong> como raíz del
+contenedor.</p>
+<p>Sintaxis: <code>chroot /new-root-dir comando</code></p>
+<p>Por sí solo, <code>chroot</code> <strong>no aísla procesos, red,
+PIDs, ni usuarios</strong>: para eso se necesitan namespaces.</p>
+<h3 id="cgroups-control-groups">cgroups (Control Groups)</h3>
+<p>Es una característica del kernel que organiza procesos en
+<strong>grupos jerárquicos</strong> con el fin de <strong>limitar,
+priorizar, contabilizar y controlar</strong> su uso de recursos (CPU,
+memoria, E/S, red, etc.). Son <strong>cuatro funcionalidades</strong>,
+no solo limitación:</p>
+<ul>
+<li><strong>Limitación (resource limiting):</strong> un grupo no puede
+exceder el uso de un recurso.</li>
+<li><strong>Priorización:</strong> un grupo obtiene prioridad sobre
+otros al competir por un recurso.</li>
+<li><strong>Accounting:</strong> medición/estadísticas del uso (útil
+para billing).</li>
+<li><strong>Control:</strong> freezar (congelar) y reiniciar un grupo de
+procesos.</li>
+</ul>
+<p>Conceptos base:</p>
+<ul>
+<li><strong>Controlador o subsistema:</strong> componente del kernel
+específico por recurso (<code>cpu</code>, <code>memory</code>,
+<code>blkio</code>/<code>io</code>, <code>cpuset</code>,
+<code>pids</code>, <code>net_cls</code>, <code>freezer</code>…).</li>
+<li><strong>Jerarquía:</strong> árbol de cgroups, representado como
+directorios en el pseudo-filesystem cgroup montado
+(<code>/sys/fs/cgroup</code>).</li>
+<li>Un proceso <strong>NO necesita ser modificado</strong> para
+pertenecer a un cgroup; se lo agrega escribiendo su PID en
+<code>cgroup.procs</code>. Los procesos desconocen que hay límites.</li>
+<li>Un proceso creado por <strong><code>fork</code> queda en el MISMO
+cgroup del padre</strong> (herencia).</li>
+<li>Los límites de un cgroup hijo <strong>no pueden superar</strong> los
+del padre.</li>
+</ul>
+<p><strong>Ejercicio clásico: limitar la CPU de un proceso al
+80%.</strong> Se resuelve con cgroups (controlador
+<code>cpu</code>):</p>
+<ol type="1">
+<li>Crear un cgroup dentro del controlador <code>cpu</code>.</li>
+<li>Escribir la <strong>cuota</strong> (<code>cpu.cfs_quota_us</code> /
+<code>cpu.cfs_period_us</code>, o <code>cpu.max</code> en v2)
+correspondiente al 80%.</li>
+<li>Agregar el PID del proceso a <code>cgroup.procs</code>.</li>
+</ol>
+<p><strong>cgroups v1 vs v2:</strong></p>
+<table>
+<colgroup>
+<col style="width: 33%" />
+<col style="width: 33%" />
+<col style="width: 33%" />
+</colgroup>
+<thead>
+<tr>
+<th>Aspecto</th>
+<th><strong>v1</strong></th>
+<th><strong>v2</strong></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Jerarquías</td>
+<td><strong>Múltiples</strong> (una por controlador)</td>
+<td><strong>Única / unificada</strong></td>
+</tr>
+<tr>
+<td>Montar un controlador particular</td>
+<td>Sí se puede</td>
+<td>No (todo en la jerarquía única)</td>
+</tr>
+<tr>
+<td>Pertenencia de un proceso</td>
+<td>A un cgroup <strong>por cada jerarquía</strong> (varias a la
+vez)</td>
+<td>A <strong>un solo</strong> cgroup en toda la jerarquía</td>
+</tr>
+<tr>
+<td>¿Procesos en cgroups internos?</td>
+<td>Permitidos</td>
+<td>Solo en <strong>cgroups sin hijos (hojas)</strong>, salvo el root
+(“no internal process constraint”)</td>
+</tr>
+<tr>
+<td>Desmontar un controlador</td>
+<td>Solo si no tiene cgroups hijos</td>
+<td>—</td>
+</tr>
+</tbody>
+</table>
+<p>Las dos versiones <strong>pueden coexistir</strong> en el mismo
+sistema; lo que <strong>no se puede</strong> es montar <strong>el mismo
+controlador</strong> en ambas simultáneamente.</p>
+<div class="diagram">
+<svg viewBox="0 0 700 260" xmlns="http://www.w3.org/2000/svg" font-family="sans-serif" font-size="10">
+<g transform="translate(0,0)"><text xml:space="preserve" x="175" y="18" text-anchor="middle" font-weight="700" fill="#0f172a">cgroups
+v1 — múltiples
+jerarquías</text><text xml:space="preserve" x="60" y="42" text-anchor="middle" font-size="9" fill="#475569">jerarquía
+cpu</text><rect x="20" y="48" width="80" height="20" fill="#dbeafe" stroke="#1e40af"/><text xml:space="preserve" x="60" y="62" text-anchor="middle" font-size="9">root</text><line x1="60" y1="68" x2="35" y2="85" stroke="#334155"/><line x1="60" y1="68" x2="85" y2="85" stroke="#334155"/><rect x="10" y="85" width="50" height="20" fill="#bfdbfe" stroke="#1e40af"/><text xml:space="preserve" x="35" y="99" text-anchor="middle" font-size="9">grpA</text><rect x="60" y="85" width="50" height="20" fill="#bfdbfe" stroke="#1e40af"/><text xml:space="preserve" x="85" y="99" text-anchor="middle" font-size="9">grpB</text><text xml:space="preserve" x="180" y="42" text-anchor="middle" font-size="9" fill="#475569">jerarquía
+memory</text><rect x="140" y="48" width="80" height="20" fill="#fef3c7" stroke="#b45309"/><text xml:space="preserve" x="180" y="62" text-anchor="middle" font-size="9">root</text><line x1="180" y1="68" x2="180" y2="85" stroke="#334155"/><rect x="155" y="85" width="50" height="20" fill="#fde68a" stroke="#b45309"/><text xml:space="preserve" x="180" y="99" text-anchor="middle" font-size="9">grpX</text><text xml:space="preserve" x="300" y="42" text-anchor="middle" font-size="9" fill="#475569">jerarquía
+io</text><rect x="260" y="48" width="80" height="20" fill="#dcfce7" stroke="#166534"/><text xml:space="preserve" x="300" y="62" text-anchor="middle" font-size="9">root</text><circle cx="180" cy="150" r="18" fill="#f472b6" stroke="#831843"/><text xml:space="preserve" x="180" y="154" text-anchor="middle" font-size="10" font-weight="700" fill="#fff">P</text><text xml:space="preserve" x="180" y="185" text-anchor="middle" font-size="8" fill="#334155">un
+proceso, un cgroup por
+jerarquía</text><line x1="180" y1="132" x2="35" y2="105" stroke="#831843" stroke-dasharray="2,2"/><line x1="180" y1="132" x2="180" y2="105" stroke="#831843" stroke-dasharray="2,2"/><line x1="180" y1="132" x2="300" y2="68" stroke="#831843" stroke-dasharray="2,2"/><text xml:space="preserve" x="175" y="215" text-anchor="middle" font-size="8" fill="#64748b">Se
+puede montar un controlador particular · el mismo controlador NO
+puede</text><text xml:space="preserve" x="175" y="228" text-anchor="middle" font-size="8" fill="#64748b">estar
+en v1 y v2 a la
+vez</text></g><g transform="translate(370,0)"><text xml:space="preserve" x="150" y="18" text-anchor="middle" font-weight="700" fill="#0f172a">cgroups
+v2 — jerarquía
+única</text><text xml:space="preserve" x="150" y="42" text-anchor="middle" font-size="9" fill="#475569">jerarquía
+unificada (todos los
+controladores)</text><rect x="110" y="48" width="80" height="20" fill="#e0e7ff" stroke="#3730a3"/><text xml:space="preserve" x="150" y="62" text-anchor="middle" font-size="9">root</text><line x1="150" y1="68" x2="60" y2="90" stroke="#334155"/><line x1="150" y1="68" x2="150" y2="90" stroke="#334155"/><line x1="150" y1="68" x2="240" y2="90" stroke="#334155"/><rect x="35" y="90" width="55" height="22" fill="#c7d2fe" stroke="#3730a3"/><text xml:space="preserve" x="62" y="104" text-anchor="middle" font-size="9">webapp</text><rect x="122" y="90" width="55" height="22" fill="#c7d2fe" stroke="#3730a3"/><text xml:space="preserve" x="149" y="104" text-anchor="middle" font-size="9">db</text><rect x="210" y="90" width="55" height="22" fill="#c7d2fe" stroke="#3730a3"/><text xml:space="preserve" x="237" y="104" text-anchor="middle" font-size="9">batch</text><line x1="62" y1="112" x2="62" y2="130" stroke="#334155"/><line x1="149" y1="112" x2="149" y2="130" stroke="#334155"/><line x1="237" y1="112" x2="237" y2="130" stroke="#334155"/><circle cx="62" cy="145" r="12" fill="#f472b6" stroke="#831843"/><text xml:space="preserve" x="62" y="149" text-anchor="middle" font-size="9" font-weight="700" fill="#fff">P1</text><circle cx="149" cy="145" r="12" fill="#f472b6" stroke="#831843"/><text xml:space="preserve" x="149" y="149" text-anchor="middle" font-size="9" font-weight="700" fill="#fff">P2</text><circle cx="237" cy="145" r="12" fill="#f472b6" stroke="#831843"/><text xml:space="preserve" x="237" y="149" text-anchor="middle" font-size="9" font-weight="700" fill="#fff">P3</text><text xml:space="preserve" x="150" y="180" text-anchor="middle" font-size="8" fill="#334155">Procesos
+solo en HOJAS (salvo
+root)</text><text xml:space="preserve" x="150" y="200" text-anchor="middle" font-size="8" fill="#64748b">“no
+internal process
+constraint”</text><text xml:space="preserve" x="150" y="220" text-anchor="middle" font-size="8" fill="#64748b">1
+proceso pertenece a un solo
+cgroup</text><text xml:space="preserve" x="150" y="232" text-anchor="middle" font-size="8" fill="#64748b">en
+toda la jerarquía</text></g>
+</svg>
+<div class="caption">
+Fig. 5.1 — cgroups v1 (una jerarquía por controlador) vs v2 (jerarquía
+única, procesos solo en hojas).
+</div>
+</div>
+<h3 id="namespaces">Namespaces</h3>
+<p>Un <strong>namespace</strong> da a un proceso una <strong>vista
+aislada de un recurso global del sistema</strong>: el proceso “cree”
+tener su propia instancia. Un proceso está en <strong>un namespace de
+cada tipo</strong> a la vez, y sus hijos <strong>heredan</strong> los
+del padre (salvo que se cambien explícitamente).</p>
+<table>
+<colgroup>
+<col style="width: 33%" />
+<col style="width: 33%" />
+<col style="width: 33%" />
+</colgroup>
+<thead>
+<tr>
+<th>Namespace</th>
+<th>Flag <code>CLONE_*</code></th>
+<th>Qué aísla</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>PID</strong></td>
+<td><code>CLONE_NEWPID</code></td>
+<td>Árbol de PIDs propio; el primer proceso es <strong>PID 1
+(init)</strong> del namespace</td>
+</tr>
+<tr>
+<td><strong>NET</strong></td>
+<td><code>CLONE_NEWNET</code></td>
+<td>Interfaces de red, pilas, IPs, puertos</td>
+</tr>
+<tr>
+<td><strong>MNT / Mount</strong></td>
+<td><code>CLONE_NEWNS</code></td>
+<td>Puntos de montaje (tabla de montajes propia)</td>
+</tr>
+<tr>
+<td><strong>UTS</strong></td>
+<td><code>CLONE_NEWUTS</code></td>
+<td>Hostname y nombre de dominio</td>
+</tr>
+<tr>
+<td><strong>IPC</strong></td>
+<td><code>CLONE_NEWIPC</code></td>
+<td>System V IPC, colas de mensajes POSIX</td>
+</tr>
+<tr>
+<td><strong>USER</strong></td>
+<td><code>CLONE_NEWUSER</code></td>
+<td>Mapeo de UIDs/GIDs — root dentro puede no ser root en el host</td>
+</tr>
+<tr>
+<td><strong>Cgroup</strong></td>
+<td><code>CLONE_NEWCGROUP</code></td>
+<td>Vista del cgroup root</td>
+</tr>
+<tr>
+<td><strong>Time</strong></td>
+<td><code>CLONE_NEWTIME</code></td>
+<td>Offset del reloj por namespace</td>
+</tr>
+</tbody>
+</table>
+<p>Las <strong>syscalls</strong> que los manipulan son
+<code>clone()</code> (crea proceso + namespace nuevo),
+<code>unshare()</code> (mueve el proceso actual a un namespace nuevo) y
+<code>setns()</code> (une el proceso a un namespace existente).</p>
+<p><strong>Doble PID por PID namespace:</strong> un proceso
+<code>mi_proceso</code> corriendo dentro de un contenedor tiene
+<strong>PID 1</strong> dentro (es el primer proceso de su namespace, su
+“init”) y un <strong>PID real más alto</strong> en el host (por ejemplo
+423548). Desde el host se ven <strong>todos</strong> los procesos de
+todos los contenedores; desde el contenedor <strong>no</strong> se ven
+los del host.</p>
+<div class="diagram">
+<svg viewBox="0 0 600 240" xmlns="http://www.w3.org/2000/svg" font-family="sans-serif" font-size="10">
+<text xml:space="preserve" x="300" y="16" text-anchor="middle" font-weight="700" fill="#0f172a">PID
+namespace — mismo proceso, dos
+PIDs</text><rect x="30" y="30" width="540" height="80" fill="#fef2f2" stroke="#b91c1c"/><text xml:space="preserve" x="45" y="48" font-weight="700" fill="#991b1b">Vista
+desde el
+HOST</text><text xml:space="preserve" x="45" y="66" font-size="9" fill="#7f1d1d" font-family="monospace">$
+ps aux | grep
+mi_proceso</text><text xml:space="preserve" x="45" y="82" font-size="9" fill="#7f1d1d" font-family="monospace">root
+423548 …
+mi_proceso</text><text xml:space="preserve" x="45" y="97" font-size="8" fill="#991b1b" font-style="italic">→
+el host ve todos los procesos, con sus PIDs
+“reales”</text><rect x="180" y="130" width="240" height="80" fill="#eff6ff" stroke="#1e40af" stroke-dasharray="4,3"/><text xml:space="preserve" x="300" y="150" text-anchor="middle" font-weight="700" fill="#1e3a8a">CONTAINER
+(PID
+namespace)</text><text xml:space="preserve" x="195" y="168" font-size="9" fill="#1e3a8a" font-family="monospace">$
+docker exec … ps
+aux</text><text xml:space="preserve" x="195" y="184" font-size="9" fill="#1e3a8a" font-family="monospace">root
+1 …
+mi_proceso</text><text xml:space="preserve" x="195" y="200" font-size="8" fill="#1e3a8a" font-style="italic">→
+mismo proceso, aparece como PID 1
+(init)</text><line x1="220" y1="86" x2="270" y2="180" stroke="#f59e0b" stroke-width="2" stroke-dasharray="4,3"/><text xml:space="preserve" x="235" y="140" font-size="9" fill="#b45309" font-weight="700">mismo
+proceso</text>
+</svg>
+<div class="caption">
+Fig. 5.2 — Un proceso dentro de un container tiene PID 1 en su namespace
+y un PID real más alto en el host.
+</div>
+</div>
+<div class="callout warning">
+<div class="callout-title">
+⚠ Trampas típicas del parcial
+</div>
+<ul>
+<li>“¿Qué mecanismo del kernel limita el uso de CPU al 80%?” →
+<strong>cgroups</strong> (controlador <code>cpu</code>, cuota).</li>
+<li>“cgroups proveen limitación pero NO priorización” → <span
+class="tag f">F</span>: proveen ambas.</li>
+<li>“Una vez agregado a un cgroup, un proceso no puede moverse a otro” →
+<span class="tag f">F</span>.</li>
+<li>“Los procesos deben ser modificados para incorporarse a un cgroup” →
+<span class="tag f">F</span>.</li>
+<li>“Un proceso creado por <code>fork</code> no pertenece al cgroup del
+padre” → <span class="tag f">F</span>: lo hereda.</li>
+<li>v1: “existe una sola jerarquía en todo el sistema” → <span
+class="tag f">F</span> (eso es v2).</li>
+<li>v1: “un proceso puede estar en varios cgroups a la vez dentro de una
+jerarquía” → <span class="tag f">F</span> (uno por jerarquía).</li>
+<li>v2: “los procesos deben agregarse a cgroups sin hijos, salvo el
+root” → <span class="tag v">V</span>.</li>
+<li>“No es posible tener las dos versiones de cgroups montadas
+simultáneamente” → <span class="tag f">F</span>: sí se puede; lo que no
+se puede es el mismo controlador en ambas.</li>
+<li>“Un proceso tiene distinto PID dentro del contenedor y en el host” →
+<span class="tag v">V</span> (PID namespace).</li>
+</ul>
+</div>
+<hr />
+<h2 id="docker-y-contenedores">6. Docker y contenedores</h2>
+<p>Docker es una <strong>plataforma open-source para empaquetar y
+ejecutar aplicaciones en contenedores livianos</strong>. Trabaja a
+<strong>nivel SO</strong>, comparte el kernel del host y <strong>NO usa
+hypervisor</strong>.</p>
+<h3 id="imagen-vs-contenedor">Imagen vs Contenedor</h3>
+<p>Es la distinción central del tema:</p>
+<table>
+<colgroup>
+<col style="width: 33%" />
+<col style="width: 33%" />
+<col style="width: 33%" />
+</colgroup>
+<thead>
+<tr>
+<th></th>
+<th><strong>Imagen</strong></th>
+<th><strong>Contenedor</strong></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Qué es</td>
+<td>Template/molde de <strong>solo lectura</strong></td>
+<td>Instancia <strong>en ejecución</strong> de una imagen</td>
+</tr>
+<tr>
+<td>Contenido</td>
+<td>App + dependencias + librerías + instrucciones</td>
+<td>Imagen + capa escribible propia</td>
+</tr>
+<tr>
+<td>Ejecución</td>
+<td><strong>NO se ejecuta</strong> (es estática)</td>
+<td><strong>SÍ se ejecuta</strong> (proceso/s aislado/s)</td>
+</tr>
+<tr>
+<td>Relación</td>
+<td>De 1 imagen se crean <strong>varios</strong> contenedores</td>
+<td>Cada uno autónomo y aislado</td>
+</tr>
+<tr>
+<td>Analogía OOP</td>
+<td>Clase</td>
+<td>Objeto/instancia</td>
+</tr>
+</tbody>
+</table>
+<p>Una imagen puede <strong>basarse en otras</strong> (cadena de capas).
+Se puede generar una imagen a partir de un contenedor con
+<code>docker commit</code>. La diferencia clave es que la imagen es solo
+lectura y el contenedor le agrega encima una <strong>capa
+escribible</strong>.</p>
+<h3 id="qué-usa-docker-del-kernel">Qué usa Docker del kernel</h3>
+<p>Docker corre en <strong>espacio de usuario (Ring 3)</strong>.
+<strong>No captura syscalls</strong> — eso lo hace el kernel. Pero sí
+requiere funcionalidades del kernel para armar los contenedores:</p>
+<ul>
+<li><strong>chroot:</strong> cambia el directorio raíz del
+contenedor.</li>
+<li><strong>Namespaces:</strong> vista aislada (PID, Net, Mount, UTS,
+IPC, User).</li>
+<li><strong>Cgroups:</strong> limitan y controlan recursos (CPU,
+memoria, etc.).</li>
+<li><strong>Union Filesystem:</strong> apila capas de imagen como si
+fueran un único FS.</li>
+</ul>
+<p>El contenedor tiene sus propios filesystem, librerías, red, nombre…
+<strong>excepto su propio kernel</strong> (lo comparte con el host).</p>
+<p>Docker usa <strong>arquitectura cliente-servidor</strong>:
+<code>dockerd</code> es el <strong>servidor / daemon</strong> (crea,
+ejecuta y monitorea contenedores e imágenes) y la CLI
+(<code>docker</code>) es el <strong>cliente</strong> que se comunica con
+él vía la API REST.</p>
+<h3 id="union-filesystem-y-capas">Union Filesystem y capas</h3>
+<p>Es un <strong>mecanismo de montaje</strong> (no un FS nuevo): varios
+directorios montados en <strong>un mismo punto</strong> aparecen como
+uno solo. Las capas <strong>inferiores son de solo lectura</strong>; la
+capa <strong>superior es escribible</strong>.</p>
+<p>Cada imagen es un conjunto de capas apiladas, donde cada capa guarda
+<strong>solo las diferencias</strong> respecto de la anterior.
+<strong>Todas las capas de una imagen son de solo lectura</strong>, y
+esas capas se <strong>reutilizan entre imágenes</strong> (ahorra espacio
+y descargas).</p>
+<p><strong>Al ejecutar un contenedor</strong> (copy-on-write):</p>
+<ol type="1">
+<li>Docker apila las capas read-only de la imagen.</li>
+<li>Con <code>chroot</code> establece ese union-FS como raíz del
+contenedor.</li>
+<li>Agrega encima una <strong>capa escribible propia del
+contenedor</strong>.</li>
+<li>Solo esa <strong>última capa</strong> puede modificarse → varios
+contenedores pueden correr sobre las mismas capas base compartidas.</li>
+</ol>
+<p>Al eliminar el contenedor se pierde su capa escribible; las capas
+inferiores quedan intactas. Por eso todo lo escrito <strong>dentro del
+contenedor</strong> se pierde si no se guarda fuera; y por eso
+<strong><code>RUN rm archivo</code></strong> en un Dockerfile <strong>no
+reduce el tamaño de la imagen</strong>: la capa donde estaba el archivo
+ya quedó fija; el <code>RUN rm</code> solo agrega una nueva capa que
+oculta el archivo, pero el original sigue ocupando en la capa
+previa.</p>
+<div class="diagram">
+<svg viewBox="0 0 640 280" xmlns="http://www.w3.org/2000/svg" font-family="sans-serif" font-size="10">
+<text xml:space="preserve" x="320" y="18" text-anchor="middle" font-weight="700" fill="#0f172a">Union
+Filesystem de Docker (capas
+apiladas)</text><rect x="120" y="35" width="400" height="30" fill="#fecaca" stroke="#991b1b" stroke-width="2"/><text xml:space="preserve" x="320" y="55" text-anchor="middle" font-size="10" fill="#7f1d1d" font-weight="700">Capa
+escribible del CONTAINER (R/W ·
+copy-on-write)</text><rect x="120" y="70" width="400" height="26" fill="#dbeafe" stroke="#1e40af"/><text xml:space="preserve" x="320" y="87" text-anchor="middle" font-size="9" fill="#1e3a8a">Capa
+N (RO) — CMD
+[“nginx”]</text><rect x="120" y="98" width="400" height="26" fill="#dbeafe" stroke="#1e40af"/><text xml:space="preserve" x="320" y="115" text-anchor="middle" font-size="9" fill="#1e3a8a">Capa
+3 (RO) — COPY app/
+/var/www</text><rect x="120" y="126" width="400" height="26" fill="#dbeafe" stroke="#1e40af"/><text xml:space="preserve" x="320" y="143" text-anchor="middle" font-size="9" fill="#1e3a8a">Capa
+2 (RO) — RUN apt install
+nginx</text><rect x="120" y="154" width="400" height="26" fill="#dbeafe" stroke="#1e40af"/><text xml:space="preserve" x="320" y="171" text-anchor="middle" font-size="9" fill="#1e3a8a">Capa
+1 (RO) — FROM
+ubuntu:22.04</text><text xml:space="preserve" x="115" y="55" text-anchor="end" font-size="8" fill="#7f1d1d">container
+→</text><text xml:space="preserve" x="115" y="125" text-anchor="end" font-size="8" fill="#1e3a8a">imagen
+(RO)
+→</text><rect x="120" y="190" width="400" height="24" fill="#fde68a" stroke="#b45309"/><text xml:space="preserve" x="320" y="207" text-anchor="middle" font-size="10" fill="#78350f">chroot
+→ establece este union-FS como / del
+container</text><rect x="120" y="220" width="400" height="30" fill="#e5e7eb" stroke="#374151"/><text xml:space="preserve" x="320" y="239" text-anchor="middle" font-size="10" font-weight="700" fill="#111827">KERNEL
+del host (namespaces · cgroups · union
+FS)</text><text xml:space="preserve" x="580" y="105" font-size="8" fill="#475569">Capas
+RO
+se</text><text xml:space="preserve" x="580" y="118" font-size="8" fill="#475569">reutilizan
+entre</text><text xml:space="preserve" x="580" y="131" font-size="8" fill="#475569">imágenes</text><text xml:space="preserve" x="10" y="265" font-size="8" fill="#7c2d12">Nota:
+<tspan font-family="monospace">RUN rm foo</tspan> genera una capa nueva
+que oculta el archivo pero NO libera espacio en las capas RO
+inferiores.</text>
+</svg>
+<div class="caption">
+Fig. 6.1 — Union FS: capas RO de la imagen + 1 capa escribible del
+container. Solo la última capa se modifica.
+</div>
+</div>
+<h3 id="containers-vs-vms">Containers vs VMs</h3>
+<table>
+<thead>
+<tr>
+<th><strong>Container</strong></th>
+<th><strong>VM</strong></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Comparte el kernel del host</td>
+<td>SO guest completo + kernel propio</td>
+</tr>
+<tr>
+<td>Liviano, arranque rápido</td>
+<td>Pesada, arranque lento</td>
+</tr>
+<tr>
+<td>Aislamiento a nivel de proceso</td>
+<td>Aislamiento completo (HW virtual)</td>
+</tr>
+<tr>
+<td>NO necesita hypervisor</td>
+<td>Requiere hypervisor</td>
+</tr>
+</tbody>
+</table>
+<h3 id="dockerfile-vs-docker-compose">Dockerfile vs docker-compose</h3>
+<table>
+<colgroup>
+<col style="width: 33%" />
+<col style="width: 33%" />
+<col style="width: 33%" />
+</colgroup>
+<thead>
+<tr>
+<th></th>
+<th><strong>Dockerfile</strong></th>
+<th><strong>docker-compose (compose.yaml)</strong></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Qué hace</td>
+<td>Instrucciones para <strong>construir UNA imagen</strong> paso a
+paso</td>
+<td>Definición <strong>declarativa</strong> para levantar y orquestar
+una app de <strong>varios contenedores</strong></td>
+</tr>
+<tr>
+<td>Resultado</td>
+<td>Una imagen (1 pieza)</td>
+<td>Conjunto de contenedores + redes + volúmenes</td>
+</tr>
+<tr>
+<td>Lenguaje</td>
+<td>Instrucciones (<code>FROM</code>, <code>RUN</code>,
+<code>COPY</code>, <code>CMD</code>, …)</td>
+<td><strong>YAML</strong> (indentación, clave: valor)</td>
+</tr>
+<tr>
+<td>Comando</td>
+<td><code>docker build</code></td>
+<td><code>docker compose up</code> / <code>down</code></td>
+</tr>
+</tbody>
+</table>
+<p><strong>No son excluyentes</strong>: compose puede usar
+<code>build:</code> apuntando a un Dockerfile. Cada instrucción del
+Dockerfile genera <strong>una nueva capa</strong> de la imagen.</p>
+<h3 id="persistencia-de-datos">Persistencia de datos</h3>
+<p>Lo escrito en la capa del contenedor se pierde al destruirlo. Para
+persistir hay que guardarlo en el host y montarlo dentro:</p>
+<table>
+<colgroup>
+<col style="width: 33%" />
+<col style="width: 33%" />
+<col style="width: 33%" />
+</colgroup>
+<thead>
+<tr>
+<th></th>
+<th><strong>Volumes (recomendado)</strong></th>
+<th><strong>Bind mounts</strong></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Ubicación</td>
+<td>Gestionada por Docker en <code>/var/lib/docker/volumes</code></td>
+<td><strong>Cualquier ruta del host</strong> elegida por el usuario</td>
+</tr>
+<tr>
+<td>Portabilidad</td>
+<td>Más portables, desacoplados del host</td>
+<td>Atados a una ruta concreta</td>
+</tr>
+<tr>
+<td>Acceso externo</td>
+<td>Manejados por Docker</td>
+<td>Pueden ser modificados por procesos ajenos a Docker</td>
+</tr>
+</tbody>
+</table>
+<div class="callout warning">
+<div class="callout-title">
+⚠ Trampas típicas del parcial
+</div>
+<ul>
+<li>“A partir de una imagen solo se puede generar un solo contenedor” →
+<span class="tag f">F</span> (varios).</li>
+<li>“Docker necesita un hypervisor para ejecutarse” → <span
+class="tag f">F</span> (trabaja a nivel SO).</li>
+<li>“Un Dockerfile crea un container” → <span class="tag f">F</span>:
+crea una <strong>imagen</strong>.</li>
+<li>“Cada imagen está compuesta por capas de las cuales solo la última
+puede modificarse” → <span class="tag v">V</span> (la última es la del
+container).</li>
+<li>“Docker usa namespaces, cgroups y union filesystems” → <span
+class="tag v">V</span>.</li>
+<li>“No es posible generar una imagen a partir de un container” → <span
+class="tag f">F</span>: <code>docker commit</code>.</li>
+<li>“Docker no requiere funcionalidades del kernel porque corre en modo
+usuario” → <span class="tag f">F</span>: requiere chroot, namespaces,
+cgroups.</li>
+<li>“Todo archivo agregado a un container automáticamente pasa a ser
+parte de la imagen” → <span class="tag f">F</span>: va a la capa
+escribible del container, no de la imagen.</li>
+<li>“<code>RUN rm</code> reduce el tamaño total de la imagen” → <span
+class="tag f">F</span> (el archivo queda en la capa anterior).</li>
+<li>“Docker daemon (dockerd) es el servidor que crea/ejecuta/monitorea
+los contenedores” → <span class="tag v">V</span>.</li>
+</ul>
+</div>
+<hr />
+<h2 id="protección-seguridad-y-permisos">7. Protección, seguridad y
+permisos</h2>
+<h3 id="protección-vs-seguridad">Protección vs seguridad</h3>
+<ul>
+<li><strong>Protección:</strong> son los <strong>mecanismos
+internos</strong> del SO que controlan el acceso de procesos y usuarios
+a los recursos del sistema. Es el “cómo técnico” (los candados).</li>
+<li><strong>Seguridad:</strong> concepto más general, la <strong>defensa
+frente a amenazas externas e internas</strong>; mide cuánto se puede
+confiar en que el sistema y sus datos mantienen su integridad.</li>
+</ul>
+<p>La <strong>protección es una parte de la seguridad</strong>.</p>
+<p>Hay una distinción clave entre <strong>políticas</strong> y
+<strong>mecanismos</strong>:</p>
+<ul>
+<li>Las <strong>políticas</strong> definen <strong>qué</strong> se
+quiere hacer / qué está permitido. Decisión de alto nivel; rara vez
+incluyen configuraciones.</li>
+<li>Los <strong>mecanismos</strong> son las herramientas,
+configuraciones e implementaciones concretas que <strong>cómo</strong>
+hacen cumplir la política.</li>
+</ul>
+<p>Primero se define la política, después el mecanismo. Una misma
+política admite varios mecanismos: eso da flexibilidad (cambiar el
+mecanismo sin tocar la política).</p>
+<p>La seguridad se mide con la <strong>tríada CIA</strong>:</p>
+<ul>
+<li><strong>Confidencialidad:</strong> evitar la lectura/intercepción no
+autorizada.</li>
+<li><strong>Integridad:</strong> evitar la modificación no
+autorizada.</li>
+<li><strong>Disponibilidad:</strong> evitar la interrupción del
+servicio/recursos.</li>
+</ul>
+<p><strong>Cuidado con la falacia común:</strong> un sistema con muchas
+features <strong>no</strong> es automáticamente más seguro; al
+contrario, agrega superficie de ataque (más código, más bugs
+potenciales). La seguridad se favorece con el <strong>principio de
+mínimo privilegio (POLA)</strong> y quitando lo que no se usa.</p>
+<h3 id="dominios-de-protección">Dominios de protección</h3>
+<p>Un <strong>dominio de protección</strong> es un conjunto de pares
+<strong>(objeto, derecho)</strong> que especifica qué operaciones puede
+realizar un proceso sobre cada objeto. Un proceso “vive” en un dominio y
+solo puede hacer sobre cada objeto las operaciones autorizadas por ese
+dominio. En UNIX el dominio de un proceso lo define el par <strong>(UID,
+GID)</strong>.</p>
+<h3 id="permisos-unix-rwx">Permisos UNIX (rwx)</h3>
+<p>Cada archivo/directorio tiene <strong>tres conjuntos de
+permisos</strong>, uno por categoría:</p>
+<ul>
+<li><strong>u</strong> (user/owner): el dueño del archivo.</li>
+<li><strong>g</strong> (group): el grupo del archivo.</li>
+<li><strong>o</strong> (others): todos los demás.</li>
+</ul>
+<p>Cada conjunto tiene <strong>r</strong> (read = 4), <strong>w</strong>
+(write = 2) y <strong>x</strong> (execute = 1). En
+<strong>octal</strong> se suma por categoría. Por ejemplo
+<code>rwxr-xr--</code> = 4+2+1 / 4+0+1 / 4+0+0 =
+<strong>754</strong>.</p>
+<p>Comandos:</p>
+<ul>
+<li><code>chmod</code> — cambia permisos (<code>chmod 754 f</code>,
+<code>chmod u+x f</code>).</li>
+<li><code>chown</code> — cambia el dueño
+(<code>chown usuario f</code>).</li>
+<li><code>chgrp</code> — cambia el grupo
+(<code>chgrp grupo f</code>).</li>
+</ul>
+<h3 id="permisos-especiales-setuid-setgid-sticky">Permisos especiales:
+setuid, setgid, sticky</h3>
+<p>Se representan como un <strong>cuarto dígito octal</strong> que
+precede a los permisos normales (por ejemplo
+<code>chmod 4755</code>).</p>
+<table>
+<colgroup>
+<col style="width: 25%" />
+<col style="width: 25%" />
+<col style="width: 25%" />
+<col style="width: 25%" />
+</colgroup>
+<thead>
+<tr>
+<th>Permiso</th>
+<th>Octal</th>
+<th>Sobre un <strong>archivo ejecutable</strong></th>
+<th>Sobre un <strong>directorio</strong></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>setuid (SUID)</strong></td>
+<td>4</td>
+<td>Corre con los privilegios del <strong>DUEÑO del archivo</strong>, no
+del que lo lanza (ej: <code>passwd</code> corre como root)</td>
+<td>Generalmente sin efecto</td>
+</tr>
+<tr>
+<td><strong>setgid (SGID)</strong></td>
+<td>2</td>
+<td>Corre con los privilegios del <strong>GRUPO del
+archivo</strong></td>
+<td>Los archivos nuevos <strong>heredan el grupo del directorio</strong>
+(no el del usuario que los crea)</td>
+</tr>
+<tr>
+<td><strong>sticky bit</strong></td>
+<td>1</td>
+<td>Sin efecto relevante hoy</td>
+<td>Solo el <strong>DUEÑO del archivo</strong> (o el dueño del
+directorio, o root) puede <strong>renombrar/eliminar</strong> sus
+archivos, aunque otros tengan permiso de escritura en el dir. Ejemplo
+típico: <strong><code>/tmp</code></strong></td>
+</tr>
+</tbody>
+</table>
+<p>Setuid/setgid implementan el <strong>cambio de dominio
+dinámico</strong> en UNIX: el proceso pasa temporalmente al dominio del
+dueño/grupo del ejecutable, justo cuando necesita más privilegio. En
+<code>ls -l</code> aparecen como <code>s</code> (en lugar de
+<code>x</code>) o <code>t</code> (sticky).</p>
+<h3 id="umask">UMASK</h3>
+<p>Es la <strong>máscara</strong> que define los permisos por defecto al
+crear archivos y directorios. Funciona por <strong>resta</strong>: se
+quitan sus bits de los permisos base (<strong>666</strong> para
+archivos, <strong>777</strong> para directorios).</p>
+<p>Ejemplo con <code>umask 022</code>: archivo nuevo →
+<code>666 - 022 = 644</code>; directorio nuevo →
+<code>777 - 022 = 755</code>.</p>
+<h3 id="etcpasswd-vs-etcshadow">/etc/passwd vs /etc/shadow</h3>
+<table>
+<colgroup>
+<col style="width: 33%" />
+<col style="width: 33%" />
+<col style="width: 33%" />
+</colgroup>
+<thead>
+<tr>
+<th>Archivo</th>
+<th>Contiene</th>
+<th>Permisos</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong><code>/etc/passwd</code></strong></td>
+<td>Info de usuarios: login, UID, GID, home, shell</td>
+<td><strong>Legible por todos</strong> (la contraseña
+<strong>NO</strong> está acá)</td>
+</tr>
+<tr>
+<td><strong><code>/etc/shadow</code></strong></td>
+<td><strong>Hashes de contraseñas</strong> y políticas de
+expiración</td>
+<td><strong>Solo root</strong> puede leerlo/modificarlo</td>
+</tr>
+</tbody>
+</table>
+<h3 id="aslr-address-space-layout-randomization">ASLR (Address Space
+Layout Randomization)</h3>
+<p>Es un mecanismo que <strong>aleatoriza las direcciones</strong> de
+memoria de un proceso en cada ejecución: <strong>stack, heap, librerías
+compartidas</strong> y, si el binario es PIE (Position Independent
+Executable), también el <strong>código</strong>. El objetivo es
+<strong>dificultar exploits de memoria</strong> (buffer overflow,
+return-to-libc) que necesitan direcciones fijas conocidas para
+funcionar.</p>
+<p><strong>Linux provee ASLR para procesos de usuario</strong>: sí.
+<strong>Para el kernel también</strong>, mediante <strong>KASLR</strong>
+(Kernel ASLR), que aleatoriza la dirección base donde se carga el kernel
+al arrancar. Es un <strong>mecanismo separado</strong> del ASLR de
+usuario.</p>
+<p>Se controla con <code>/proc/sys/kernel/randomize_va_space</code>, con
+tres valores:</p>
+<ul>
+<li><code>0</code> = desactivado.</li>
+<li><code>1</code> = parcial (stack, mmap/librerías, vdso).</li>
+<li><code>2</code> = completo (+ heap/brk). Es el <strong>valor por
+defecto</strong>.</li>
+</ul>
+<p>Se puede activar/desactivar <strong>sin recompilar el kernel</strong>
+(basta escribir en ese archivo).</p>
+<h3 id="buffer-overflow-y-shellcode-contexto">Buffer overflow y
+shellcode (contexto)</h3>
+<ul>
+<li><strong>Buffer overflow:</strong> se escribe más allá del área de
+memoria reservada. C <strong>no chequea límites</strong>, así que un
+<code>strcpy</code> en un buffer pequeño puede pisar valores adyacentes
+en la pila, incluyendo la dirección de retorno de la función.</li>
+<li><strong>Shellcode:</strong> código malicioso preparado para obtener
+los privilegios del programa atacado (típicamente lanzar una
+shell).</li>
+<li>ASLR y el uso correcto de permisos especiales (mínimo privilegio)
+<strong>mitigan</strong> estos ataques.</li>
+</ul>
+<div class="callout warning">
+<div class="callout-title">
+⚠ Trampas típicas del parcial
+</div>
+<ul>
+<li>“ASLR es solo para procesos de usuario en Linux” → <span
+class="tag f">F</span>: también para el kernel (KASLR).</li>
+<li>“Con UMASK se indican los permisos por default al crear un
+archivo/directorio” → <span class="tag v">V</span>.</li>
+<li>“El sticky-bit en un directorio permite que solo el dueño del
+archivo (o dueño del dir o root) pueda renombrar/eliminar los archivos”
+→ <span class="tag v">V</span>.</li>
+<li>“En Linux <code>/etc/shadow</code> solo puede ser modificado por
+root” → <span class="tag v">V</span>.</li>
+<li>“setuid, setgid y sticky son permisos especiales” → <span
+class="tag v">V</span>.</li>
+<li>“setuid usa privilegios del que ejecuta el archivo” → <span
+class="tag f">F</span>: del <strong>dueño</strong> del archivo.</li>
+<li>“La contraseña está en <code>/etc/passwd</code>” → <span
+class="tag f">F</span>: en <code>/etc/shadow</code> (hasheada).</li>
+<li>“Un sistema con muchas features es más seguro porque tiene más
+herramientas de defensa” → <span class="tag f">F</span>: más features =
+más superficie de ataque. POLA.</li>
+<li>“Un dominio de protección es un conjunto de pares (objeto, derecho)
+que especifica operaciones sobre cada objeto” → <span
+class="tag v">V</span>.</li>
+</ul>
+</div>
+<hr />
+<h2 id="file-systems-raid-y-lvm">8. File Systems, RAID y LVM</h2>
+<p>Tema clave y muy preguntado. Nota: si el programa de tu año excluye
+RAID/LVM, saltealo, pero cubrilo por las dudas — históricamente cae.</p>
+<h3 id="conceptos-base-de-file-systems">Conceptos base de File
+Systems</h3>
+<p>Un <strong>file system</strong> organiza cómo se almacenan, nombran y
+recuperan los datos en un dispositivo. Reglas fundamentales:</p>
+<ul>
+<li>Una partición <strong>debe tener un FS definido</strong> para poder
+ser accedida (montada). Sin FS no hay lectura/escritura.</li>
+<li>El FS administra el espacio con <strong>bloques</strong> y describe
+cada archivo con un <strong>inodo</strong>.</li>
+<li><strong>El nombre del archivo NO vive en el inodo</strong>: vive en
+la <strong>entrada de directorio</strong>, que asocia
+<code>nombre → número de inodo</code>.</li>
+</ul>
+<p><strong>Inodo:</strong> estructura que guarda los
+<strong>metadatos</strong> del archivo:</p>
+<ul>
+<li>Permisos (rwx), dueño (UID) y grupo (GID).</li>
+<li>Tamaño del archivo.</li>
+<li>Fechas: <code>atime</code> (acceso), <code>mtime</code>
+(modificación), <code>ctime</code> (cambio de metadatos); en Ext4
+también <code>crtime</code> (creación).</li>
+<li>Punteros a los bloques de datos (directos, indirectos, doble/triple
+indirecto).</li>
+<li><strong>Contador de hard links</strong> (link count).</li>
+</ul>
+<p>Se puede montar un FS con <code>noatime</code> para no actualizar la
+fecha de acceso en cada lectura (mejora rendimiento).</p>
+<div class="diagram">
+<svg viewBox="0 0 700 240" xmlns="http://www.w3.org/2000/svg" font-family="sans-serif" font-size="10">
+<defs><marker id="fsar" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto"><path d="M 0 0 L 10 5 L 0 10 z" fill="#0f172a"/></marker></defs><text xml:space="preserve" x="350" y="16" text-anchor="middle" font-weight="700" fill="#0f172a">Directorio
+→ Inodo → Bloques de
+datos</text><rect x="10" y="35" width="180" height="150" fill="#fde68a" stroke="#b45309"/><text xml:space="preserve" x="100" y="52" text-anchor="middle" font-size="10" font-weight="700" fill="#78350f">Directorio
+/home/matheo</text><line x1="10" y1="60" x2="190" y2="60" stroke="#b45309"/><text xml:space="preserve" x="20" y="75" font-size="9" font-weight="700" fill="#78350f">nombre</text><text xml:space="preserve" x="130" y="75" font-size="9" font-weight="700" fill="#78350f">inodo</text><line x1="10" y1="80" x2="190" y2="80" stroke="#b45309" stroke-dasharray="2,2"/><text xml:space="preserve" x="20" y="95" font-size="9" font-family="monospace" fill="#78350f">.</text><text xml:space="preserve" x="130" y="95" font-size="9" font-family="monospace" fill="#78350f">42</text><text xml:space="preserve" x="20" y="110" font-size="9" font-family="monospace" fill="#78350f">..</text><text xml:space="preserve" x="130" y="110" font-size="9" font-family="monospace" fill="#78350f">1</text><text xml:space="preserve" x="20" y="125" font-size="9" font-family="monospace" fill="#78350f">tesis.pdf</text><text xml:space="preserve" x="130" y="125" font-size="9" font-family="monospace" fill="#78350f" font-weight="700">128</text><text xml:space="preserve" x="20" y="140" font-size="9" font-family="monospace" fill="#78350f">apuntes</text><text xml:space="preserve" x="130" y="140" font-size="9" font-family="monospace" fill="#78350f">129</text><text xml:space="preserve" x="20" y="155" font-size="9" font-family="monospace" fill="#78350f">link.pdf</text><text xml:space="preserve" x="130" y="155" font-size="9" font-family="monospace" fill="#78350f" font-weight="700">128</text><text xml:space="preserve" x="100" y="176" text-anchor="middle" font-size="8" fill="#78350f" font-style="italic">el
+NOMBRE vive
+acá</text><rect x="230" y="35" width="220" height="150" fill="#dbeafe" stroke="#1e40af"/><text xml:space="preserve" x="340" y="52" text-anchor="middle" font-size="10" font-weight="700" fill="#1e3a8a">Inodo
+#128
+(metadatos)</text><line x1="230" y1="60" x2="450" y2="60" stroke="#1e40af"/><text xml:space="preserve" x="240" y="75" font-size="9" fill="#1e3a8a">tipo:</text><text xml:space="preserve" x="360" y="75" font-size="9" fill="#1e3a8a" font-family="monospace">-rw-r–r–</text><text xml:space="preserve" x="240" y="90" font-size="9" fill="#1e3a8a">UID
+/
+GID:</text><text xml:space="preserve" x="360" y="90" font-size="9" fill="#1e3a8a" font-family="monospace">1000
+/
+1000</text><text xml:space="preserve" x="240" y="105" font-size="9" fill="#1e3a8a">tamaño:</text><text xml:space="preserve" x="360" y="105" font-size="9" fill="#1e3a8a" font-family="monospace">42
+KB</text><text xml:space="preserve" x="240" y="120" font-size="9" fill="#1e3a8a">atime/mtime/ctime</text><text xml:space="preserve" x="240" y="135" font-size="9" fill="#1e3a8a">link
+count:</text><text xml:space="preserve" x="360" y="135" font-size="9" fill="#1e3a8a" font-family="monospace" font-weight="700">2</text><text xml:space="preserve" x="240" y="150" font-size="9" fill="#1e3a8a">punteros
+bloques
+→</text><text xml:space="preserve" x="240" y="176" font-size="8" fill="#1e3a8a" font-style="italic">NO
+tiene el nombre del
+archivo</text><text xml:space="preserve" x="580" y="55" text-anchor="middle" font-size="9" fill="#475569">bloques
+de
+datos</text><rect x="500" y="60" width="45" height="30" fill="#a7f3d0" stroke="#065f46"/><text xml:space="preserve" x="522" y="80" text-anchor="middle" font-size="9">B7</text><rect x="555" y="60" width="45" height="30" fill="#a7f3d0" stroke="#065f46"/><text xml:space="preserve" x="577" y="80" text-anchor="middle" font-size="9">B8</text><rect x="610" y="60" width="45" height="30" fill="#a7f3d0" stroke="#065f46"/><text xml:space="preserve" x="632" y="80" text-anchor="middle" font-size="9">B12</text><rect x="500" y="100" width="45" height="30" fill="#a7f3d0" stroke="#065f46"/><text xml:space="preserve" x="522" y="120" text-anchor="middle" font-size="9">B13</text><rect x="555" y="100" width="45" height="30" fill="#a7f3d0" stroke="#065f46"/><text xml:space="preserve" x="577" y="120" text-anchor="middle" font-size="9">B20</text><line x1="180" y1="125" x2="230" y2="125" stroke="#0f172a" marker-end="url(#fsar)"/><line x1="180" y1="155" x2="230" y2="125" stroke="#0f172a" stroke-dasharray="2,2"/><text xml:space="preserve" x="204" y="118" font-size="7" fill="#334155">2
+hard
+links</text><line x1="450" y1="150" x2="500" y2="80" stroke="#0f172a" marker-end="url(#fsar)"/><line x1="450" y1="150" x2="500" y2="115" stroke="#0f172a" marker-end="url(#fsar)"/><text xml:space="preserve" x="350" y="215" text-anchor="middle" font-size="9" fill="#475569" font-style="italic">Hard
+link = otra entrada de directorio apuntando al mismo inodo. Symlink =
+archivo aparte con su propio inodo cuyo contenido es una ruta.</text>
+</svg>
+<div class="caption">
+Fig. 8.3 — El directorio asocia nombre → inodo. El inodo tiene los
+metadatos + punteros a bloques. El nombre <strong>no</strong> vive en el
+inodo.
+</div>
+</div>
+<p><strong>Bloque:</strong> unidad <strong>mínima de
+almacenamiento</strong> de datos del FS. Su tamaño se elige al crear el
+FS (típicamente 1K, 2K, 4K) y <strong>no puede cambiarse dinámicamente
+después</strong>.</p>
+<p><strong>Extent:</strong> conjunto de <strong>bloques
+contiguos</strong> descriptos como un rango
+(<code>inicio + longitud</code>) en vez de bloque por bloque. Ventajas:
+menos metadatos y mejor rendimiento para archivos grandes. Lo usan Ext4,
+XFS y BTRFS.</p>
+<h3 id="tipos-de-file-system">Tipos de File System</h3>
+<p><strong>EXT2 / EXT3 / EXT4:</strong></p>
+<ul>
+<li>Dividen el FS en <strong>grupos de bloques</strong> (block
+groups).</li>
+<li>El <strong>superbloque</strong> (info global del FS) está
+<strong>replicado</strong> en varios grupos de bloques como redundancia
+ante corrupción.</li>
+<li><strong>Ext2</strong> no tiene journaling. <strong>Ext3</strong> lo
+agrega. <strong>Ext4</strong> agrega extents, journaling mejorado y
+guarda <strong>fecha de creación</strong> (crtime); soporta volúmenes y
+archivos más grandes.</li>
+</ul>
+<p><strong>Journaling:</strong> es un <strong>log</strong> donde se
+anotan las operaciones <strong>antes</strong> de aplicarlas al FS.
+Permite <strong>recuperar el FS</strong> a un estado consistente tras un
+corte de energía o caída. <strong>Cuidado:</strong> NO almacena “todas
+las operaciones sobre un archivo”; registra operaciones de metadatos /
+transacciones pendientes de aplicar, para recuperación.</p>
+<p><strong>XFS:</strong></p>
+<ul>
+<li>Los <strong>inodos se asignan dinámicamente</strong> (no hay una
+tabla fija reservada al crear el FS).</li>
+<li>Alto rendimiento, usa extents y journaling.</li>
+<li><strong>NO se puede achicar</strong> un FS XFS: solo se puede
+<strong>crecer</strong> (extender).</li>
+</ul>
+<p><strong>BTRFS:</strong></p>
+<ul>
+<li>Usa <strong>Copy-on-Write (CoW):</strong> al modificar un dato, no
+sobrescribe el bloque original; escribe en un bloque nuevo y actualiza
+los punteros / árbol. Esto da consistencia ante cortes (nunca queda a
+medias) y <strong>snapshots eficientes y baratos</strong> (comparten
+bloques, solo se copia lo que cambia).</li>
+<li>Soporta <strong>subvolúmenes</strong>: raíces de árbol de archivos
+independientes dentro del mismo FS.</li>
+<li>En un subvolumen <strong>no se puede definir un FS distinto a
+BTRFS</strong> (el subvolumen es siempre BTRFS).</li>
+<li>Para <strong>montar un subvolumen que ocupa más de una
+partición</strong> basta con indicar <strong>una sola</strong> de esas
+particiones (BTRFS/LVM resuelven el resto).</li>
+<li>Soporta RAID interno, checksums y compresión.</li>
+</ul>
+<h3 id="links-hard-vs-simbólico">Links: hard vs simbólico</h3>
+<table>
+<colgroup>
+<col style="width: 33%" />
+<col style="width: 33%" />
+<col style="width: 33%" />
+</colgroup>
+<thead>
+<tr>
+<th>Característica</th>
+<th>HARD LINK</th>
+<th>SYMLINK (soft)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Apunta a…</td>
+<td>El <strong>mismo inodo</strong> que el original</td>
+<td>Una <strong>ruta / nombre</strong></td>
+</tr>
+<tr>
+<td>¿Consume inodo nuevo?</td>
+<td><strong>NO</strong> (comparte el inodo)</td>
+<td><strong>SÍ</strong> (tiene su propio inodo)</td>
+</tr>
+<tr>
+<td>Si se borra el original</td>
+<td><strong>Sigue funcionando</strong> (los datos viven hasta que link
+count = 0)</td>
+<td><strong>Queda roto</strong></td>
+</tr>
+<tr>
+<td>¿Cruza particiones / FS distintos?</td>
+<td><strong>NO</strong></td>
+<td><strong>SÍ</strong></td>
+</tr>
+</tbody>
+</table>
+<p>Clave del inodo: se elimina recién cuando su contador de links llega
+a 0. Por eso un hard link mantiene vivos los datos aunque borres el
+nombre original.</p>
+<h3 id="raid">RAID</h3>
+<p><strong>RAID (Redundant Array of Independent Disks)</strong> combina
+varios discos físicos en una unidad lógica para mejorar velocidad,
+capacidad y/o redundancia. Conceptos base:</p>
+<ul>
+<li><strong>Striping:</strong> reparte los datos en varios discos, en
+paralelo → velocidad.</li>
+<li><strong>Mirroring:</strong> copia idéntica de los datos en otro
+disco → redundancia.</li>
+<li><strong>Paridad:</strong> información calculada que permite
+<strong>reconstruir</strong> datos ante un fallo.</li>
+</ul>
+<table style="width:100%;">
+<colgroup>
+<col style="width: 16%" />
+<col style="width: 16%" />
+<col style="width: 16%" />
+<col style="width: 16%" />
+<col style="width: 16%" />
+<col style="width: 16%" />
+</colgroup>
+<thead>
+<tr>
+<th>Nivel</th>
+<th>Striping</th>
+<th>Paridad</th>
+<th>Redundancia</th>
+<th>Capacidad útil</th>
+<th>Tolera fallo de</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>RAID 0</strong></td>
+<td>Sí</td>
+<td>No</td>
+<td><strong>No</strong></td>
+<td>Suma de todos (100%)</td>
+<td><strong>0 discos</strong></td>
+</tr>
+<tr>
+<td><strong>RAID 1</strong></td>
+<td><strong>No</strong></td>
+<td><strong>No</strong></td>
+<td>Sí (espejo)</td>
+<td>La de <strong>1 disco</strong> (50% con 2)</td>
+<td>1 disco</td>
+</tr>
+<tr>
+<td><strong>RAID 4</strong></td>
+<td>Sí</td>
+<td><strong>Dedicada</strong> (1 disco)</td>
+<td>Sí</td>
+<td>N-1 discos</td>
+<td>1 disco</td>
+</tr>
+<tr>
+<td><strong>RAID 5</strong></td>
+<td>Sí</td>
+<td><strong>Distribuida</strong> entre todos</td>
+<td>Sí</td>
+<td><strong>N-1 discos</strong></td>
+<td><strong>1 disco</strong></td>
+</tr>
+<tr>
+<td><strong>RAID 6</strong></td>
+<td>Sí</td>
+<td><strong>Doble</strong> distribuida</td>
+<td>Sí</td>
+<td>N-2 discos</td>
+<td><strong>2 discos</strong></td>
+</tr>
+</tbody>
+</table>
+<div class="diagram">
+<svg viewBox="0 0 720 220" xmlns="http://www.w3.org/2000/svg" font-family="sans-serif" font-size="10">
+<text xml:space="preserve" x="360" y="16" text-anchor="middle" font-weight="700" fill="#0f172a">RAID
+0 vs RAID 1 vs RAID
+5</text><g transform="translate(0,30)"><text xml:space="preserve" x="110" y="14" text-anchor="middle" font-weight="700" fill="#1e40af">RAID
+0
+(striping)</text><rect x="20" y="25" width="60" height="130" fill="#f8fafc" stroke="#334155"/><text xml:space="preserve" x="50" y="42" text-anchor="middle" font-size="9" fill="#475569">Disco
+1</text><rect x="90" y="25" width="60" height="130" fill="#f8fafc" stroke="#334155"/><text xml:space="preserve" x="120" y="42" text-anchor="middle" font-size="9" fill="#475569">Disco
+2</text><rect x="160" y="25" width="60" height="130" fill="#f8fafc" stroke="#334155"/><text xml:space="preserve" x="190" y="42" text-anchor="middle" font-size="9" fill="#475569">Disco
+3</text><rect x="25" y="55" width="50" height="20" fill="#93c5fd" stroke="#1e40af"/><text xml:space="preserve" x="50" y="69" text-anchor="middle" font-size="9">A1</text><rect x="95" y="55" width="50" height="20" fill="#93c5fd" stroke="#1e40af"/><text xml:space="preserve" x="120" y="69" text-anchor="middle" font-size="9">A2</text><rect x="165" y="55" width="50" height="20" fill="#93c5fd" stroke="#1e40af"/><text xml:space="preserve" x="190" y="69" text-anchor="middle" font-size="9">A3</text><rect x="25" y="80" width="50" height="20" fill="#93c5fd" stroke="#1e40af"/><text xml:space="preserve" x="50" y="94" text-anchor="middle" font-size="9">B1</text><rect x="95" y="80" width="50" height="20" fill="#93c5fd" stroke="#1e40af"/><text xml:space="preserve" x="120" y="94" text-anchor="middle" font-size="9">B2</text><rect x="165" y="80" width="50" height="20" fill="#93c5fd" stroke="#1e40af"/><text xml:space="preserve" x="190" y="94" text-anchor="middle" font-size="9">B3</text><rect x="25" y="105" width="50" height="20" fill="#93c5fd" stroke="#1e40af"/><text xml:space="preserve" x="50" y="119" text-anchor="middle" font-size="9">C1</text><rect x="95" y="105" width="50" height="20" fill="#93c5fd" stroke="#1e40af"/><text xml:space="preserve" x="120" y="119" text-anchor="middle" font-size="9">C2</text><rect x="165" y="105" width="50" height="20" fill="#93c5fd" stroke="#1e40af"/><text xml:space="preserve" x="190" y="119" text-anchor="middle" font-size="9">C3</text><text xml:space="preserve" x="120" y="145" text-anchor="middle" font-size="8" fill="#475569">A
+= A1+A2+A3
+(repartido)</text><text xml:space="preserve" x="120" y="170" text-anchor="middle" font-size="8" fill="#7c2d12">Tolera
+fallo de 0 discos — pierdes
+TODO</text><text xml:space="preserve" x="120" y="182" text-anchor="middle" font-size="8" fill="#166534">Capacidad
+útil:
+100%</text></g><g transform="translate(240,30)"><text xml:space="preserve" x="110" y="14" text-anchor="middle" font-weight="700" fill="#166534">RAID
+1
+(mirror)</text><rect x="45" y="25" width="60" height="130" fill="#f8fafc" stroke="#334155"/><text xml:space="preserve" x="75" y="42" text-anchor="middle" font-size="9" fill="#475569">Disco
+1</text><rect x="115" y="25" width="60" height="130" fill="#f8fafc" stroke="#334155"/><text xml:space="preserve" x="145" y="42" text-anchor="middle" font-size="9" fill="#475569">Disco
+2</text><rect x="50" y="55" width="50" height="20" fill="#86efac" stroke="#166534"/><text xml:space="preserve" x="75" y="69" text-anchor="middle" font-size="9">A</text><rect x="120" y="55" width="50" height="20" fill="#86efac" stroke="#166534"/><text xml:space="preserve" x="145" y="69" text-anchor="middle" font-size="9">A</text><rect x="50" y="80" width="50" height="20" fill="#86efac" stroke="#166534"/><text xml:space="preserve" x="75" y="94" text-anchor="middle" font-size="9">B</text><rect x="120" y="80" width="50" height="20" fill="#86efac" stroke="#166534"/><text xml:space="preserve" x="145" y="94" text-anchor="middle" font-size="9">B</text><rect x="50" y="105" width="50" height="20" fill="#86efac" stroke="#166534"/><text xml:space="preserve" x="75" y="119" text-anchor="middle" font-size="9">C</text><rect x="120" y="105" width="50" height="20" fill="#86efac" stroke="#166534"/><text xml:space="preserve" x="145" y="119" text-anchor="middle" font-size="9">C</text><text xml:space="preserve" x="110" y="145" text-anchor="middle" font-size="8" fill="#475569">Copia
+idéntica en
+ambos</text><text xml:space="preserve" x="110" y="170" text-anchor="middle" font-size="8" fill="#166534">Tolera
+fallo de 1
+disco</text><text xml:space="preserve" x="110" y="182" text-anchor="middle" font-size="8" fill="#7c2d12">Capacidad
+útil: 50% (con 2
+discos)</text></g><g transform="translate(480,30)"><text xml:space="preserve" x="110" y="14" text-anchor="middle" font-weight="700" fill="#7c2d12">RAID
+5 (paridad
+distribuida)</text><rect x="20" y="25" width="60" height="130" fill="#f8fafc" stroke="#334155"/><text xml:space="preserve" x="50" y="42" text-anchor="middle" font-size="9" fill="#475569">Disco
+1</text><rect x="90" y="25" width="60" height="130" fill="#f8fafc" stroke="#334155"/><text xml:space="preserve" x="120" y="42" text-anchor="middle" font-size="9" fill="#475569">Disco
+2</text><rect x="160" y="25" width="60" height="130" fill="#f8fafc" stroke="#334155"/><text xml:space="preserve" x="190" y="42" text-anchor="middle" font-size="9" fill="#475569">Disco
+3</text><rect x="25" y="55" width="50" height="20" fill="#fed7aa" stroke="#c2410c"/><text xml:space="preserve" x="50" y="69" text-anchor="middle" font-size="9">A1</text><rect x="95" y="55" width="50" height="20" fill="#fed7aa" stroke="#c2410c"/><text xml:space="preserve" x="120" y="69" text-anchor="middle" font-size="9">A2</text><rect x="165" y="55" width="50" height="20" fill="#fda4af" stroke="#9f1239"/><text xml:space="preserve" x="190" y="69" text-anchor="middle" font-size="9">Ap</text><rect x="25" y="80" width="50" height="20" fill="#fed7aa" stroke="#c2410c"/><text xml:space="preserve" x="50" y="94" text-anchor="middle" font-size="9">B1</text><rect x="95" y="80" width="50" height="20" fill="#fda4af" stroke="#9f1239"/><text xml:space="preserve" x="120" y="94" text-anchor="middle" font-size="9">Bp</text><rect x="165" y="80" width="50" height="20" fill="#fed7aa" stroke="#c2410c"/><text xml:space="preserve" x="190" y="94" text-anchor="middle" font-size="9">B2</text><rect x="25" y="105" width="50" height="20" fill="#fda4af" stroke="#9f1239"/><text xml:space="preserve" x="50" y="119" text-anchor="middle" font-size="9">Cp</text><rect x="95" y="105" width="50" height="20" fill="#fed7aa" stroke="#c2410c"/><text xml:space="preserve" x="120" y="119" text-anchor="middle" font-size="9">C1</text><rect x="165" y="105" width="50" height="20" fill="#fed7aa" stroke="#c2410c"/><text xml:space="preserve" x="190" y="119" text-anchor="middle" font-size="9">C2</text><text xml:space="preserve" x="120" y="145" text-anchor="middle" font-size="8" fill="#475569">Ap/Bp/Cp
+= paridad
+rotativa</text><text xml:space="preserve" x="120" y="170" text-anchor="middle" font-size="8" fill="#166534">Tolera
+fallo de 1
+disco</text><text xml:space="preserve" x="120" y="182" text-anchor="middle" font-size="8" fill="#7c2d12">Capacidad
+útil: (N-1)/N</text></g>
+</svg>
+<div class="caption">
+Fig. 8.2 — Comparación visual de los niveles clásicos de RAID. En RAID 5
+la paridad rota entre los discos (bloques P<sub>a</sub>, P<sub>b</sub>,
+P<sub>c</sub>).
+</div>
+</div>
+<p><strong>Cálculos típicos del parcial:</strong></p>
+<ul>
+<li>RAID 5 con <strong>5 discos de 1 TB</strong> → capacidad útil =
+<strong>(N-1) = 4 TB</strong>. Tolera <strong>1 disco
+caído</strong>.</li>
+<li>Discos de distinto tamaño: el RAID se limita al <strong>disco más
+chico</strong>. Con 1, 2 y 3 GB → el array usa 3 × 1 GB efectivos; en
+RAID 5 la capacidad útil sería <strong>2 GB</strong>.</li>
+</ul>
+<p><strong>Chunk size:</strong> tamaño del bloque de striping (cuánto se
+escribe en un disco antes de pasar al siguiente). <strong>No depende de
+la cantidad de discos.</strong></p>
+<p><strong>DDP (Dynamic Disk Pool):</strong> distribuye datos, paridad y
+spare sobre todos los discos de un pool, y la reconstrucción es más
+rápida. <strong>No</strong> funciona como “11 discos fijos reservando
+2”.</p>
+<h3 id="lvm-logical-volume-manager">LVM (Logical Volume Manager)</h3>
+<p>Capa de abstracción sobre los discos físicos que da
+<strong>flexibilidad</strong> frente al particionado clásico. Su gran
+ventaja: permite <strong>extender un FS a través de diferentes
+particiones e incluso discos rígidos distintos</strong>.</p>
+<p>Jerarquía LVM:</p>
+<div class="diagram">
+<svg viewBox="0 0 600 300" xmlns="http://www.w3.org/2000/svg" font-family="sans-serif" font-size="10">
+<text xml:space="preserve" x="300" y="16" text-anchor="middle" font-weight="700" fill="#0f172a">LVM
+stack — PV → VG →
+LV</text><text xml:space="preserve" x="70" y="42" font-size="9" fill="#475569">Discos
+/ particiones
+físicas</text><rect x="20" y="48" width="90" height="30" fill="#e5e7eb" stroke="#374151"/><text xml:space="preserve" x="65" y="67" text-anchor="middle" font-size="9">/dev/sda1</text><rect x="120" y="48" width="90" height="30" fill="#e5e7eb" stroke="#374151"/><text xml:space="preserve" x="165" y="67" text-anchor="middle" font-size="9">/dev/sdb1</text><rect x="220" y="48" width="90" height="30" fill="#e5e7eb" stroke="#374151"/><text xml:space="preserve" x="265" y="67" text-anchor="middle" font-size="9">/dev/sdc1</text><line x1="65" y1="78" x2="65" y2="98" stroke="#0f172a" marker-end="url(#lvarrow)"/><line x1="165" y1="78" x2="165" y2="98" stroke="#0f172a" marker-end="url(#lvarrow)"/><line x1="265" y1="78" x2="265" y2="98" stroke="#0f172a" marker-end="url(#lvarrow)"/><text xml:space="preserve" x="360" y="115" font-size="9" fill="#475569">Physical
+Volumes</text><rect x="20" y="98" width="90" height="26" fill="#dbeafe" stroke="#1e40af"/><text xml:space="preserve" x="65" y="115" text-anchor="middle" font-size="9" font-weight="700" fill="#1e3a8a">PV1</text><rect x="120" y="98" width="90" height="26" fill="#dbeafe" stroke="#1e40af"/><text xml:space="preserve" x="165" y="115" text-anchor="middle" font-size="9" font-weight="700" fill="#1e3a8a">PV2</text><rect x="220" y="98" width="90" height="26" fill="#dbeafe" stroke="#1e40af"/><text xml:space="preserve" x="265" y="115" text-anchor="middle" font-size="9" font-weight="700" fill="#1e3a8a">PV3</text><line x1="65" y1="124" x2="165" y2="144" stroke="#0f172a"/><line x1="165" y1="124" x2="165" y2="144" stroke="#0f172a"/><line x1="265" y1="124" x2="165" y2="144" stroke="#0f172a"/><text xml:space="preserve" x="360" y="160" font-size="9" fill="#475569">Volume
+Group
+(pool)</text><rect x="20" y="144" width="290" height="34" fill="#fde68a" stroke="#b45309"/><text xml:space="preserve" x="165" y="163" text-anchor="middle" font-size="10" font-weight="700" fill="#78350f">VG
+“datos”</text><text xml:space="preserve" x="165" y="174" text-anchor="middle" font-size="8" fill="#78350f">extent
+size = 4
+MiB</text><line x1="80" y1="178" x2="80" y2="198" stroke="#0f172a" marker-end="url(#lvarrow)"/><line x1="165" y1="178" x2="165" y2="198" stroke="#0f172a" marker-end="url(#lvarrow)"/><line x1="255" y1="178" x2="255" y2="198" stroke="#0f172a" marker-end="url(#lvarrow)"/><text xml:space="preserve" x="360" y="215" font-size="9" fill="#475569">Logical
+Volumes (tamaño = múltiplo de
+extent)</text><rect x="20" y="198" width="120" height="28" fill="#a7f3d0" stroke="#065f46"/><text xml:space="preserve" x="80" y="216" text-anchor="middle" font-size="9" font-weight="700" fill="#064e3b">LV
+/home</text><rect x="145" y="198" width="90" height="28" fill="#a7f3d0" stroke="#065f46"/><text xml:space="preserve" x="190" y="216" text-anchor="middle" font-size="9" font-weight="700" fill="#064e3b">LV
+/var</text><rect x="240" y="198" width="70" height="28" fill="#a7f3d0" stroke="#065f46"/><text xml:space="preserve" x="275" y="216" text-anchor="middle" font-size="9" font-weight="700" fill="#064e3b">LV
+logs</text><line x1="80" y1="226" x2="80" y2="246" stroke="#0f172a" marker-end="url(#lvarrow)"/><line x1="190" y1="226" x2="190" y2="246" stroke="#0f172a" marker-end="url(#lvarrow)"/><line x1="275" y1="226" x2="275" y2="246" stroke="#0f172a" marker-end="url(#lvarrow)"/><text xml:space="preserve" x="80" y="260" text-anchor="middle" font-size="9" fill="#334155">ext4</text><text xml:space="preserve" x="190" y="260" text-anchor="middle" font-size="9" fill="#334155">xfs</text><text xml:space="preserve" x="275" y="260" text-anchor="middle" font-size="9" fill="#334155">btrfs</text><text xml:space="preserve" x="165" y="285" text-anchor="middle" font-size="9" fill="#475569" font-style="italic">Filesystems
+(creados sobre los LV) — se
+montan</text><rect x="380" y="200" width="200" height="80" fill="#fff7ed" stroke="#f97316"/><text xml:space="preserve" x="480" y="218" text-anchor="middle" font-size="9" font-weight="700" fill="#9a3412">Orden
+importa</text><text xml:space="preserve" x="480" y="238" text-anchor="middle" font-size="8" fill="#7c2d12">Extender:
+LV →
+FS</text><text xml:space="preserve" x="480" y="252" text-anchor="middle" font-size="8" fill="#7c2d12">Achicar:
+FS →
+LV</text><text xml:space="preserve" x="480" y="272" text-anchor="middle" font-size="8" fill="#7c2d12">Snapshots
+= CoW; crecen con
+cambios</text><defs><marker id="lvarrow" markerWidth="8" markerHeight="8" refX="4" refY="4" orient="auto"><path d="M 0 0 L 8 4 L 0 8 z" fill="#0f172a"/></marker></defs>
+</svg>
+<div class="caption">
+Fig. 8.1 — Stack LVM: los PV inicializan particiones para LVM, el VG los
+agrupa como pool con un extent size, y los LV se tallan del pool para
+montar FS encima.
+</div>
+</div>
+<p>Reglas clave:</p>
+<ul>
+<li>El <strong>tamaño de un LV</strong> es siempre <strong>múltiplo del
+tamaño del EXTENT</strong> definido en el VG.</li>
+<li>Un LV puede <strong>abarcar varios discos</strong>: no está limitado
+al espacio de un único disco físico.</li>
+</ul>
+<p><strong>Orden de operaciones (mnemotecnia):</strong></p>
+<ul>
+<li><strong>Extender (agrandar):</strong> primero el
+<strong>LV</strong>, después el <strong>FS</strong>.</li>
+<li><strong>Achicar (reducir):</strong> primero el <strong>FS</strong>,
+después el <strong>LV</strong>.</li>
+<li>Regla: “para crecer, primero el contenedor; para achicar, primero el
+contenido” — así no se pierden datos.</li>
+</ul>
+<p><strong>Snapshots LVM:</strong></p>
+<ul>
+<li>Usan <strong>Copy-on-Write</strong>.</li>
+<li>Al crear el snapshot <strong>no se copian</strong> los datos ni
+metadatos del LV original: se copian <strong>a medida que el LV original
+se modifica</strong>, y solo los bloques que cambian.</li>
+<li>El <strong>espacio del snapshot crece</strong> con las
+modificaciones del original.</li>
+<li><strong>No se eliminan solos</strong>: hay que borrarlos manualmente
+(si se llena, se invalidan).</li>
+</ul>
+<div class="callout warning">
+<div class="callout-title">
+⚠ Trampas típicas del parcial
+</div>
+<ul>
+<li>“RAID 1 provee striping y paridad distribuida” → <span
+class="tag f">F</span>: RAID 1 es mirroring, sin striping ni
+paridad.</li>
+<li>“¿En qué nivel de RAID NO existe striping?” → <strong>RAID
+1</strong>.</li>
+<li>“RAID 5 con 5 discos de 1 TB tiene capacidad útil de…” → <strong>4
+TB</strong> (N-1).</li>
+<li>“¿Cuántos discos pueden fallar en RAID 5 sin pérdida?” →
+<strong>1</strong>.</li>
+<li>“El chunk size depende de la cantidad de discos” → <span
+class="tag f">F</span>.</li>
+<li>“El nombre del archivo está en el inodo” → <span
+class="tag f">F</span>: en el directorio.</li>
+<li>“Cada vez que se crea un hard link se usa un nuevo inodo” → <span
+class="tag f">F</span>: comparte inodo.</li>
+<li>“Si se elimina un symlink, se elimina el archivo apuntado” → <span
+class="tag f">F</span>.</li>
+<li>“Si se elimina el archivo original, el symlink queda roto” → <span
+class="tag v">V</span>.</li>
+<li>“En XFS los inodos se asignan dinámicamente pero no se puede reducir
+el FS” → <span class="tag v">V</span>.</li>
+<li>“¿En qué FS no se puede disminuir el tamaño?” →
+<strong>XFS</strong>.</li>
+<li>“El journaling almacena todas las operaciones sobre un archivo” →
+<span class="tag f">F</span>: es un log de operaciones pendientes de
+aplicar, para recuperación.</li>
+<li>“En BTRFS un subvolumen puede tener un FS distinto a BTRFS” → <span
+class="tag f">F</span>.</li>
+<li>“Para montar un subvolumen que ocupa más de una partición basta con
+indicar una sola” → <span class="tag v">V</span>.</li>
+<li>“El tamaño de un LV siempre es múltiplo del extent del VG” → <span
+class="tag v">V</span>.</li>
+<li>“Un LV solo se puede extender si hay espacio en el disco físico
+donde está definido” → <span class="tag f">F</span>: puede abarcar
+varios.</li>
+<li>“Para achicar un LV: primero el FS y después el LV” → <span
+class="tag v">V</span> (para extender, al revés).</li>
+<li>“Los snapshots LVM usan CoW y crecen con las modificaciones del LV
+original” → <span class="tag v">V</span>.</li>
+<li>“Al crear el snapshot se copian metadatos y datos del LV original” →
+<span class="tag f">F</span>.</li>
+<li>“Una partición debe tener un FS definido para poder ser accedida” →
+<span class="tag v">V</span>.</li>
+</ul>
+</div>
+<hr />
+<h2 id="multiprocesadores">9. Multiprocesadores</h2>
+<h3 id="por-qué-multiprocesadores">Por qué multiprocesadores</h3>
+<p>Históricamente la industria buscó más poder de cómputo subiendo la
+<strong>velocidad de reloj</strong>. Hoy eso choca con dos límites
+físicos: ninguna señal viaja más rápido que la luz (~20 cm/ns en
+cobre/fibra) y la <strong>disipación de calor</strong> y el consumo
+eléctrico crecen mucho más rápido que el rendimiento. La solución actual
+es <strong>cómputo paralelo/distribuido</strong>: varias CPU a velocidad
+“normal” que en conjunto dan la potencia. Más cores, no más Hz.</p>
+<h3 id="esquemas-de-arquitectura-mayor-menor-acoplamiento">Esquemas de
+arquitectura (mayor → menor acoplamiento)</h3>
+<table>
+<colgroup>
+<col style="width: 25%" />
+<col style="width: 25%" />
+<col style="width: 25%" />
+<col style="width: 25%" />
+</colgroup>
+<thead>
+<tr>
+<th>Esquema</th>
+<th>Memoria</th>
+<th>Comunicación</th>
+<th>Retardo</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Multiprocesador (memoria COMPARTIDA)</strong></td>
+<td>Un único espacio de direcciones, por <strong>BUS</strong></td>
+<td>A través de la memoria compartida</td>
+<td><strong>2–10 ns</strong></td>
+</tr>
+<tr>
+<td><strong>Multicomputadora (memoria DISTRIBUIDA)</strong></td>
+<td>Cada CPU tiene su memoria local</td>
+<td><strong>Pasaje de mensajes</strong> por interconexión de alta
+velocidad</td>
+<td><strong>10–50 µs</strong></td>
+</tr>
+<tr>
+<td><strong>Sistema distribuido</strong></td>
+<td>Cada nodo es una PC completa</td>
+<td>Pasaje de mensajes por <strong>red</strong></td>
+<td><strong>10–100 ms</strong></td>
+</tr>
+</tbody>
+</table>
+<p>Las <strong>multicomputadoras</strong> (clusters) son fáciles de
+fabricar pero difíciles de programar; son <strong>fuertemente
+acopladas</strong> (una tarea empieza y termina en la misma CPU). Los
+<strong>sistemas distribuidos</strong> son PCs completas y heterogéneas
+(distintos SO/HW) conectadas por red. El salto de retardo de nseg a mseg
+es un factor de millones.</p>
+<h3 id="memoria-compartida-uma-vs-numa">Memoria compartida: UMA vs
+NUMA</h3>
+<p>A nivel HW, en un multiprocesador de memoria compartida cada
+procesador direcciona toda la memoria. Según la velocidad de acceso:</p>
+<table>
+<colgroup>
+<col style="width: 33%" />
+<col style="width: 33%" />
+<col style="width: 33%" />
+</colgroup>
+<thead>
+<tr>
+<th></th>
+<th><strong>UMA</strong></th>
+<th><strong>NUMA</strong></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Tiempo de acceso</td>
+<td><strong>Igual</strong> para todas las CPU</td>
+<td><strong>Depende</strong>: local rápido / remoto lento</td>
+</tr>
+<tr>
+<td>Espacio de direcciones</td>
+<td>Único</td>
+<td>Único (visible a todas)</td>
+</tr>
+<tr>
+<td>Acceso remoto</td>
+<td>—</td>
+<td>Con <strong>LOAD/STORE</strong>, requiere bus compartido</td>
+</tr>
+<tr>
+<td>Escalabilidad</td>
+<td>Baja (caro)</td>
+<td>Alta</td>
+</tr>
+<tr>
+<td>Ejemplo típico</td>
+<td><strong>SMP por bus</strong></td>
+<td>Grandes sistemas multi-nodo</td>
+</tr>
+</tbody>
+</table>
+<p><strong>UMA basado en bus:</strong> un único bus, y al sumar CPU el
+<strong>ancho de banda del bus</strong> se vuelve cuello de botella (CPU
+ociosa esperando el bus). Se palia con <strong>caches</strong> (bloque
+RO en varias caches; RW en una sola, requiere protocolo de coherencia).
+Para escalar más allá del bus (~16-32 CPU) se usan crossbar (barras
+cruzadas) o redes multietapa, con distintos trade-offs de contención vs
+cantidad de switches.</p>
+<div class="diagram">
+<svg viewBox="0 0 700 260" xmlns="http://www.w3.org/2000/svg" font-family="sans-serif" font-size="10">
+<g transform="translate(0,0)"><text xml:space="preserve" x="170" y="18" text-anchor="middle" font-weight="700" fill="#0f172a">UMA
+(Uniform Memory
+Access)</text><text xml:space="preserve" x="170" y="34" text-anchor="middle" font-size="8" fill="#64748b">SMP
+por bus — acceso igual para todas las
+CPU</text><rect x="30" y="50" width="50" height="34" fill="#dbeafe" stroke="#1e40af"/><text xml:space="preserve" x="55" y="72" text-anchor="middle" font-size="9" fill="#1e3a8a">CPU1</text><rect x="100" y="50" width="50" height="34" fill="#dbeafe" stroke="#1e40af"/><text xml:space="preserve" x="125" y="72" text-anchor="middle" font-size="9" fill="#1e3a8a">CPU2</text><rect x="170" y="50" width="50" height="34" fill="#dbeafe" stroke="#1e40af"/><text xml:space="preserve" x="195" y="72" text-anchor="middle" font-size="9" fill="#1e3a8a">CPU3</text><rect x="240" y="50" width="50" height="34" fill="#dbeafe" stroke="#1e40af"/><text xml:space="preserve" x="265" y="72" text-anchor="middle" font-size="9" fill="#1e3a8a">CPU4</text><line x1="20" y1="105" x2="300" y2="105" stroke="#f97316" stroke-width="4"/><text xml:space="preserve" x="308" y="109" font-size="9" fill="#9a3412" font-weight="700">BUS</text><line x1="55" y1="84" x2="55" y2="105" stroke="#334155"/><line x1="125" y1="84" x2="125" y2="105" stroke="#334155"/><line x1="195" y1="84" x2="195" y2="105" stroke="#334155"/><line x1="265" y1="84" x2="265" y2="105" stroke="#334155"/><rect x="80" y="140" width="160" height="40" fill="#a7f3d0" stroke="#065f46"/><text xml:space="preserve" x="160" y="164" text-anchor="middle" font-size="10" font-weight="700" fill="#064e3b">MEMORIA
+GLOBAL</text><line x1="160" y1="105" x2="160" y2="140" stroke="#334155"/><text xml:space="preserve" x="160" y="210" text-anchor="middle" font-size="8" fill="#475569">Todas
+las CPUs acceden con la misma
+latencia</text><text xml:space="preserve" x="160" y="223" text-anchor="middle" font-size="8" fill="#7c2d12">Cuello
+de botella: ancho de banda del
+bus</text><text xml:space="preserve" x="160" y="240" text-anchor="middle" font-size="8" fill="#475569" font-style="italic">Escala
+hasta ~16-32
+CPUs</text></g><g transform="translate(360,0)"><text xml:space="preserve" x="160" y="18" text-anchor="middle" font-weight="700" fill="#0f172a">NUMA
+(Non-Uniform Memory
+Access)</text><text xml:space="preserve" x="160" y="34" text-anchor="middle" font-size="8" fill="#64748b">Local
+rápido / remoto
+lento</text><rect x="10" y="50" width="140" height="130" fill="#eff6ff" stroke="#3b82f6" stroke-dasharray="3,3"/><text xml:space="preserve" x="80" y="66" text-anchor="middle" font-size="9" fill="#1e40af" font-weight="700">Nodo
+A</text><rect x="30" y="75" width="45" height="26" fill="#dbeafe" stroke="#1e40af"/><text xml:space="preserve" x="52" y="92" text-anchor="middle" font-size="8" fill="#1e3a8a">CPU1</text><rect x="85" y="75" width="45" height="26" fill="#dbeafe" stroke="#1e40af"/><text xml:space="preserve" x="107" y="92" text-anchor="middle" font-size="8" fill="#1e3a8a">CPU2</text><rect x="30" y="115" width="100" height="50" fill="#a7f3d0" stroke="#065f46"/><text xml:space="preserve" x="80" y="140" text-anchor="middle" font-size="8" fill="#064e3b">MEM
+local</text><text xml:space="preserve" x="80" y="152" text-anchor="middle" font-size="7" fill="#166534">acceso
+rápido</text><rect x="170" y="50" width="140" height="130" fill="#eff6ff" stroke="#3b82f6" stroke-dasharray="3,3"/><text xml:space="preserve" x="240" y="66" text-anchor="middle" font-size="9" fill="#1e40af" font-weight="700">Nodo
+B</text><rect x="190" y="75" width="45" height="26" fill="#dbeafe" stroke="#1e40af"/><text xml:space="preserve" x="212" y="92" text-anchor="middle" font-size="8" fill="#1e3a8a">CPU3</text><rect x="245" y="75" width="45" height="26" fill="#dbeafe" stroke="#1e40af"/><text xml:space="preserve" x="267" y="92" text-anchor="middle" font-size="8" fill="#1e3a8a">CPU4</text><rect x="190" y="115" width="100" height="50" fill="#a7f3d0" stroke="#065f46"/><text xml:space="preserve" x="240" y="140" text-anchor="middle" font-size="8" fill="#064e3b">MEM
+local</text><text xml:space="preserve" x="240" y="152" text-anchor="middle" font-size="7" fill="#166534">acceso
+rápido</text><path d="M 150 140 Q 160 100 170 140" stroke="#9a3412" stroke-width="2" fill="none"/><text xml:space="preserve" x="160" y="102" text-anchor="middle" font-size="7" fill="#9a3412" font-weight="700">interconexión</text><text xml:space="preserve" x="160" y="200" text-anchor="middle" font-size="8" fill="#475569">Un
+solo espacio de direcciones, visible a
+todas</text><text xml:space="preserve" x="160" y="215" text-anchor="middle" font-size="8" fill="#7c2d12">Acceso
+remoto es más lento (por
+interconexión)</text><text xml:space="preserve" x="160" y="240" text-anchor="middle" font-size="8" fill="#475569" font-style="italic">Escala
+mejor · CC-NUMA usa directorios en HW</text></g>
+</svg>
+<div class="caption">
+Fig. 9.1 — UMA (todas las CPU con el mismo tiempo de acceso, bus
+compartido) vs NUMA (memoria local rápida, remota lenta, un único
+espacio de direcciones).
+</div>
+</div>
+<p><strong>NUMA:</strong> hay dos variantes: <strong>NC-NUMA</strong>
+(sin cache) y <strong>CC-NUMA</strong> (con cache; lo importante es
+mantener coherencia). Los CC-NUMA grandes se implementan como
+multiprocesadores basados en <strong>directorios</strong>: una base de
+datos en HW que indica dónde está cada línea de memoria y su estado
+(limpia/sucia).</p>
+<p><strong>Coherencia de cache:</strong> el problema central de la
+memoria compartida con caches. Un mismo dato puede estar cacheado en
+varias CPU; al escribir, la CPU manda mensaje al bus para
+invalidar/descartar copias limpias en otras caches, o forzar el
+write-back de una copia sucia antes de modificar.</p>
+<h3 id="chips-multinúcleo">Chips multinúcleo</h3>
+<p>Con más transistores por chip, las opciones son: más cache (poca
+mejora directa), más clock (sigue con un solo hilo, y el clock está
+topeado por calor), o <strong>más cores</strong> (comparten
+cache/memoria y dan paralelismo real). El software tiene que estar
+diseñado para aprovecharlos.</p>
+<h3 id="tipos-de-so-multiprocesador">Tipos de SO multiprocesador</h3>
+<ol type="1">
+<li><strong>Cada CPU con su SO</strong> (poco usado): memoria dividida
+estáticamente; procesos atados a una CPU. Problemas:
+<strong>desbalance</strong> de carga, no se comparten páginas, la cache
+de disco puede quedar <strong>inconsistente</strong> entre CPUs.</li>
+<li><strong>Maestro-Esclavo:</strong> una sola copia del SO;
+<strong>todas las syscalls van a la CPU maestra</strong>. Resuelve
+balanceo y páginas, pero el maestro es <strong>cuello de
+botella</strong> con muchas CPU.</li>
+<li><strong>SMP (Symmetric Multi-Processing):</strong> una copia del SO,
+<strong>cualquier CPU</strong> puede ejecutarla; la syscall la corre la
+CPU que la invocó. Sin cuello de botella. <strong>Problema:</strong>
+varias CPU pueden estar en el kernel a la vez y competir por las mismas
+estructuras (elegir el mismo proceso a planificar o la misma página
+libre → <strong>race condition</strong>).</li>
+</ol>
+<p>Soluciones en SMP:</p>
+<ul>
+<li><strong>Lock global:</strong> todo el kernel = una sola sección
+crítica, una CPU a la vez. Se comporta como maestro-esclavo, mala
+performance.</li>
+<li><strong>Lock por estructura:</strong> varias secciones críticas con
+su propio mutex. Es el enfoque más usado; mejor rendimiento pero
+requiere cuidado (riesgo de <strong>deadlocks</strong>).</li>
+</ul>
+<h3 id="sincronización-en-multiprocesador">Sincronización en
+multiprocesador</h3>
+<p>En un uniprocesador basta con <strong>deshabilitar
+interrupciones</strong> para tocar tablas del kernel; en multiprocesador
+<strong>NO alcanza</strong>: otra CPU puede generar interrupciones. Se
+necesita <strong>protocolo de mutex</strong>.</p>
+<p><strong>TSL (Test and Set Lock):</strong> lee una palabra y la
+escribe en 1 en una sola operación atómica. En multiprocesador la
+operación <strong>no es indivisible</strong> si dos CPU la ejecutan al
+mismo tiempo: podrían leer 0 y entrar juntas. <strong>Solución:</strong>
+TSL <strong>bloquea el bus</strong> (requiere soporte HW). Como está
+esperando activamente, es un <strong>spinlock</strong> y genera carga
+(espera activa). Mejoras: variable de lock propia en cache de cada CPU,
+listas de espera propias por CPU, delays entre reintentos.</p>
+<h3 id="planificación-en-multiprocesador">Planificación en
+multiprocesador</h3>
+<p>Se decide <strong>qué</strong> hilo (KLT) ejecutar y <strong>en qué
+CPU</strong>.</p>
+<p><strong>Hilos independientes (tiempo compartido):</strong></p>
+<ul>
+<li><strong>Cola única de listos:</strong> simple, eficiente, da
+<strong>balanceo de carga</strong>. Desventaja:
+<strong>contención</strong> sobre la estructura única.</li>
+<li><strong>Problema con espera activa:</strong> si un hilo con spinlock
+pierde el quantum antes de liberar el lock, las otras CPU quedan girando
+ociosas. Se resuelve con un flag por proceso para no expulsarlo hasta
+que libere (Zahorjan 1991).</li>
+<li><strong>Afinidad de CPU:</strong> ejecutar el hilo en la CPU donde
+ya corrió antes (sus datos ya están en cache). <strong>Planificación de
+2 niveles:</strong> el hilo se asigna a una CPU al crearse; <strong>cola
+por-CPU</strong>; si una CPU queda ociosa, se reparten hilos. Minimiza
+la contención y el tráfico de coherencia; migrar un hilo entre CPUs
+implica cache misses.</li>
+</ul>
+<p><strong>Hilos que trabajan en conjunto:</strong></p>
+<ul>
+<li>Si se planifican independientemente, no corren sincrónicos: un hilo
+A0 que espera A1 puede quedar en cola mientras A1 está corriendo,
+duplicando el tiempo total.</li>
+<li><strong>Gang scheduling (planificación por pandillas):</strong> los
+hilos relacionados forman una pandilla; corren
+<strong>simultáneamente</strong> en distintas CPU e inician/terminan el
+intervalo juntos. Esto acelera la comunicación entre hilos que se
+sincronizan.</li>
+</ul>
+<h3 id="multicomputadoras-clusters">Multicomputadoras (clusters)</h3>
+<ul>
+<li>CPU fuertemente acopladas, <strong>sin memoria compartida</strong>.
+PCs con interfaz de red de alto rendimiento (Ethernet 10-400 Gbps,
+Infiniband 120 Gbps; HBA para storage FibreChannel).</li>
+<li><strong>Topologías:</strong> estrella, anillo, malla/mesh,
+hipercubo, full mesh.</li>
+<li><strong>Conmutación:</strong> store-and-forward (buffer hasta armar
+paquete, latencia) vs circuitos (ruta fija, más rápida, sin control de
+flujo).</li>
+<li><strong>Problema típico:</strong> copiado excesivo de paquetes entre
+RAM y placa. Soluciones: interfaz en espacio de usuario (sin pasar por
+kernel) o canales DMA / procesadores de red (lo actual).</li>
+<li><strong>Comunicación:</strong>
+<code>send</code>/<code>receive</code> (con bloqueo, sin bloqueo +
+copia, sin bloqueo + interrupción) o <strong>RPC</strong> (invoca
+procedimiento remoto, transparente al programador).</li>
+<li><strong>Balanceo de carga:</strong> enfoque por
+<strong>grafo</strong> (minimizar aristas/tráfico entre subgrafos
+asignados a distintas máquinas) o <strong>distribuido</strong> (los
+nodos reubican procesos si están sobrecargados).</li>
+</ul>
+<h3 id="sistemas-distribuidos">Sistemas distribuidos</h3>
+<p>Tanenbaum los define como “un conjunto de computadoras independientes
+que el usuario ve como un único sistema coherente”. A diferencia de las
+multicomputadoras, tienen <strong>menor acoplamiento</strong>: nodos
+distribuidos por todo el mundo, PCs completas, con <strong>distinto SO,
+HW y FS</strong>.</p>
+<p>Se apoyan en una capa de <strong>middleware</strong> por encima del
+SO, que aporta uniformidad, resuelve la heterogeneidad y da
+interfaces/servicios comunes (por ejemplo un directorio global de
+recursos).</p>
+<p><strong>Cuidado con la trampa:</strong> en un sistema distribuido los
+nodos <strong>no</strong> necesitan ejecutar el mismo SO ni tener el
+mismo hardware para interoperar; justamente el middleware existe para
+resolver esa heterogeneidad.</p>
+<h3 id="conceptos-clave">Conceptos clave</h3>
+<ul>
+<li><strong>UMA vs NUMA</strong> (uniforme vs dependiente de
+local/remoto), y <strong>NC-NUMA vs CC-NUMA</strong> (sin cache vs con
+cache).</li>
+<li><strong>Memoria compartida vs distribuida:</strong> comunicación
+(memoria vs mensajes), acoplamiento, retardos (nseg vs µseg/mseg).</li>
+<li><strong>SMP:</strong> definición, ventaja (sin cuello de botella) vs
+maestro-esclavo. Solución de sincronización: lock global vs lock por
+estructura.</li>
+<li><strong>Coherencia de cache:</strong> por qué surge y cómo se
+resuelve (RO/RW, copias limpias/sucias, directorios en CC-NUMA).</li>
+<li><strong>TSL/spinlock:</strong> por qué deshabilitar interrupciones
+no alcanza en multiprocesador; el HW debe permitir <strong>bloquear el
+bus</strong>.</li>
+<li><strong>Afinidad de CPU</strong> y <strong>cola por-CPU</strong> vs
+cola global; <strong>gang scheduling</strong> para hilos que
+colaboran.</li>
+<li>Por qué se pasó a más cores (límite de calor/clock, velocidad de la
+luz).</li>
+<li><strong>Middleware</strong> como diferenciador de los sistemas
+distribuidos.</li>
+<li>En SMP, migrar un hilo entre CPUs implica <strong>cache
+misses</strong> y tráfico de coherencia (por eso el SO prefiere
+afinidad).</li>
+</ul>
+<hr />
+<h2 id="deadlocks">10. Deadlocks</h2>
+<h3 id="definición">Definición</h3>
+<p>Un conjunto de procesos está en <strong>deadlock</strong> cuando cada
+uno está <strong>bloqueado</strong>, reteniendo recursos y
+<strong>esperando</strong> un recurso que está retenido por otro proceso
+del mismo conjunto. Ninguno avanza ni libera lo suyo. El caso mínimo es
+el “abrazo mortal”: A tiene lo que B pide y B tiene lo que A pide.</p>
+<h3 id="recursos">Recursos</h3>
+<ul>
+<li><strong>Físicos</strong> (CPU, memoria, dispositivos) /
+<strong>lógicos</strong> (archivos, registros, semáforos).</li>
+<li><strong>Apropiables / preemptibles:</strong> se pueden quitar sin
+daño (memoria, CPU).</li>
+<li><strong>No apropiables:</strong> si se quitan a mitad de uso, el
+proceso falla (una escritura a un CD o impresora a medias).</li>
+<li>Un recurso <code>Rj</code> puede tener varias
+<strong>instancias</strong> idénticas (clase de recurso).</li>
+</ul>
+<p>Secuencia de uso: <strong>Solicitar → Usar → Liberar</strong>. Si al
+solicitar no se concede, el proceso espera.</p>
+<h3 id="las-4-condiciones-de-coffman-1971">Las 4 condiciones de Coffman
+(1971) ⭐</h3>
+<p><strong>Deben darse las cuatro simultáneamente.</strong> Si falta una
+sola, no hay deadlock. Esta es la base de la prevención.</p>
+<ol type="1">
+<li><strong>Exclusión mutua:</strong> el recurso no es compartible; solo
+un proceso lo usa a la vez.</li>
+<li><strong>Retención y espera (hold and wait):</strong> el proceso
+mantiene recursos asignados mientras espera otros.</li>
+<li><strong>No apropiación (no preemption):</strong> no se pueden quitar
+los recursos a quien los posee.</li>
+<li><strong>Espera circular (circular wait):</strong> existe una lista
+circular de procesos donde cada uno espera un recurso del
+siguiente.</li>
+</ol>
+<div class="diagram">
+<svg viewBox="0 0 640 200" xmlns="http://www.w3.org/2000/svg" font-family="sans-serif" font-size="10">
+<text xml:space="preserve" x="320" y="16" text-anchor="middle" font-weight="700" fill="#0f172a">Las
+4 condiciones de Coffman — deben darse las 4 a la
+vez</text><rect x="10" y="35" width="150" height="120" fill="#fecaca" stroke="#991b1b" stroke-width="2"/><text xml:space="preserve" x="85" y="55" text-anchor="middle" font-weight="700" fill="#7f1d1d">1.
+Exclusión
+mutua</text><line x1="10" y1="62" x2="160" y2="62" stroke="#991b1b"/><text xml:space="preserve" x="85" y="85" text-anchor="middle" font-size="9" fill="#7f1d1d">Recurso
+no
+compartible</text><text xml:space="preserve" x="85" y="100" text-anchor="middle" font-size="9" fill="#7f1d1d">1
+proceso a la
+vez</text><text xml:space="preserve" x="85" y="125" text-anchor="middle" font-size="8" fill="#7c2d12" font-style="italic">“solo
+yo puedo
+tenerlo”</text><rect x="170" y="35" width="150" height="120" fill="#fed7aa" stroke="#c2410c" stroke-width="2"/><text xml:space="preserve" x="245" y="55" text-anchor="middle" font-weight="700" fill="#7c2d12">2.
+Retención y
+espera</text><line x1="170" y1="62" x2="320" y2="62" stroke="#c2410c"/><text xml:space="preserve" x="245" y="85" text-anchor="middle" font-size="9" fill="#7c2d12">Retiene
+lo que
+tiene</text><text xml:space="preserve" x="245" y="100" text-anchor="middle" font-size="9" fill="#7c2d12">y
+pide
+más</text><text xml:space="preserve" x="245" y="125" text-anchor="middle" font-size="8" fill="#7c2d12" font-style="italic">“tengo
+A, pido
+B”</text><rect x="330" y="35" width="150" height="120" fill="#fef3c7" stroke="#b45309" stroke-width="2"/><text xml:space="preserve" x="405" y="55" text-anchor="middle" font-weight="700" fill="#78350f">3.
+No
+apropiación</text><line x1="330" y1="62" x2="480" y2="62" stroke="#b45309"/><text xml:space="preserve" x="405" y="85" text-anchor="middle" font-size="9" fill="#78350f">Nadie
+le puede
+quitar</text><text xml:space="preserve" x="405" y="100" text-anchor="middle" font-size="9" fill="#78350f">el
+recurso</text><text xml:space="preserve" x="405" y="125" text-anchor="middle" font-size="8" fill="#7c2d12" font-style="italic">“solo
+yo lo
+libero”</text><rect x="490" y="35" width="140" height="120" fill="#e0e7ff" stroke="#3730a3" stroke-width="2"/><text xml:space="preserve" x="560" y="55" text-anchor="middle" font-weight="700" fill="#312e81">4.
+Espera
+circular</text><line x1="490" y1="62" x2="630" y2="62" stroke="#3730a3"/><text xml:space="preserve" x="560" y="85" text-anchor="middle" font-size="9" fill="#312e81">Ciclo
+P1→P2→…→P1</text><text xml:space="preserve" x="560" y="100" text-anchor="middle" font-size="9" fill="#312e81">esperándose
+entre
+sí</text><text xml:space="preserve" x="560" y="125" text-anchor="middle" font-size="8" fill="#312e81" font-style="italic">“todos
+se
+esperan”</text><text xml:space="preserve" x="320" y="185" text-anchor="middle" font-size="9" fill="#7c2d12" font-weight="700">Prevención
+= romper al menos UNA de estas condiciones.</text>
+</svg>
+<div class="caption">
+Fig. 10.2 — Las 4 condiciones de Coffman. Si falta una sola, no hay
+deadlock.
+</div>
+</div>
+<h3 id="grafo-de-asignación-de-recursos">Grafo de asignación de
+recursos</h3>
+<p>Se representan procesos como círculos (<code>Pi</code>), recursos
+como rectángulos (<code>Rj</code>), y con puntos internos las instancias
+del recurso. Las <strong>aristas dirigidas</strong>:</p>
+<ul>
+<li><code>Pi → Rj</code>: el proceso <strong>solicita</strong> una
+instancia.</li>
+<li><code>Rj → Pi</code>: el recurso está <strong>asignado</strong> al
+proceso.</li>
+</ul>
+<p>Interpretación:</p>
+<table>
+<colgroup>
+<col style="width: 50%" />
+<col style="width: 50%" />
+</colgroup>
+<thead>
+<tr>
+<th>Estado del grafo</th>
+<th>Resultado</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Sin ciclos</strong></td>
+<td>No hay deadlock (seguro)</td>
+</tr>
+<tr>
+<td><strong>Con ciclo + 1 instancia por recurso</strong></td>
+<td><strong>Sí hay</strong> deadlock (ciclo es condición necesaria
+<strong>y suficiente</strong>)</td>
+</tr>
+<tr>
+<td><strong>Con ciclo + varias instancias</strong></td>
+<td><strong>Posibilidad</strong> de deadlock (necesario, NO
+suficiente)</td>
+</tr>
+</tbody>
+</table>
+<div class="diagram">
+<svg viewBox="0 0 620 240" xmlns="http://www.w3.org/2000/svg" font-family="sans-serif" font-size="10">
+<defs><marker id="darr" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto"><path d="M 0 0 L 10 5 L 0 10 z" fill="#0f172a"/></marker></defs><text xml:space="preserve" x="310" y="16" text-anchor="middle" font-weight="700" fill="#0f172a">Grafo
+de asignación de recursos con ciclo →
+deadlock</text><circle cx="120" cy="90" r="24" fill="#f0abfc" stroke="#701a75" stroke-width="2"/><text xml:space="preserve" x="120" y="94" text-anchor="middle" font-weight="700" fill="#4a044e">P1</text><circle cx="380" cy="90" r="24" fill="#f0abfc" stroke="#701a75" stroke-width="2"/><text xml:space="preserve" x="380" y="94" text-anchor="middle" font-weight="700" fill="#4a044e">P2</text><rect x="230" y="30" width="50" height="50" fill="#fef3c7" stroke="#b45309" stroke-width="2"/><circle cx="255" cy="55" r="3" fill="#78350f"/><text xml:space="preserve" x="255" y="98" text-anchor="middle" font-size="10" font-weight="700" fill="#78350f">R1</text><rect x="230" y="140" width="50" height="50" fill="#fef3c7" stroke="#b45309" stroke-width="2"/><circle cx="255" cy="165" r="3" fill="#78350f"/><text xml:space="preserve" x="255" y="208" text-anchor="middle" font-size="10" font-weight="700" fill="#78350f">R2</text><line x1="230" y1="55" x2="144" y2="82" stroke="#166534" stroke-width="2" marker-end="url(#darr)"/><text xml:space="preserve" x="175" y="60" font-size="8" fill="#166534" font-weight="700">asignado</text><line x1="140" y1="105" x2="230" y2="160" stroke="#c2410c" stroke-width="2" marker-end="url(#darr)"/><text xml:space="preserve" x="150" y="145" font-size="8" fill="#c2410c" font-weight="700">solicita</text><line x1="280" y1="165" x2="360" y2="105" stroke="#166534" stroke-width="2" marker-end="url(#darr)"/><text xml:space="preserve" x="325" y="150" font-size="8" fill="#166534" font-weight="700">asignado</text><line x1="360" y1="82" x2="280" y2="55" stroke="#c2410c" stroke-width="2" marker-end="url(#darr)"/><text xml:space="preserve" x="320" y="55" font-size="8" fill="#c2410c" font-weight="700">solicita</text><rect x="440" y="35" width="160" height="80" fill="#fff7ed" stroke="#f97316"/><text xml:space="preserve" x="520" y="52" text-anchor="middle" font-size="9" font-weight="700" fill="#9a3412">DEADLOCK</text><text xml:space="preserve" x="450" y="70" font-size="8" fill="#7c2d12">P1
+tiene R1, pide
+R2</text><text xml:space="preserve" x="450" y="83" font-size="8" fill="#7c2d12">P2
+tiene R2, pide
+R1</text><text xml:space="preserve" x="450" y="98" font-size="8" fill="#7c2d12">Ciclo
++ 1 instancia
+c/u:</text><text xml:space="preserve" x="450" y="110" font-size="8" fill="#7c2d12" font-weight="700">→
+necesario Y
+suficiente</text><text xml:space="preserve" x="310" y="230" text-anchor="middle" font-size="8" fill="#475569" font-style="italic">Con
+varias instancias por recurso, el ciclo es solo condición necesaria
+(posibilidad).</text>
+</svg>
+<div class="caption">
+Fig. 10.1 — Grafo de asignación de recursos con abrazo mortal entre P1 y
+P2.
+</div>
+</div>
+<h3 id="estrategias-de-manejo">Estrategias de manejo</h3>
+<table>
+<colgroup>
+<col style="width: 33%" />
+<col style="width: 33%" />
+<col style="width: 33%" />
+</colgroup>
+<thead>
+<tr>
+<th>Estrategia</th>
+<th>Idea</th>
+<th>Cómo</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Prevención</strong></td>
+<td>Que <strong>nunca</strong> se cumpla una de las 4 condiciones</td>
+<td>Restringe la forma de solicitar recursos</td>
+</tr>
+<tr>
+<td><strong>Evitación (avoidance)</strong></td>
+<td>Asignar con cuidado según el estado del sistema</td>
+<td><strong>Algoritmo del Banquero</strong></td>
+</tr>
+<tr>
+<td><strong>Detección y recuperación</strong></td>
+<td>Permitir el deadlock y luego romperlo</td>
+<td>Grafo wait-for; abortar procesos / expropiar (selección de
+víctima)</td>
+</tr>
+<tr>
+<td><strong>Avestruz (ostrich)</strong></td>
+<td>Ignorar el problema</td>
+<td>Asumir que casi nunca ocurre (lo usan UNIX/Windows en la
+práctica)</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Prevención — cómo atacar cada condición:</strong></p>
+<ul>
+<li><strong>Exclusión mutua:</strong> hacer recursos compartibles /
+spooling (no siempre posible).</li>
+<li><strong>Retención y espera:</strong> reservar TODOS los recursos al
+inicio, o solo pedir cuando no se tiene nada. Riesgo: starvation, baja
+utilización.</li>
+<li><strong>No apropiación:</strong> virtualizar el recurso vía un
+demonio que encola las peticiones (spooler).</li>
+<li><strong>Espera circular:</strong> ordenar los recursos con una
+función <code>F: R → N</code>; solo se puede pedir <code>Rj</code> si el
+mayor <code>Ri</code> que se tiene cumple
+<code>F(Ri) &lt; F(Rj)</code>.</li>
+</ul>
+<h3 id="estado-seguro-vs-inseguro">Estado seguro vs inseguro ⭐</h3>
+<ul>
+<li><strong>Estado seguro:</strong> existe una <strong>cadena
+segura</strong> <code>&lt;P0, ..., Pn&gt;</code> con todos los procesos
+que pueden completar su ejecución con los recursos disponibles (en algún
+orden). Garantiza que <strong>no hay deadlock</strong>.</li>
+<li><strong>Estado inseguro:</strong> no se puede construir esa cadena.
+<strong>Posibilidad</strong> de deadlock, no implica deadlock
+seguro.</li>
+<li><strong>Si hay deadlock, el estado es inseguro</strong>; la
+recíproca <strong>no vale</strong>.</li>
+</ul>
+<h3 id="algoritmo-del-banquero-múltiples-instancias">Algoritmo del
+Banquero (múltiples instancias) ⭐</h3>
+<p>Cada proceso declara su <strong>máximo</strong> de instancias que
+puede necesitar. El SO solo asigna recursos si el estado resultante
+sigue siendo <strong>seguro</strong>.</p>
+<p>Estructuras:</p>
+<ul>
+<li><code>disponible</code> (vector <code>m</code>): instancias libres
+por recurso.</li>
+<li><code>asignacion</code> (matriz <code>n × m</code>): lo que cada
+<code>Pi</code> ya tiene.</li>
+<li><code>max</code> (matriz <code>n × m</code>): máximo que
+<code>Pi</code> necesitará.</li>
+<li><code>need = max − asignacion</code>: lo que le falta a cada
+proceso.</li>
+</ul>
+<p>El algoritmo busca una <strong>secuencia segura</strong>: intenta
+encontrar un <code>Pi</code> cuyo <code>need</code> sea ≤
+<code>disponible</code>; si lo encuentra, simula que <code>Pi</code>
+termina, libera sus recursos, y busca otro. Si al final logró que todos
+terminen, el estado es seguro.</p>
+<p>Para <strong>1 instancia por recurso</strong> no hace falta banquero:
+basta el grafo de asignación y verificar que no haya ciclos.</p>
+<h3 id="deadlock-vs-starvation">Deadlock vs Starvation</h3>
+<table>
+<colgroup>
+<col style="width: 50%" />
+<col style="width: 50%" />
+</colgroup>
+<thead>
+<tr>
+<th>Deadlock</th>
+<th>Starvation</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Conjunto de procesos <strong>bloqueados mutuamente</strong>, ninguno
+progresa</td>
+<td>Un proceso <strong>nunca obtiene</strong> el recurso (siempre
+pospuesto)</td>
+</tr>
+<tr>
+<td>Espera <strong>circular</strong> entre ellos</td>
+<td>No requiere ciclo; suele ser por planificación / prioridades</td>
+</tr>
+<tr>
+<td>Se rompe matando/expropiando</td>
+<td>Se evita con políticas justas (aging, FIFO)</td>
+</tr>
+</tbody>
+</table>
+<p>En la recuperación por selección de víctima, hay que evitar elegir
+siempre al mismo proceso para no generar starvation.</p>
+<div class="callout warning">
+<div class="callout-title">
+⚠ Trampas típicas del parcial
+</div>
+<ul>
+<li>Nombrar las <strong>4 condiciones de Coffman</strong> y saber que
+las 4 deben darse simultáneamente.</li>
+<li>Interpretar el grafo: ciclo + una instancia por recurso = deadlock
+(necesario y suficiente); ciclo + varias instancias = solo
+posibilidad.</li>
+<li>Diferencia entre las 4 estrategias, y cómo prevención ataca cada
+condición.</li>
+<li>Diferencia <strong>estado seguro vs inseguro</strong> (inseguro ≠
+deadlock; deadlock ⇒ inseguro).</li>
+<li>Algoritmo del Banquero: reconocer las estructuras y saber
+construir/justificar una secuencia segura.</li>
+<li><strong>Deadlock ≠ starvation:</strong> deadlock = bloqueo circular
+mutuo; starvation = postergación infinita, sin necesidad de ciclo.</li>
+</ul>
+</div>
+<hr />
+<h2 id="lo-que-más-cae-en-el-parcial">11. Lo que más cae en el
+parcial</h2>
+<p>Basado en el análisis de parciales 2022, 2023 (1ra y 2da fecha), 2025
+(1ra fecha) y 2026 (1ra fecha), estas son las preguntas y bloques
+temáticos que se repiten. Reservá los últimos días de estudio para
+revisar bien estos ítems.</p>
+<h3
+id="preguntas-conceptuales-que-aparecieron-literales-o-casi-literales">Preguntas
+conceptuales que aparecieron literales o casi literales</h3>
+<p><strong>Kernel y compilación:</strong></p>
+<ul>
+<li>“¿Qué es el kernel? ¿Cuáles son sus funciones principales?”
+(2023).</li>
+<li>“Explique la arquitectura del kernel Linux, tipo, modularidad y
+portabilidad” (2025).</li>
+<li>“¿Qué contiene el initramfs? ¿Bajo qué condiciones puede no ser
+necesario?” (2023 y 2025).</li>
+<li>“Motivos para compilar un kernel” (2023).</li>
+<li>“Al compilar con
+<code>make modules_install &amp;&amp; make install</code>, ¿en qué
+directorios se instalan el kernel y los módulos?” (2026).</li>
+<li>V/F: “El kernel de Linux es un SO en sentido estricto porque
+contiene todo lo necesario para gestionar hardware y procesos” (2026) →
+<strong>Falso</strong>.</li>
+<li>V/F: “En un microkernel los drivers y servidores de FS se ejecutan
+en modo kernel para mejorar el rendimiento” (2026) →
+<strong>Falso</strong>.</li>
+</ul>
+<p><strong>Módulos y drivers:</strong></p>
+<ul>
+<li>“¿Qué es un módulo y qué ventaja da compilar como módulo vs
+built-in?” (2023 y 2025).</li>
+<li>V/F: “Los drivers acceden a las funcionalidades del kernel a través
+de system calls” (2023) → <strong>Falso</strong> (acceso directo por API
+interna).</li>
+<li>“¿Para qué se usa <code>register_chrdev()</code>? ¿Se puede usar en
+espacio de usuario o de kernel?” (2023) → <strong>Solo en espacio de
+kernel</strong>.</li>
+<li>“¿Qué sucede cuando se carga un módulo con <code>insmod</code>?” —
+multiple choice, respuesta: el módulo se carga en espacio de kernel, se
+inicializa con <code>init_module</code> y puede registrar interfaces
+(2025).</li>
+</ul>
+<p><strong>/dev y device files:</strong></p>
+<ul>
+<li>“¿Qué tipos de archivos hay en <code>/dev</code> y qué representan?”
+(2023).</li>
+<li>Interpretación del output
+<code>brw-rw---- 1 root root 240, 0 weird</code>: multiple choice →
+<strong>dispositivo de bloques + major 240 identifica al
+driver</strong>; no son “240 bytes” ni “escribir con echo aumenta el
+tamaño” (2026).</li>
+</ul>
+<p><strong>System calls:</strong></p>
+<ul>
+<li>V/F múltiple: “libc es el componente del kernel donde se definen las
+syscalls” → <strong>Falso</strong>; “las syscalls son módulos
+administrables con insmod/rmmod” → <strong>Falso</strong>; “las syscalls
+se ejecutan en modo privilegiado e identificadas por un número” →
+<strong>Verdadero</strong>; “cada driver implementa una syscall” →
+<strong>Falso</strong> (2023).</li>
+<li>V/F: “libc implementa directamente las syscalls en modo kernel sin
+trap ni interrupción” (2026) → <strong>Falso</strong>.</li>
+<li>V/F: “La tabla de syscalls (<code>syscall_64.tbl</code>) permite que
+el dispatcher identifique qué función ejecutar según el número del
+registro” (2026) → <strong>Verdadero</strong>.</li>
+<li>“¿Qué es una syscall y cuál es su propósito principal? ¿Cómo se
+implementa una nueva?” (2025).</li>
+</ul>
+<p><strong>Threads:</strong></p>
+<ul>
+<li>“¿Quién planifica los ULT y los KLT? ¿Cómo afecta al multinúcleo?”
+(2025).</li>
+<li>“¿Qué características tendrá el proceso creado si se ejecuta
+<code>fork()</code> pero no <code>exec()</code>?” (2025).</li>
+<li>V/F: “Un hilo es la unidad básica de utilización de CPU en los SO
+modernos” (2026) → <strong>Verdadero</strong>.</li>
+<li>V/F: “Un ULT en M:1 puede aprovechar directamente múltiples
+procesadores físicos sin ningún mecanismo adicional” (2026) →
+<strong>Falso</strong>.</li>
+<li>V/F: “Si un proceso crea N ULTs entonces con <code>strace</code>
+podemos observar que invoca N veces <code>clone3</code>” (2026) →
+<strong>Falso</strong> (los ULT no llegan al kernel).</li>
+</ul>
+<p><strong>Virtualización:</strong></p>
+<ul>
+<li>“Diferencia entre Hypervisors tipo 1 y tipo 2” (2025).</li>
+<li>V/F: “El SO guest tiene acceso directo y completo al HW real sin
+intermediación” (2026) → <strong>Falso</strong>.</li>
+<li>V/F: “En hypervisor tipo 2 el SO host se ejecuta directamente sobre
+el HW físico y gestiona los drivers reales” (2026) →
+<strong>Verdadero</strong>.</li>
+</ul>
+<p><strong>cgroups y namespaces:</strong></p>
+<ul>
+<li>“¿Qué mecanismo del kernel Linux permite limitar el uso de CPU de un
+proceso a un 80%?” (2023) → <strong>cgroups</strong>.</li>
+<li>“Describa brevemente las funcionalidades de CGroups y Namespaces”
+(2025).</li>
+<li>“¿Por qué <code>mi_proceso</code> tiene distinto PID visto desde el
+contenedor y desde el host?” (2023) → <strong>PID
+namespace</strong>.</li>
+</ul>
+<p><strong>Docker:</strong></p>
+<ul>
+<li>“¿Qué es una imagen? ¿Y un contenedor? ¿Cómo se relacionan?” (2023,
+2025, 2026).</li>
+<li>“¿Qué características del kernel usa Docker para proveer
+containers?” (2023).</li>
+<li>“¿Qué es un Union Filesystem? ¿Cómo lo usa Docker?” (2023 y
+2025).</li>
+<li>“¿Qué es el archivo compose y en qué se diferencia de un
+Dockerfile?” (2023).</li>
+<li>“Dos formas de persistir datos en Docker (volumes vs bind mounts)”
+(2023).</li>
+<li>V/F: “Docker usa una arquitectura cliente-servidor donde
+<code>dockerd</code> es el servidor responsable de crear, ejecutar y
+monitorear los contenedores” (2026) → <strong>Verdadero</strong>.</li>
+<li>V/F: “Al remover un archivo dentro de un Dockerfile con
+<code>RUN rm</code>, el archivo se elimina definitivamente de la imagen
+reduciendo su tamaño total” (2026) → <strong>Falso</strong>.</li>
+</ul>
+<p><strong>File Systems / RAID / LVM:</strong></p>
+<ul>
+<li>“Defina inodo, bloque y extent” (2023).</li>
+<li>“¿Qué es un link simbólico? ¿En qué se diferencia de un hard-link?
+¿Cuál/es consumen un i-nodo?” (2023 2da fecha).</li>
+<li>“Describa cómo BTRFS usa CoW” (2023 2da fecha).</li>
+<li>“Describa RAID 5 y responda cuántos discos pueden fallar sin
+pérdida” (2023 2da fecha).</li>
+<li>V/F: “RAID 1 provee striping y paridad distribuida” (2023) →
+<strong>Falso</strong>.</li>
+</ul>
+<p><strong>Seguridad:</strong></p>
+<ul>
+<li>“¿Qué es ASLR? ¿Linux lo provee para procesos de usuario? ¿Y para el
+kernel?” (2025 y 2026) → <strong>Sí para ambos, KASLR aparte</strong>.
+Puede activarse/desactivarse sin recompilar (con
+<code>/proc/sys/kernel/randomize_va_space</code>).</li>
+<li>V/F: “Un sistema con muchas features tiende a ser más seguro porque
+ofrece más herramientas de defensa” (2026) → <strong>Falso</strong> (más
+superficie de ataque).</li>
+<li>V/F: “Un dominio de protección es un conjunto de pares (objeto,
+derecho)” (2026) → <strong>Verdadero</strong>.</li>
+</ul>
+<p><strong>Multiprocesadores y distribuidos:</strong></p>
+<ul>
+<li>V/F: “En gang scheduling todos los hilos de un proceso se programan
+simultáneamente en distintas CPUs durante el mismo intervalo” (2026) →
+<strong>Verdadero</strong>.</li>
+<li>V/F: “En un sistema distribuido todos los nodos deben ejecutar el
+mismo SO y disponer del mismo hardware para garantizar la
+interoperabilidad” (2026) → <strong>Falso</strong>.</li>
+</ul>
+<h3 id="bloques-de-contenido-que-casi-siempre-están">Bloques de
+contenido que casi siempre están</h3>
+<ol type="1">
+<li><strong>Definición de kernel + funciones + tipo (monolítico híbrido)
++ portabilidad.</strong> Aparece en 2 de las 3 primeras fechas
+relevadas.</li>
+<li><strong>Módulos vs built-in + qué hace
+<code>insmod</code>.</strong></li>
+<li><strong>Contenido y utilidad del initramfs.</strong></li>
+<li><strong>Naturaleza de las syscalls y de libc.</strong> Suele venir
+como multiple choice.</li>
+<li><strong>ULT vs KLT + fork sin exec.</strong></li>
+<li><strong>Imagen vs contenedor + qué usa Docker del kernel + Union
+FS.</strong></li>
+<li><strong>cgroups (limitar CPU) + namespaces (doble
+PID).</strong></li>
+<li><strong>ASLR (para usuario y para kernel).</strong></li>
+<li><strong>File system básico (inodo/bloque/extent) + links + BTRFS +
+RAID 5.</strong></li>
+<li><strong>Gang scheduling y sistemas distribuidos (interoperabilidad
+heterogénea).</strong></li>
+</ol>
+<h3 id="formato-del-parcial">Formato del parcial</h3>
+<p>Las preguntas son de tres tipos:</p>
+<ul>
+<li><strong>Conceptuales cortas</strong> (“explique X en sus
+palabras”).</li>
+<li><strong>Verdadero/falso con justificación breve</strong> — pesan
+mucho; hay que justificar aunque parezca obvio.</li>
+<li><strong>Multiple choice</strong> con opciones plausibles (“A y C”,
+“todas”, “ninguna”). Estudiá bien las opciones cercanas: el error típico
+es marcar la que parece “más verdadera” sin descartar las
+incorrectas.</li>
+</ul>
+<div class="callout success">
+<div class="callout-title">
+🎯 Estrategia de últimos días
+</div>
+<ol type="1">
+<li><strong>Día 1-2 (mientras leés esto en el iPad):</strong> lectura
+corrida del resumen, tema por tema. No pares a memorizar todavía, dejá
+que el mapa mental se arme.</li>
+<li><strong>Día 3-4:</strong> re-lectura activa; para cada bloque, cerrá
+los ojos y trata de reproducir sus 5-10 puntos clave. Volvé a los
+“trampas típicas” al final de cada capítulo — son las que más caen.</li>
+<li><strong>Día 5-6:</strong> hacé de memoria los parciales viejos (2023
+primera y segunda, 2025 primera, 2026). Anotá dónde te trabás y volvé al
+capítulo correspondiente. El 2026 tiene muchos V/F concentrados; ideal
+para simulacro rápido.</li>
+<li><strong>Día 7-9:</strong> repaso de “trampas típicas” y cheatsheet
+(<code>Infogramas_Parcial/00_INDICE_y_cheatsheet.md</code>). Enfocá en
+RAID/LVM y en las respuestas V/F contraintuitivas (paravirtualización
+modifica el guest; setuid usa privilegios del dueño no del que ejecuta;
+snapshots LVM no copian nada al crearse; etc.).</li>
+<li><strong>Día 10 (víspera):</strong> revisá solo esta sección 11 y las
+tablas comparativas. Descansá y llegá fresco.</li>
+</ol>
+</div>
+<div class="end-marker">
+exit 0
+</div>
+</body>
+</html>

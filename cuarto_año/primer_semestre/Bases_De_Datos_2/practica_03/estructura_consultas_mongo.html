@@ -1,0 +1,344 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MongoDB — anatomía de las consultas</title>
+<style>
+  :root{
+    --bg:#0d1117; --card:#161b26; --card2:#1c2230;
+    --coll:#38bdf8; --method:#34d399; --filter:#f59e0b; --proj:#a78bfa; --op:#f472b6; --val:#8b949e;
+    --text:#e6edf3; --muted:#8b949e; --line:#30363d;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;background:radial-gradient(1200px 600px at 50% -10%,#1c2230 0%,var(--bg) 60%);color:var(--text);line-height:1.5;padding:32px 16px 70px;}
+  .wrap{max-width:1080px;margin:0 auto;}
+  header{text-align:center;margin-bottom:16px;}
+  header h1{font-size:1.75rem;font-weight:800;letter-spacing:-.5px;}
+  .grad{background:linear-gradient(90deg,var(--coll),var(--op));-webkit-background-clip:text;background-clip:text;color:transparent;}
+  header p{color:var(--muted);margin-top:6px;font-size:.95rem;}
+  h2.sec{font-size:1.1rem;margin:34px 0 12px;color:var(--text);border-left:4px solid var(--coll);padding-left:11px;}
+  code,pre{font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace;}
+  pre{font-size:.75rem;white-space:pre;overflow-x:auto;line-height:1.45;}
+
+  /* anatomy: chips with labels */
+  .anatomy{display:flex;flex-wrap:wrap;align-items:flex-start;gap:6px;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px 18px;box-shadow:0 6px 20px rgba(0,0,0,.25);}
+  .part{display:flex;flex-direction:column;align-items:center;gap:6px;}
+  .part .tok{font-family:ui-monospace,monospace;font-size:.85rem;padding:6px 9px;border-radius:7px;white-space:nowrap;border:1px solid transparent;}
+  .part .lbl{font-size:.64rem;text-align:center;max-width:150px;color:var(--muted);line-height:1.25;}
+  .p-coll .tok{background:rgba(56,189,248,.13);color:var(--coll);border-color:rgba(56,189,248,.35);}
+  .p-method .tok{background:rgba(52,211,153,.13);color:var(--method);border-color:rgba(52,211,153,.35);}
+  .p-filter .tok{background:rgba(245,158,11,.13);color:var(--filter);border-color:rgba(245,158,11,.35);}
+  .p-proj .tok{background:rgba(167,139,250,.13);color:var(--proj);border-color:rgba(167,139,250,.35);}
+  .p-op .tok{background:rgba(244,114,182,.13);color:var(--op);border-color:rgba(244,114,182,.35);}
+  .p-sep .tok{color:var(--muted);background:transparent;}
+  .p-coll .lbl{color:var(--coll);} .p-method .lbl{color:var(--method);} .p-filter .lbl{color:var(--filter);} .p-proj .lbl{color:var(--proj);} .p-op .lbl{color:var(--op);}
+
+  .cap{font-size:.8rem;color:var(--muted);margin:8px 2px 4px;}
+
+  /* building blocks */
+  .blocks{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+  .block{background:var(--card);border:1px solid var(--line);border-left-width:3px;border-radius:10px;padding:12px 14px;}
+  .block.b1{border-left-color:var(--filter);} .block.b2{border-left-color:var(--op);} .block.b3{border-left-color:var(--method);} .block.b4{border-left-color:var(--proj);}
+  .block h3{font-size:.85rem;margin-bottom:6px;}
+  .block pre{background:rgba(0,0,0,.28);border-radius:6px;padding:8px 10px;}
+  .block p{font-size:.73rem;color:var(--muted);margin-top:6px;}
+  .k{color:#c4a8ff;} .s{color:#34d399;} .c{color:var(--muted);} .o{color:var(--filter);} .n{color:var(--op);} .num{color:var(--coll);}
+
+  /* pipeline flow */
+  .flow{display:flex;align-items:stretch;gap:0;overflow-x:auto;padding:6px 0;}
+  .fnode{flex:0 0 auto;min-width:120px;border:1px solid var(--line);border-radius:10px;padding:11px 13px;background:var(--card);text-align:center;}
+  .fnode .st{font-family:ui-monospace,monospace;font-size:.8rem;font-weight:700;color:var(--op);}
+  .fnode .d{font-size:.68rem;color:var(--muted);margin-top:3px;}
+  .fnode.docs{border-color:var(--coll);} .fnode.docs .st{color:var(--coll);}
+  .fnode.result{border-color:var(--method);} .fnode.result .st{color:var(--method);}
+  .farrow{flex:0 0 auto;display:flex;align-items:center;padding:0 8px;color:var(--line);font-size:1.3rem;}
+  .fcount{font-size:.6rem;color:var(--muted);display:block;text-align:center;margin-top:4px;}
+
+  /* stage anatomy */
+  .comp{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+  .panel{background:var(--card);border:1px solid var(--line);border-radius:11px;padding:13px 15px;}
+  .panel h3{font-size:.88rem;margin-bottom:8px;}
+  .panel pre{background:rgba(0,0,0,.28);border-radius:7px;padding:9px 11px;}
+  .panel p{font-size:.74rem;color:var(--muted);margin-top:6px;}
+
+  table.t{width:100%;border-collapse:collapse;font-size:.78rem;margin-top:6px;}
+  table.t th{background:rgba(56,189,248,.1);color:var(--coll);padding:8px;border:1px solid var(--line);text-align:left;}
+  table.t td{padding:8px;border:1px solid var(--line);}
+  table.t td code{color:var(--filter);font-size:.74rem;}
+
+  /* error cards */
+  .errors{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+  .errcard{background:var(--card);border:1px solid var(--line);border-left-width:3px;border-left-color:#f87171;border-radius:10px;padding:12px 14px;}
+  .errcard .bad,.errcard .good{font-size:.73rem;margin-bottom:4px;}
+  .errcard code{font-family:ui-monospace,monospace;font-size:.71rem;background:rgba(0,0,0,.28);padding:2px 6px;border-radius:4px;}
+  .errcard .bad code{color:#f87171;} .errcard .good code{color:#34d399;}
+  .tagx{font-size:.58rem;font-weight:800;color:#f87171;margin-right:4px;letter-spacing:.5px;}
+  .tagok{font-size:.58rem;font-weight:800;color:#34d399;margin-right:4px;letter-spacing:.5px;}
+  .errcard p{font-size:.71rem;color:var(--muted);margin-top:6px;}
+
+  .note{max-width:900px;margin:26px auto 0;font-size:.85rem;color:var(--text);background:rgba(56,189,248,.07);border:1px dashed rgba(56,189,248,.45);border-radius:12px;padding:15px 19px;}
+  .note b{color:var(--coll);}
+  @media(max-width:760px){.blocks,.comp,.errors{grid-template-columns:1fr;}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>MongoDB — <span class="grad">anatomía de las consultas</span></h1>
+    <p>Cómo se arma cada parte de un <code>find</code>, un <code>update</code> y un pipeline de <code>aggregate</code></p>
+  </header>
+
+  <!-- 1: FIND -->
+  <h2 class="sec">1 · Anatomía de un <code>find()</code></h2>
+  <div class="cap">La forma general: <code>db.&lt;colección&gt;.find( &lt;filtro&gt; , &lt;proyección&gt; )</code></div>
+  <div class="anatomy">
+    <div class="part p-coll"><span class="tok">db.recorridos</span><span class="lbl">colección<br>(sobre qué)</span></div>
+    <div class="part p-method"><span class="tok">.find(</span><span class="lbl">método</span></div>
+    <div class="part p-filter"><span class="tok">{ precio: { $gt: 100 } }</span><span class="lbl">filtro — "qué documentos" (el WHERE)</span></div>
+    <div class="part p-sep"><span class="tok">,</span><span class="lbl">&nbsp;</span></div>
+    <div class="part p-proj"><span class="tok">{ nombre: 1, _id: 0 }</span><span class="lbl">proyección — "qué campos traer" (el SELECT)</span></div>
+    <div class="part p-method"><span class="tok">)</span><span class="lbl">&nbsp;</span></div>
+  </div>
+  <div class="cap">▸ El <b style="color:var(--filter)">filtro</b> elige <b>qué filas</b>; la <b style="color:var(--proj)">proyección</b> elige <b>qué columnas</b> (<code>1</code> = incluir, <code>0</code> = excluir). Los dos argumentos son <b>opcionales</b>: <code>find()</code> trae todo.</div>
+
+  <!-- 2: FILTRO -->
+  <h2 class="sec">2 · El filtro: bloques de construcción</h2>
+  <div class="cap">Un filtro es un objeto <code>{ }</code>. Se arma combinando estos 4 patrones:</div>
+  <div class="blocks">
+    <div class="block b1"><h3>① Igualdad simple</h3>
+<pre>{ <span class="n">precio</span>: <span class="num">200</span> }</pre>
+      <p>campo = valor. "precio igual a 200".</p></div>
+    <div class="block b2"><h3>② Con operador</h3>
+<pre>{ <span class="n">precio</span>: { <span class="o">$gt</span>: <span class="num">100</span> } }</pre>
+      <p>campo cumple una condición. Los operadores empiezan con <code>$</code> (<code>$gt</code>, <code>$in</code>, <code>$exists</code>…).</p></div>
+    <div class="block b3"><h3>③ Varias condiciones (AND implícito)</h3>
+<pre>{ <span class="n">precio</span>: { <span class="o">$gte</span>: <span class="num">50</span> },
+  <span class="n">totalKm</span>: { <span class="o">$gt</span>: <span class="num">10</span> } }</pre>
+      <p>Varios campos en el mismo objeto = <b>todos deben cumplirse</b> (AND).</p></div>
+    <div class="block b4"><h3>④ OR explícito</h3>
+<pre>{ <span class="o">$or</span>: [
+    { <span class="n">precio</span>: { <span class="o">$gt</span>: <span class="num">100</span> } },
+    { <span class="n">totalKm</span>: { <span class="o">$gt</span>: <span class="num">10</span> } }
+] }</pre>
+      <p><code>$or</code>/<code>$and</code> reciben un <b>array</b> de sub-filtros.</p></div>
+  </div>
+
+  <!-- 3: OPERADORES -->
+  <h2 class="sec">3 · Operadores más usados</h2>
+  <div class="cap">Van <b>dentro</b> del filtro: <code>{ campo: { $op: valor } }</code> (salvo los lógicos, que agrupan sub-filtros).</div>
+  <div class="blocks">
+    <div class="block b1"><h3>⚖️ Comparación</h3>
+<pre><span class="o">$eq</span>  igual        <span class="o">$ne</span>  distinto
+<span class="o">$gt</span>  mayor        <span class="o">$gte</span> mayor/igual
+<span class="o">$lt</span>  menor        <span class="o">$lte</span> menor/igual
+<span class="o">$in</span>  en lista     <span class="o">$nin</span> no en lista</pre></div>
+    <div class="block b2"><h3>🔗 Lógicos</h3>
+<pre><span class="o">$and</span>  todas se cumplen   <span class="c">→ [array]</span>
+<span class="o">$or</span>   al menos una       <span class="c">→ [array]</span>
+<span class="o">$nor</span>  ninguna se cumple  <span class="c">→ [array]</span>
+<span class="o">$not</span>  niega UN operador  <span class="c">→ { $op }</span></pre>
+      <p><code>$and/$or/$nor</code> reciben un <b>array</b>. <code>$not</code> envuelve <b>un operador</b>, no un array.</p></div>
+    <div class="block b3"><h3>🔎 Elemento</h3>
+<pre><span class="o">$exists</span>  el campo existe (true/false)
+<span class="o">$type</span>    el tipo del campo</pre></div>
+    <div class="block b4"><h3>📦 Array</h3>
+<pre><span class="o">$all</span>   contiene TODOS los dados
+<span class="o">$size</span>  cantidad exacta de elementos
+<span class="o">$elemMatch</span>  un elemento cumple varias</pre></div>
+  </div>
+
+  <!-- 4: ARRAYS -->
+  <h2 class="sec">4 · Consultas sobre arrays (ej. <code>stops</code>)</h2>
+  <div class="cap">El caso más confuso. Sobre un campo array como <code>stops: ["Recoleta", "Congreso"]</code>:</div>
+  <div class="blocks">
+    <div class="block b3"><h3>✅ Contiene un valor</h3>
+<pre>{ <span class="n">stops</span>: <span class="s">"Recoleta"</span> }</pre>
+      <p>matchea si el array <b>incluye</b> "Recoleta". <b>Sin operador.</b></p></div>
+    <div class="block b1"><h3>🚫 NO contiene un valor</h3>
+<pre>{ <span class="n">stops</span>: { <span class="o">$ne</span>: <span class="s">"Plaza Italia"</span> } }</pre>
+      <p>el array <b>no</b> incluye ese valor. Se usa <code>$ne</code>, <b>no</b> <code>$not</code>.</p></div>
+    <div class="block b2"><h3>Contiene TODOS</h3>
+<pre>{ <span class="n">stops</span>: { <span class="o">$all</span>: [<span class="s">"Recoleta"</span>, <span class="s">"Congreso"</span>] } }</pre>
+      <p>incluye Recoleta <b>y</b> Congreso (en cualquier orden).</p></div>
+    <div class="block b1"><h3>No contiene NINGUNO</h3>
+<pre>{ <span class="n">stops</span>: { <span class="o">$nin</span>: [<span class="s">"A"</span>, <span class="s">"B"</span>] } }</pre>
+      <p>no incluye ni A ni B.</p></div>
+    <div class="block b4"><h3>Cantidad exacta</h3>
+<pre>{ <span class="n">stops</span>: { <span class="o">$size</span>: <span class="num">3</span> } }</pre>
+      <p>exactamente 3 stops.</p></div>
+    <div class="block b4"><h3>"Más de N" (truco)</h3>
+<pre>{ <span class="s">"stops.5"</span>: { <span class="o">$exists</span>: <span class="k">true</span> } }</pre>
+      <p><code>$size</code> no acepta <code>$gt</code>; se pregunta si existe la <b>posición 5</b> (0-based) → tiene más de 5.</p></div>
+  </div>
+  <div class="cap">💡 Combinar "contiene X y NO contiene Y" en el mismo campo: <code>{ stops: { $all: ["Recoleta"], $nin: ["Plaza Italia"] } }</code>. <b>No repitas la clave <code>stops</code></b> (la segunda pisa a la primera) — si no, usá <code>$and</code>.</div>
+
+  <!-- 5: STRINGS -->
+  <h2 class="sec">5 · Comparar strings y regex</h2>
+  <div class="cap">Por defecto los strings se comparan por <b>igualdad exacta</b> y <b>distinguen mayúsculas</b>. Para coincidencias parciales o por patrón se usa <code>$regex</code> (o la forma corta <code>/patrón/</code>).</div>
+  <div class="blocks">
+    <div class="block b3"><h3>Igualdad exacta</h3>
+<pre>{ <span class="n">nombre</span>: <span class="s">"City Tour"</span> }</pre>
+      <p>exacto y case-sensitive. <code>"city tour"</code> <b>no</b> matchea.</p></div>
+    <div class="block b2"><h3>Contiene (substring)</h3>
+<pre>{ <span class="n">nombre</span>: { <span class="o">$regex</span>: <span class="s">"Tour"</span> } }
+{ <span class="n">nombre</span>: <span class="s">/Tour/</span> }        <span class="c">// forma corta</span></pre>
+      <p>incluye "Tour" en cualquier posición.</p></div>
+    <div class="block b1"><h3>Empieza / termina con</h3>
+<pre>{ nombre: <span class="s">/^City/</span> }   <span class="c">// empieza con "City"</span>
+{ nombre: <span class="s">/Tour$/</span> }   <span class="c">// termina con "Tour"</span></pre>
+      <p><code>^</code> = inicio, <code>$</code> = fin (sintaxis regex).</p></div>
+    <div class="block b4"><h3>Sin distinguir mayúsculas</h3>
+<pre>{ nombre: { <span class="o">$regex</span>: <span class="s">"tour"</span>, <span class="o">$options</span>: <span class="s">"i"</span> } }
+{ nombre: <span class="s">/tour/i</span> }   <span class="c">// forma corta</span></pre>
+      <p>La opción <code>i</code> = ignore case → matchea "Tour", "TOUR", "tour".</p></div>
+  </div>
+  <div class="cap">⚙️ <b>Modificadores de cursor</b> (se encadenan al find): <code>.sort({ precio: -1 })</code> (<code>1</code> asc, <code>-1</code> desc) · <code>.limit(n)</code> · <code>.skip(n)</code> · <code>.count()</code>. Ej: <code>db.recorridos.find().sort({ precio: -1 }).limit(3)</code>.</div>
+
+  <!-- 6: $EXPR -->
+  <h2 class="sec">6 · <code>$expr</code> — expresiones dentro del filtro</h2>
+  <div class="cap">Permite usar <b>expresiones de aggregation</b> dentro de un <code>find</code>/<code>$match</code>. Sirve para lo que el filtro normal <b>no</b> puede: comparar <b>dos campos</b> del mismo documento, o filtrar por un <b>valor calculado</b>.</div>
+  <div class="comp">
+    <div class="panel"><h3>Comparar dos campos</h3>
+<pre>{ <span class="o">$expr</span>: { <span class="o">$gt</span>: [<span class="s">"$precioVenta"</span>, <span class="s">"$precioCosto"</span>] } }</pre>
+      <p>venta mayor a costo. Imposible con el filtro normal (que compara campo vs constante, no campo vs campo).</p></div>
+    <div class="panel"><h3>Filtrar por valor calculado</h3>
+<pre>{ <span class="o">$expr</span>: { <span class="o">$gt</span>: [ { <span class="o">$size</span>: <span class="s">"$stops"</span> }, <span class="num">5</span> ] } }</pre>
+      <p>"más de 5 stops": <code>$size</code> se usa como valor. El filtro normal no deja combinar <code>$size</code> con <code>$gt</code>.</p></div>
+  </div>
+  <div class="cap">⚠️ Sintaxis: dentro de <code>$expr</code> se usa la <b>forma aggregation</b> — operador primero y operandos en <b>array</b>: <code>{ $gt: [a, b] }</code>, y los campos con <code>"$campo"</code>. Suele <b>no usar índices</b>, así que reservalo para estos casos.</div>
+
+  <!-- 7: UPDATE -->
+  <h2 class="sec">7 · Anatomía de un <code>update</code></h2>
+  <div class="cap">Siempre <b>dos partes</b>: a quién cambiar (filtro) + qué cambiar (operador). <code>db.&lt;coll&gt;.updateOne( &lt;filtro&gt; , &lt;cambio&gt; )</code></div>
+  <div class="anatomy">
+    <div class="part p-coll"><span class="tok">db.recorridos</span><span class="lbl">colección</span></div>
+    <div class="part p-method"><span class="tok">.updateOne(</span><span class="lbl">método</span></div>
+    <div class="part p-filter"><span class="tok">{ nombre: "City Tour" }</span><span class="lbl">filtro — a qué documento(s)</span></div>
+    <div class="part p-sep"><span class="tok">,</span><span class="lbl">&nbsp;</span></div>
+    <div class="part p-op"><span class="tok">{ $set: { precio: 300 } }</span><span class="lbl">cambio — SIEMPRE con operador ($set, $inc, $push…)</span></div>
+    <div class="part p-method"><span class="tok">)</span><span class="lbl">&nbsp;</span></div>
+  </div>
+  <div class="cap">⚠️ El segundo argumento <b>debe</b> llevar un operador de update. <code>{ precio: 300 }</code> a secas <b>reemplazaría el documento entero</b>; con <code>{ $set: {...} }</code> solo cambiás ese campo.</div>
+
+  <!-- 8: PIPELINE -->
+  <h2 class="sec">8 · El pipeline de <code>aggregate()</code>: flujo de datos</h2>
+  <div class="cap">Un <b>array ordenado de etapas</b>. El resultado de cada etapa es la <b>entrada</b> de la siguiente (como una cinta transportadora). <code>db.&lt;coll&gt;.aggregate([ e1, e2, e3 ])</code></div>
+  <div class="flow">
+    <div class="fnode docs"><div class="st">documentos</div><div class="d">toda la colección</div><span class="fcount">1000 docs</span></div>
+    <div class="farrow">▶</div>
+    <div class="fnode"><div class="st">$match</div><div class="d">filtra</div><span class="fcount">→ 120</span></div>
+    <div class="farrow">▶</div>
+    <div class="fnode"><div class="st">$group</div><div class="d">agrupa + acumula</div><span class="fcount">→ 8</span></div>
+    <div class="farrow">▶</div>
+    <div class="fnode"><div class="st">$sort</div><div class="d">ordena</div><span class="fcount">→ 8</span></div>
+    <div class="farrow">▶</div>
+    <div class="fnode"><div class="st">$limit</div><div class="d">recorta</div><span class="fcount">→ 3</span></div>
+    <div class="farrow">▶</div>
+    <div class="fnode result"><div class="st">resultado</div><div class="d">documentos finales</div><span class="fcount">3 docs</span></div>
+  </div>
+  <div class="cap">▸ Cada etapa <b>transforma</b> el conjunto: <code>$match</code> reduce, <code>$group</code> resume, <code>$project</code> reforma, <code>$sort/$limit</code> ordenan y recortan. El <b>orden importa</b> (filtrar antes de agrupar es más eficiente).</div>
+
+  <!-- 9: ETAPA -->
+  <h2 class="sec">9 · Anatomía de una etapa</h2>
+  <div class="cap">Cada etapa es un objeto con <b>un</b> operador de etapa (empieza con <code>$</code>) y su especificación.</div>
+  <div class="anatomy" style="margin-bottom:14px;">
+    <div class="part p-op"><span class="tok">{ $group:</span><span class="lbl">operador de etapa (qué hace)</span></div>
+    <div class="part p-filter"><span class="tok">{ _id: "$tipo",</span><span class="lbl">clave de agrupamiento (por qué campo)</span></div>
+    <div class="part p-proj"><span class="tok">total: { $sum: 1 } } }</span><span class="lbl">acumuladores (qué calcular por grupo)</span></div>
+  </div>
+  <div class="comp">
+    <div class="panel"><h3>🔑 Referencias a campos: el prefijo <code>$</code></h3>
+<pre>_id: <span class="s">"$tipo"</span>      <span class="c">// "$tipo" = el VALOR del campo tipo</span>
+_id: <span class="s">"tipo"</span>       <span class="c">// "tipo"  = el texto literal "tipo"</span></pre>
+      <p>Dentro de aggregation, <code>"$campo"</code> significa "el valor de ese campo". Sin <code>$</code> es un literal.</p></div>
+    <div class="panel"><h3>➕ Acumuladores de <code>$group</code></h3>
+<pre><span class="n">$sum</span>  { $sum: 1 }         <span class="c">// contar</span>
+<span class="n">$sum</span>  { $sum: "$precio" } <span class="c">// sumar</span>
+<span class="n">$avg</span>  { $avg: "$precio" } <span class="c">// promedio</span>
+<span class="n">$max</span> / <span class="n">$min</span> / <span class="n">$push</span></pre>
+      <p>Se aplican <b>por cada grupo</b> que define <code>_id</code>.</p></div>
+  </div>
+
+  <!-- 10: ETAPAS -->
+  <h2 class="sec">10 · Etapas del pipeline — referencia rápida</h2>
+  <table class="t">
+    <tr><th>Etapa</th><th>Qué hace</th><th>Mini-ejemplo</th></tr>
+    <tr><td><code>$match</code></td><td>Filtra documentos (= el filtro de <code>find</code>)</td><td><code>{ $match: { precio: { $lt: 15000 } } }</code></td></tr>
+    <tr><td><code>$group</code></td><td>Agrupa por <code>_id</code> y acumula</td><td><code>{ $group: { _id: "$tipo", n: { $sum: 1 } } }</code></td></tr>
+    <tr><td><code>$sort</code></td><td>Ordena (<code>1</code> asc, <code>-1</code> desc)</td><td><code>{ $sort: { precio: -1 } }</code></td></tr>
+    <tr><td><code>$limit</code> / <code>$skip</code></td><td>Recorta / saltea N</td><td><code>{ $limit: 3 }</code></td></tr>
+    <tr><td><code>$project</code></td><td>Elige / renombra / reforma campos</td><td><code>{ $project: { nombre: 1, _id: 0 } }</code></td></tr>
+    <tr><td><code>$addFields</code> / <code>$set</code></td><td>Agrega un campo calculado <b>sin borrar</b> el resto</td><td><code>{ $addFields: { cantStops: { $size: "$stops" } } }</code></td></tr>
+    <tr><td><code>$unwind</code></td><td>Desarma un array → <b>1 doc por elemento</b></td><td><code>{ $unwind: "$stops" }</code></td></tr>
+    <tr><td><code>$lookup</code></td><td>"JOIN" con otra colección (ver abajo)</td><td><code>{ $lookup: { from, localField, foreignField, as } }</code></td></tr>
+    <tr><td><code>$out</code> / <code>$merge</code></td><td>Escribe el resultado en una colección (etapa <b>final</b>)</td><td><code>{ $out: "rutas_economicas" }</code></td></tr>
+    <tr><td><code>$count</code></td><td>Cuenta los documentos y devuelve el número</td><td><code>{ $count: "total" }</code></td></tr>
+    <tr><td><code>$sample</code></td><td>Muestra aleatoria de N documentos</td><td><code>{ $sample: { size: 5 } }</code></td></tr>
+  </table>
+
+  <div class="cap" style="margin-top:16px;">Anatomía de <code>$lookup</code> (el "JOIN"): liga cada documento con otra colección por un campo.</div>
+  <div class="anatomy">
+    <div class="part p-op"><span class="tok">{ $lookup: {</span><span class="lbl">etapa JOIN</span></div>
+    <div class="part p-coll"><span class="tok">from: "stops",</span><span class="lbl">de QUÉ colección traer</span></div>
+    <div class="part p-filter"><span class="tok">localField: "codigoStop",</span><span class="lbl">campo de ESTE documento para ligar</span></div>
+    <div class="part p-proj"><span class="tok">foreignField: "code",</span><span class="lbl">campo de la OTRA colección con el que matchea</span></div>
+    <div class="part p-method"><span class="tok">as: "stopsInfo" } }</span><span class="lbl">campo nuevo (array) con lo encontrado</span></div>
+  </div>
+  <div class="cap">▸ <code>localField</code> puede ser un <b>array</b> (matchea cada elemento, tipo "in"). El resultado (<code>as</code>) es <b>siempre un array</b>, aunque matchee uno solo. Si algún nombre está mal escrito → array vacío, <b>sin error</b>.</div>
+
+  <!-- 11: ERRORES -->
+  <h2 class="sec" style="border-color:#f87171">11 · ⚠️ Errores comunes — qué NO hacer</h2>
+  <div class="errors">
+    <div class="errcard">
+      <div class="bad"><span class="tagx">MAL</span> <code>db.recorridos.find( precio: 200 )</code></div>
+      <div class="good"><span class="tagok">BIEN</span> <code>db.recorridos.find({ precio: 200 })</code></div>
+      <p>El filtro es <b>un objeto</b>: hay que encerrarlo en <code>{ }</code>.</p>
+    </div>
+    <div class="errcard">
+      <div class="bad"><span class="tagx">MAL</span> <code>{ stops: "A", stops: { $ne: "B" } }</code></div>
+      <div class="good"><span class="tagok">BIEN</span> <code>{ stops: { $all: ["A"], $nin: ["B"] } }</code></div>
+      <p><b>Clave repetida:</b> la segunda <code>stops</code> pisa a la primera. Combiná operadores o usá <code>$and</code>.</p>
+    </div>
+    <div class="errcard">
+      <div class="bad"><span class="tagx">MAL</span> <code>updateOne({…}, { precio: 300 })</code></div>
+      <div class="good"><span class="tagok">BIEN</span> <code>updateOne({…}, { $set: { precio: 300 } })</code></div>
+      <p>Sin operador, el update <b>reemplaza el documento entero</b>. Usá <code>$set</code>/<code>$inc</code>/…</p>
+    </div>
+    <div class="errcard">
+      <div class="bad"><span class="tagx">MAL</span> <code>{ $not: [ { stops: "B" } ] }</code></div>
+      <div class="good"><span class="tagok">BIEN</span> <code>{ stops: { $ne: "B" } }</code></div>
+      <p><code>$not</code> <b>no recibe array</b> ni va suelto: envuelve un operador. Para "no contiene", usá <code>$ne</code>.</p>
+    </div>
+    <div class="errcard">
+      <div class="bad"><span class="tagx">MAL</span> <code>{ totalkm: … }</code> · <code>"recoleta"</code></div>
+      <div class="good"><span class="tagok">BIEN</span> <code>{ totalKm: … }</code> · <code>"Recoleta"</code></div>
+      <p><b>Case-sensitive:</b> campos y valores distinguen mayúsculas. Un typo → <b>0 resultados sin error</b>.</p>
+    </div>
+    <div class="errcard">
+      <div class="bad"><span class="tagx">MAL</span> <code>db.recorridos.deleteMany()</code></div>
+      <div class="good"><span class="tagok">BIEN</span> <code>db.recorridos.deleteMany({})</code></div>
+      <p><code>deleteMany</code>/<code>updateMany</code> <b>exigen</b> el filtro. Para "todos" hay que escribir <code>{}</code> a propósito.</p>
+    </div>
+  </div>
+  <div class="cap">🕵️ El más traicionero es el <b>case-sensitive</b> y el nombre de colección mal escrito: MongoDB <b>no tira error</b>, simplemente devuelve <b>0 resultados</b>. Si algo "no trae nada", revisá mayúsculas y nombres.</div>
+
+  <!-- 9: FIND VS AGGREGATE -->
+  <h2 class="sec">12 · <code>find</code> vs <code>aggregate</code> — ¿cuándo cada uno?</h2>
+  <table class="t">
+    <tr><th>Necesito…</th><th>Uso</th></tr>
+    <tr><td>Filtrar y traer documentos (o algunos campos)</td><td><code>find(filtro, proyección)</code></td></tr>
+    <tr><td>Ordenar / limitar una búsqueda simple</td><td><code>find().sort().limit()</code></td></tr>
+    <tr><td><b>Agrupar</b> y calcular (contar, promediar, sumar por grupo)</td><td><code>aggregate([ $group ])</code></td></tr>
+    <tr><td><b>"JOIN"</b> con otra colección</td><td><code>aggregate([ $lookup ])</code></td></tr>
+    <tr><td>Desarmar arrays / transformar la forma del documento</td><td><code>aggregate([ $unwind, $project ])</code></td></tr>
+    <tr><td>Varios pasos encadenados</td><td><code>aggregate([ ... ])</code></td></tr>
+  </table>
+
+  <div class="note">
+    <b>La estructura en una idea:</b> un <b style="color:var(--filter)">find</b> tiene dos objetos — <b>filtro</b> (qué documentos) y <b>proyección</b> (qué campos). Un <b style="color:var(--op)">aggregate</b> es un <b>array de etapas</b> por las que los documentos van pasando y transformándose, donde cada etapa es <code>{ $operador: { especificación } }</code>. Regla de oro dentro de aggregation: <code>"$campo"</code> con signo peso = "el valor de ese campo". Si dominás estas dos formas (find de 2 objetos, aggregate de N etapas), podés leer y escribir cualquier consulta.
+  </div>
+
+</div>
+</body>
+</html>

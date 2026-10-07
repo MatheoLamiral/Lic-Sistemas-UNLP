@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>La Session y el contexto de persistencia</title>
+<style>
+  :root{
+    --bg:#0d1117; --card:#161b26; --card2:#1c2230;
+    --session:#2dd4bf;     /* Session (Hibernate) */
+    --ctx:#818cf8;         /* contexto de persistencia / caché L1 */
+    --managed:#34d399;     /* entidades gestionadas */
+    --db:#38bdf8;          /* base de datos */
+    --tx:#f59e0b;          /* transacción */
+    --conn:#94a3b8;        /* conexión JDBC */
+    --text:#e6edf3; --muted:#8b949e; --line:#30363d;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{
+    font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+    background:radial-gradient(1200px 600px at 50% -10%,#1c2230 0%,var(--bg) 60%);
+    color:var(--text);line-height:1.55;padding:36px 18px 60px;
+  }
+  .wrap{max-width:1080px;margin:0 auto;}
+  header{text-align:center;margin-bottom:24px;}
+  header h1{font-size:1.9rem;font-weight:800;letter-spacing:-.5px;}
+  .grad{background:linear-gradient(90deg,var(--session),var(--ctx));-webkit-background-clip:text;background-clip:text;color:transparent;}
+  header p{color:var(--muted);margin-top:6px;font-size:.95rem;}
+  h2.sec{font-size:1.05rem;margin:34px 0 16px;color:var(--text);border-left:3px solid var(--session);padding-left:10px;}
+  code,pre{font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace;}
+
+  /* definition */
+  .def{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
+  .dcard{background:linear-gradient(160deg,var(--card2),var(--card));border:1px solid var(--line);border-radius:14px;padding:16px 18px;box-shadow:0 10px 26px rgba(0,0,0,.32);}
+  .dcard.s{border-top:3px solid var(--session);} .dcard.c{border-top:3px solid var(--ctx);}
+  .dcard h3{font-size:1rem;display:flex;align-items:center;gap:8px;}
+  .dcard h3 .b{width:13px;height:13px;border-radius:50%;}
+  .dcard.s h3 .b{background:var(--session);} .dcard.c h3 .b{background:var(--ctx);}
+  .dcard p{font-size:.82rem;color:var(--muted);margin-top:8px;}
+  .dcard .an{margin-top:10px;font-size:.76rem;border-radius:8px;padding:8px 10px;background:rgba(255,255,255,.04);color:var(--text);}
+
+  /* materialization */
+  .mat{max-width:760px;margin:0 auto;}
+  .session-box{border:2px solid var(--session);border-radius:16px;padding:16px;background:rgba(45,212,191,.05);position:relative;}
+  .session-box>.title{position:absolute;top:-12px;left:18px;background:var(--bg);padding:0 10px;font-size:.78rem;font-weight:800;color:var(--session);letter-spacing:.5px;}
+  .sub{font-size:.74rem;color:var(--muted);margin:4px 0 14px;}
+  .ctx-box{border:1.5px dashed var(--ctx);border-radius:12px;padding:14px 14px 16px;background:rgba(129,140,248,.06);position:relative;margin-bottom:14px;}
+  .ctx-box>.title{position:absolute;top:-11px;left:14px;background:#10131c;padding:0 8px;font-size:.72rem;font-weight:800;color:var(--ctx);}
+  .entities{display:flex;gap:10px;flex-wrap:wrap;margin-top:6px;}
+  .ent{flex:1;min-width:150px;border:1px solid var(--managed);border-radius:10px;padding:9px 11px;background:rgba(52,211,153,.07);}
+  .ent .eh{font-size:.78rem;font-weight:700;display:flex;align-items:center;gap:7px;}
+  .ent .eh .tag{margin-left:auto;font-size:.58rem;text-transform:uppercase;letter-spacing:.5px;background:var(--managed);color:var(--bg);border-radius:5px;padding:2px 6px;font-weight:800;}
+  .ent .ed{font-size:.7rem;color:var(--muted);margin-top:4px;font-family:ui-monospace,monospace;}
+  .ent .dot{width:9px;height:9px;border-radius:50%;background:var(--managed);}
+  .ctx-note{font-size:.7rem;color:var(--ctx);margin-top:10px;}
+  .resources{display:flex;gap:10px;flex-wrap:wrap;}
+  .res{flex:1;min-width:160px;border:1px solid var(--line);border-left-width:3px;border-radius:9px;padding:8px 11px;font-size:.74rem;}
+  .res b{font-size:.8rem;} .res p{color:var(--muted);margin-top:2px;}
+  .res.tx{border-left-color:var(--tx);} .res.cn{border-left-color:var(--conn);}
+  .res.tx b{color:var(--tx);} .res.cn b{color:var(--conn);}
+  .arrow-db{text-align:center;color:var(--db);font-size:.74rem;margin:12px 0;}
+  .arrow-db .big{font-size:1.4rem;line-height:1;display:block;}
+  .db-box{border:1.5px solid var(--db);border-radius:12px;padding:12px;text-align:center;background:rgba(56,189,248,.05);max-width:340px;margin:0 auto;}
+  .db-box b{color:var(--db);}
+
+  /* jobs */
+  .jobs{display:grid;grid-template-columns:repeat(2,1fr);gap:13px;}
+  .job{border:1px solid var(--line);border-radius:12px;padding:14px 16px;background:var(--card);}
+  .job h4{font-size:.9rem;display:flex;align-items:center;gap:9px;}
+  .job .ic{width:30px;height:30px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:1rem;flex:0 0 auto;background:rgba(129,140,248,.14);}
+  .job p{font-size:.78rem;color:var(--muted);margin-top:7px;}
+
+  /* lifecycle */
+  .life{max-width:720px;margin:0 auto;}
+  .lstep{display:flex;gap:12px;align-items:flex-start;margin-bottom:0;}
+  .lstep .n{width:24px;height:24px;border-radius:50%;background:var(--session);color:var(--bg);font-weight:800;font-size:.75rem;display:flex;align-items:center;justify-content:center;flex:0 0 auto;margin-top:9px;}
+  .lstep .c{flex:1;border:1px solid var(--line);border-radius:10px;padding:8px 13px;background:var(--card);}
+  .lstep .c b{font-size:.82rem;} .lstep .c code{font-size:.74rem;color:var(--session);}
+  .lstep .c p{font-size:.74rem;color:var(--muted);}
+  .lconn{height:14px;width:2px;background:var(--line);margin:2px 0 2px 23px;}
+
+  .note{max-width:780px;margin:26px auto 0;text-align:center;font-size:.84rem;color:var(--text);background:rgba(129,140,248,.07);border:1px dashed rgba(129,140,248,.45);border-radius:12px;padding:14px 18px;}
+  .note b{color:var(--ctx);}
+  @media(max-width:680px){.def,.jobs{grid-template-columns:1fr;}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>La <span class="grad">Session</span> y el contexto de persistencia</h1>
+    <p>Qué es, qué hace, dónde vive y cómo se usa — materializado</p>
+  </header>
+
+  <!-- 1: QUÉ ES -->
+  <h2 class="sec">1 · Dos conceptos, uno dentro del otro</h2>
+  <div class="def">
+    <div class="dcard s">
+      <h3><span class="b"></span> Session <span style="font-size:.7rem;color:var(--muted);font-weight:400">(EntityManager en JPA)</span></h3>
+      <p>La <b>herramienta</b> con la que la aplicación interactúa: <code>persist()</code>, <code>find()</code>, <code>merge()</code>, <code>delete()</code>. Envuelve una conexión a la base y representa una <b>unidad de trabajo</b> de corta duración (normalmente una transacción).</p>
+      <div class="an">Analogía: es <b>una conversación</b> abierta con la base de datos. Se abre, se intercambian operaciones, y se cierra.</div>
+    </div>
+    <div class="dcard c">
+      <h3><span class="b"></span> Contexto de persistencia <span style="font-size:.7rem;color:var(--muted);font-weight:400">(caché L1)</span></h3>
+      <p>La <b>memoria de trabajo que vive dentro</b> de la Session: el conjunto de entidades en estado <b>Managed</b> que el ORM rastrea en ese momento.</p>
+      <div class="an">Analogía: es <b>la libreta de apuntes</b> de esa conversación — anota cada entidad que tocaste para vigilarla y sincronizarla.</div>
+    </div>
+  </div>
+
+  <!-- 2: MATERIALIZACIÓN -->
+  <h2 class="sec">2 · Materializado: qué hay "adentro" de una Session</h2>
+  <div class="mat">
+    <div class="session-box">
+      <span class="title">◢ SESSION (unidad de trabajo)</span>
+      <div class="sub">Abierta durante la transacción. Todo lo de adentro existe solo mientras la Session esté abierta.</div>
+
+      <div class="ctx-box">
+        <span class="title">CONTEXTO DE PERSISTENCIA · caché L1</span>
+        <div class="entities">
+          <div class="ent">
+            <div class="eh"><span class="dot"></span> User #1 <span class="tag">managed</span></div>
+            <div class="ed">{ name:"Ana" }</div>
+          </div>
+          <div class="ent">
+            <div class="eh"><span class="dot"></span> Route #5 <span class="tag">managed</span></div>
+            <div class="ed">{ price:200 }</div>
+          </div>
+          <div class="ent">
+            <div class="eh"><span class="dot"></span> Purchase #9 <span class="tag">managed</span></div>
+            <div class="ed">{ total:200 }</div>
+          </div>
+        </div>
+        <div class="ctx-note">▸ Identity map: cada id aparece <b>una sola vez</b> · ▸ Dirty checking: vigila cambios en estas entidades</div>
+      </div>
+
+      <div class="resources">
+        <div class="res tx"><b>🔒 Transacción</b><p>Agrupa las operaciones; el SQL se confirma al commit.</p></div>
+        <div class="res cn"><b>🔌 Conexión JDBC</b><p>El canal real hacia la base, tomado del pool.</p></div>
+      </div>
+    </div>
+
+    <div class="arrow-db"><span class="big">↕</span> genera/ejecuta SQL al hacer <b>flush / commit</b></div>
+
+    <div class="db-box"><b>🗄️ Base de datos</b> · las filas reales</div>
+  </div>
+
+  <!-- 3: LA LABOR -->
+  <h2 class="sec">3 · La labor que realiza</h2>
+  <div class="jobs">
+    <div class="job">
+      <h4><span class="ic">🗂️</span> Identity map</h4>
+      <p>Mantiene <b>una única instancia por identidad</b>. Pedir dos veces el <code>id=1</code> devuelve el <b>mismo objeto</b>, no dos copias.</p>
+    </div>
+    <div class="job">
+      <h4><span class="ic">⚡</span> Caché de primer nivel (L1)</h4>
+      <p>Si la entidad ya está en el contexto, la devuelve <b>sin volver a la base</b>. Ahorra consultas dentro de la misma Session.</p>
+    </div>
+    <div class="job">
+      <h4><span class="ic">👁️</span> Dirty checking</h4>
+      <p>Detecta qué entidades <b>managed</b> cambiaron y genera el <code>UPDATE</code> solo, <b>sin llamar a save()</b>, al hacer flush.</p>
+    </div>
+    <div class="job">
+      <h4><span class="ic">🔁</span> Gestión de estados</h4>
+      <p>Mueve las entidades entre <b>Transient → Managed → Detached/Removed</b> y traduce cada operación a su SQL.</p>
+    </div>
+  </div>
+
+  <!-- 4: CÓMO SE USA -->
+  <h2 class="sec">4 · Cómo se usa (su ciclo de vida)</h2>
+  <div class="life">
+    <div class="lstep"><div class="n">1</div><div class="c"><b>Abrir</b> · <code>sessionFactory.openSession()</code><p>La fábrica crea la Session y, con ella, un contexto de persistencia vacío.</p></div></div>
+    <div class="lconn"></div>
+    <div class="lstep"><div class="n">2</div><div class="c"><b>Iniciar transacción</b> · <code>session.beginTransaction()</code><p>Se abre la unidad de trabajo.</p></div></div>
+    <div class="lconn"></div>
+    <div class="lstep"><div class="n">3</div><div class="c"><b>Operar</b> · <code>persist() / find() / merge()</code><p>Las entidades tocadas entran al contexto como <b>Managed</b> y quedan vigiladas.</p></div></div>
+    <div class="lconn"></div>
+    <div class="lstep"><div class="n">4</div><div class="c"><b>Confirmar</b> · <code>tx.commit()</code> → <b>flush</b><p>El dirty checking sincroniza los cambios: se generan y ejecutan los INSERT/UPDATE/DELETE.</p></div></div>
+    <div class="lconn"></div>
+    <div class="lstep"><div class="n">5</div><div class="c"><b>Cerrar</b> · <code>session.close()</code><p>El contexto se vacía y todas sus entidades pasan a <b style="color:var(--tx)">Detached</b>.</p></div></div>
+  </div>
+
+  <div class="note">
+    <b>La relación en una frase:</b> la <b style="color:var(--session)">Session</b> es la herramienta (el "quién"); el <b style="color:var(--ctx)">contexto de persistencia</b> es su memoria de entidades managed (el "qué tiene adentro").
+    Abrir la Session crea el contexto; cerrarla lo vacía y desvincula (Detached) todo lo que contenía.
+  </div>
+
+</div>
+</body>
+</html>

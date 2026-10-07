@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>JDBC → Hibernate → JPA → Spring Data — el mismo ejemplo</title>
+<style>
+  :root{
+    --bg:#0d1117; --card:#161b26; --card2:#1c2230;
+    --jdbc:#f87171; --hib:#2dd4bf; --jpa:#818cf8; --spring:#34d399; --db:#38bdf8;
+    --text:#e6edf3; --muted:#8b949e; --line:#30363d;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;background:radial-gradient(1200px 600px at 50% -10%,#1c2230 0%,var(--bg) 60%);color:var(--text);line-height:1.55;padding:34px 18px 70px;}
+  .wrap{max-width:1080px;margin:0 auto;}
+  header{text-align:center;margin-bottom:18px;}
+  header h1{font-size:1.7rem;font-weight:800;letter-spacing:-.5px;}
+  .grad{background:linear-gradient(90deg,var(--jdbc),var(--spring));-webkit-background-clip:text;background-clip:text;color:transparent;}
+  header p{color:var(--muted);margin-top:6px;font-size:.95rem;}
+  h2.sec{font-size:1.1rem;margin:34px 0 14px;color:var(--text);border-left:4px solid var(--spring);padding-left:12px;}
+  code,pre{font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace;}
+  pre{font-size:.73rem;white-space:pre;overflow-x:auto;line-height:1.5;}
+  .k{color:#c4a8ff;} .s{color:var(--spring);} .c{color:var(--muted);} .t{color:var(--db);} .a{color:#f59e0b;}
+
+  /* example banner */
+  .example{background:rgba(56,189,248,.08);border:1px solid rgba(56,189,248,.35);border-radius:12px;padding:14px 18px;text-align:center;max-width:680px;margin:0 auto;}
+  .example .lbl{font-size:.7rem;text-transform:uppercase;letter-spacing:1px;color:var(--muted);font-weight:700;}
+  .example .task{font-size:1rem;margin-top:5px;}
+  .example code{color:var(--db);font-size:.9rem;}
+
+  /* impl cards */
+  .impl{border:1px solid var(--line);border-left-width:4px;border-radius:13px;background:var(--card);margin-bottom:14px;overflow:hidden;box-shadow:0 8px 24px rgba(0,0,0,.28);}
+  .impl .head{display:flex;align-items:center;gap:12px;padding:12px 16px;border-bottom:1px solid var(--line);flex-wrap:wrap;}
+  .impl .head h3{font-size:1rem;flex:0 0 auto;}
+  .impl .head .sub{font-size:.74rem;color:var(--muted);flex:1;min-width:120px;}
+  .impl .body{padding:13px 16px;}
+  .impl pre{background:rgba(0,0,0,.28);border-radius:8px;padding:11px 13px;}
+  .i-jdbc{border-left-color:var(--jdbc);} .i-hib{border-left-color:var(--hib);} .i-jpa{border-left-color:var(--jpa);} .i-spring{border-left-color:var(--spring);}
+  .badge{font-size:.62rem;font-weight:800;text-transform:uppercase;letter-spacing:.5px;border-radius:5px;padding:3px 8px;color:var(--bg);}
+  .b-jdbc{background:var(--jdbc);} .b-hib{background:var(--hib);} .b-jpa{background:var(--jpa);} .b-spring{background:var(--spring);}
+  /* boilerplate meter */
+  .meter{display:flex;align-items:center;gap:8px;font-size:.7rem;color:var(--muted);flex:0 0 auto;}
+  .bars{display:flex;gap:2px;}
+  .bar{width:9px;height:12px;border-radius:2px;background:var(--line);}
+  .bar.on-jdbc{background:var(--jdbc);} .bar.on-hib{background:var(--hib);} .bar.on-jpa{background:var(--jpa);} .bar.on-spring{background:var(--spring);}
+  .note-line{font-size:.75rem;color:var(--muted);margin-top:9px;}
+  .note-line b{color:var(--text);}
+
+  /* stack diagram */
+  .stack{max-width:560px;margin:0 auto;}
+  .layer{border:1px solid var(--line);border-radius:11px;padding:12px 16px;margin:0 auto;text-align:center;}
+  .layer h4{font-size:.92rem;display:flex;align-items:center;justify-content:center;gap:8px;}
+  .layer p{font-size:.74rem;color:var(--muted);margin-top:2px;}
+  .l-spring{border-color:var(--spring);background:rgba(52,211,153,.06);width:100%;}
+  .l-jpa{border-color:var(--jpa);background:rgba(129,140,248,.06);width:86%;}
+  .l-hib{border-color:var(--hib);background:rgba(45,212,191,.06);width:72%;}
+  .l-jdbc{border-color:var(--jdbc);background:rgba(248,113,113,.06);width:58%;}
+  .l-db{border-color:var(--db);background:rgba(56,189,248,.06);width:44%;}
+  .conn{text-align:center;color:var(--muted);font-size:.68rem;padding:4px 0;}
+  .conn .big{display:block;font-size:1rem;color:var(--line);line-height:.8;}
+
+  /* comparison */
+  table.cmp{width:100%;border-collapse:collapse;font-size:.77rem;margin-top:6px;}
+  table.cmp th{background:rgba(56,189,248,.1);color:var(--db);padding:8px;border:1px solid var(--line);text-align:left;}
+  table.cmp td{padding:8px;border:1px solid var(--line);}
+  table.cmp td:first-child{color:var(--muted);font-weight:600;}
+  .yes{color:var(--spring);font-weight:700;} .no{color:var(--jdbc);font-weight:700;} .mid{color:#f59e0b;font-weight:700;}
+  th.c-jdbc{color:var(--jdbc)!important;} th.c-hib{color:var(--hib)!important;} th.c-jpa{color:var(--jpa)!important;} th.c-spring{color:var(--spring)!important;}
+
+  .note{max-width:880px;margin:28px auto 0;font-size:.85rem;color:var(--text);background:rgba(52,211,153,.07);border:1px dashed rgba(52,211,153,.45);border-radius:12px;padding:15px 19px;}
+  .note b{color:var(--spring);}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>De <span class="grad">JDBC a Spring Data</span> — el mismo ejemplo, 4 veces</h1>
+    <p>Cómo encoge el código a medida que subimos de capa de abstracción</p>
+  </header>
+
+  <div class="example">
+    <div class="lbl">🎯 La misma tarea en los 4 enfoques</div>
+    <div class="task">Buscar el usuario cuyo <code>username</code> es "ana" y devolverlo como objeto <code>User</code>.</div>
+  </div>
+
+  <!-- 1: JDBC -->
+  <h2 class="sec">1 · JDBC pelado <span style="font-size:.7rem;color:var(--muted);font-weight:400">— vos hacés TODO a mano</span></h2>
+  <div class="impl i-jdbc">
+    <div class="head">
+      <span class="badge b-jdbc">API de bajo nivel</span>
+      <h3>JDBC</h3>
+      <span class="sub">Conexión + SQL + mapeo manual + manejo de excepciones, todo explícito.</span>
+      <span class="meter">boilerplate <span class="bars"><i class="bar on-jdbc"></i><i class="bar on-jdbc"></i><i class="bar on-jdbc"></i><i class="bar on-jdbc"></i><i class="bar on-jdbc"></i></span></span>
+    </div>
+    <div class="body">
+<pre><span class="k">public</span> User findByUsername(String username) {
+  String sql = <span class="s">"SELECT * FROM app_user WHERE username = ?"</span>;
+  <span class="k">try</span> (Connection con = dataSource.getConnection();           <span class="c">// 1. conexión</span>
+       PreparedStatement ps = con.prepareStatement(sql)) {     <span class="c">// 2. statement</span>
+    ps.setString(1, username);
+    <span class="k">try</span> (ResultSet rs = ps.executeQuery()) {                   <span class="c">// 3. ejecutar</span>
+      <span class="k">if</span> (rs.next()) {
+        User u = <span class="k">new</span> User();                                 <span class="c">// 4. mapeo MANUAL</span>
+        u.setId(rs.getLong(<span class="s">"id"</span>));                            <span class="c">//    columna → atributo</span>
+        u.setUsername(rs.getString(<span class="s">"username"</span>));
+        u.setName(rs.getString(<span class="s">"name"</span>));
+        u.setEmail(rs.getString(<span class="s">"email"</span>));
+        <span class="k">return</span> u;
+      }
+      <span class="k">return null</span>;
+    }
+  } <span class="k">catch</span> (SQLException e) { <span class="k">throw new</span> RuntimeException(e); }   <span class="c">// 5. errores</span>
+}</pre>
+      <div class="note-line">▸ <b>~18 líneas.</b> Vos manejás conexión, SQL crudo, recorrido del <code>ResultSet</code>, <b>mapeo columna→atributo a mano</b> y excepciones. Atado al SQL del motor.</div>
+    </div>
+  </div>
+
+  <!-- 2: HIBERNATE -->
+  <h2 class="sec">2 · Hibernate nativo <span style="font-size:.7rem;color:var(--muted);font-weight:400">— el ORM mapea y genera el SQL</span></h2>
+  <div class="impl i-hib">
+    <div class="head">
+      <span class="badge b-hib">Implementación ORM</span>
+      <h3>Hibernate (Session + HQL)</h3>
+      <span class="sub">Consultás objetos con HQL; el mapeo y la conexión los hace el ORM.</span>
+      <span class="meter">boilerplate <span class="bars"><i class="bar on-hib"></i><i class="bar on-hib"></i><i class="bar"></i><i class="bar"></i><i class="bar"></i></span></span>
+    </div>
+    <div class="body">
+<pre><span class="k">public</span> User findByUsername(String username) {
+  <span class="k">return</span> sessionFactory.getCurrentSession()
+      .createQuery(<span class="s">"from User u where u.username = :u"</span>, User.class)  <span class="c">// HQL (objetos)</span>
+      .setParameter(<span class="s">"u"</span>, username)
+      .uniqueResult();                                            <span class="c">// mapeo automático</span>
+}</pre>
+      <div class="note-line">▸ <b>~5 líneas.</b> No hay conexión ni <code>ResultSet</code> ni mapeo manual: HQL habla de <b>objetos</b> (<code>User.username</code>) y Hibernate genera el SQL y arma el <code>User</code>. <span style="color:var(--hib)">API propia de Hibernate.</span></div>
+    </div>
+  </div>
+
+  <!-- 3: JPA -->
+  <h2 class="sec">3 · JPA <span style="font-size:.7rem;color:var(--muted);font-weight:400">— lo mismo, pero con la API estándar</span></h2>
+  <div class="impl i-jpa">
+    <div class="head">
+      <span class="badge b-jpa">Especificación estándar</span>
+      <h3>JPA (EntityManager + JPQL)</h3>
+      <span class="sub">Igual que Hibernate, pero con interfaces estándar (portable a otros proveedores).</span>
+      <span class="meter">boilerplate <span class="bars"><i class="bar on-jpa"></i><i class="bar on-jpa"></i><i class="bar"></i><i class="bar"></i><i class="bar"></i></span></span>
+    </div>
+    <div class="body">
+<pre><span class="k">public</span> User findByUsername(String username) {
+  <span class="k">return</span> entityManager
+      .createQuery(<span class="s">"select u from User u where u.username = :u"</span>, User.class) <span class="c">// JPQL</span>
+      .setParameter(<span class="s">"u"</span>, username)
+      .getSingleResult();
+}</pre>
+      <div class="note-line">▸ <b>~5 líneas.</b> Prácticamente idéntico a Hibernate, pero usa <code>EntityManager</code> y <b>JPQL</b> (el estándar). Por debajo lo ejecuta Hibernate igual — la diferencia es que el código <b>no depende de Hibernate</b>.</div>
+    </div>
+  </div>
+
+  <!-- 4: SPRING DATA -->
+  <h2 class="sec">4 · Spring Data JPA <span style="font-size:.7rem;color:var(--muted);font-weight:400">— ni siquiera escribís la consulta</span></h2>
+  <div class="impl i-spring">
+    <div class="head">
+      <span class="badge b-spring">Abstracción máxima</span>
+      <h3>Spring Data (Repository)</h3>
+      <span class="sub">Declarás el método en una interfaz; Spring genera la implementación (proxy).</span>
+      <span class="meter">boilerplate <span class="bars"><i class="bar on-spring"></i><i class="bar"></i><i class="bar"></i><i class="bar"></i><i class="bar"></i></span></span>
+    </div>
+    <div class="body">
+<pre><span class="k">public interface</span> UserRepository <span class="k">extends</span> JpaRepository&lt;User, Long&gt; {
+
+  Optional&lt;User&gt; findByUsername(String username);   <span class="c">// ¡solo la firma!</span>
+}
+<span class="c">// no escribís el cuerpo: Spring deriva la consulta del nombre del método</span></pre>
+      <div class="note-line">▸ <b>1 línea (una firma).</b> No hay implementación: el <b>proxy dinámico</b> parsea <code>findByUsername</code> y arma la JPQL solo. Por debajo: JPA → Hibernate → JDBC → SQL.</div>
+    </div>
+  </div>
+
+  <!-- STACK -->
+  <h2 class="sec">5 · La clave: cada capa USA la de abajo (no la reemplaza)</h2>
+  <div class="stack">
+    <div class="layer l-spring"><h4>🟢 Spring Data JPA</h4><p>Declarás interfaces; genera repos. <b>Usa JPA.</b></p></div>
+    <div class="conn"><span class="big">▲</span>usa</div>
+    <div class="layer l-jpa"><h4>🟣 JPA (estándar)</h4><p>Define <code>EntityManager</code>, JPQL, anotaciones. <b>No ejecuta nada solo.</b></p></div>
+    <div class="conn"><span class="big">▲</span>implementado por</div>
+    <div class="layer l-hib"><h4>🔵 Hibernate (motor ORM)</h4><p>Mapea objeto⇄tabla, genera SQL, gestiona la <code>Session</code>. <b>Usa JDBC.</b></p></div>
+    <div class="conn"><span class="big">▲</span>usa</div>
+    <div class="layer l-jdbc"><h4>🔴 JDBC</h4><p>API estándar para enviar SQL por la conexión.</p></div>
+    <div class="conn"><span class="big">▲</span></div>
+    <div class="layer l-db"><h4>🗄️ Base de datos</h4></div>
+  </div>
+  <p style="text-align:center;color:var(--muted);font-size:.8rem;margin-top:12px;">
+    Subir de capa <b>no elimina</b> a las de abajo: cuando usás Spring Data, por debajo <b>igual corre</b> JPA → Hibernate → JDBC → SQL. Lo que cambia es <b>cuánto escribís vos</b>.
+  </p>
+
+  <!-- COMPARISON -->
+  <h2 class="sec">6 · Comparación</h2>
+  <table class="cmp">
+    <tr><th>¿Quién hace…?</th><th class="c-jdbc">JDBC</th><th class="c-hib">Hibernate</th><th class="c-jpa">JPA</th><th class="c-spring">Spring Data</th></tr>
+    <tr><td>Escribir el SQL</td><td class="no">Vos (SQL crudo)</td><td class="mid">HQL (objetos)</td><td class="mid">JPQL (objetos)</td><td class="yes">Nadie (derivado del nombre)</td></tr>
+    <tr><td>Mapear fila → objeto</td><td class="no">Vos, a mano</td><td class="yes">El ORM</td><td class="yes">El ORM</td><td class="yes">El ORM</td></tr>
+    <tr><td>Manejar la conexión</td><td class="no">Vos</td><td class="yes">El ORM</td><td class="yes">El ORM</td><td class="yes">El ORM</td></tr>
+    <tr><td>Implementar el método CRUD</td><td class="no">Vos</td><td class="mid">Vos (sobre Session)</td><td class="mid">Vos (sobre EM)</td><td class="yes">Spring (proxy)</td></tr>
+    <tr><td>Portable a otro proveedor</td><td class="mid">SQL atado al motor</td><td class="no">API propia Hibernate</td><td class="yes">Sí (estándar)</td><td class="yes">Sí (estándar)</td></tr>
+    <tr><td>Líneas del ejemplo</td><td class="no">~18</td><td class="mid">~5</td><td class="mid">~5</td><td class="yes">1</td></tr>
+  </table>
+
+  <div class="note">
+    <b>La evolución en una idea:</b> es la <b>misma tarea</b> resuelta a niveles crecientes de abstracción. <b style="color:var(--jdbc)">JDBC</b> te hace escribir SQL crudo y mapear a mano. <b style="color:var(--hib)">Hibernate</b> mapea objeto⇄tabla y genera el SQL (vos solo pedís en HQL). <b style="color:var(--jpa)">JPA</b> es lo mismo pero con una API <b>estándar</b> (Hibernate por debajo). <b style="color:var(--spring)">Spring Data</b> da el último salto: ni escribís la consulta — declarás la interfaz y un proxy la implementa. Cada nivel <b>se apoya en el anterior</b>: arriba escribís menos, pero abajo siempre termina ejecutándose JDBC contra la base.
+  </div>
+
+</div>
+</body>
+</html>

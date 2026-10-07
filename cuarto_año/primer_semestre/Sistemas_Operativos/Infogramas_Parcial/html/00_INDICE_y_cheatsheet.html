@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="es"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>🎯 Repaso Parcial SO — Índice + Cheatsheet Maestro</title>
+<style>
+:root { --accent:#6d28d9; --accent2:#a78bfa; }
+* { box-sizing:border-box; }
+body {
+  font-family:'Segoe UI',system-ui,-apple-system,sans-serif;
+  margin:0; background:#0f172a; color:#1e293b; line-height:1.55;
+}
+.wrap { max-width:1100px; margin:0 auto; padding:0 16px 60px; }
+header.hero {
+  background:linear-gradient(135deg,var(--accent),var(--accent2));
+  color:#fff; padding:38px 28px; border-radius:0 0 24px 24px;
+  box-shadow:0 8px 30px rgba(0,0,0,.35); margin-bottom:26px;
+}
+header.hero h1 { margin:0; font-size:2.0rem; display:flex; align-items:center; gap:14px; }
+header.hero .sub { opacity:.92; margin-top:8px; font-size:.95rem; }
+.topbar { background:#0f172a; padding:10px 16px; }
+.topbar a { color:#cbd5e1; text-decoration:none; font-size:.88rem; font-weight:600; }
+.topbar a:hover { color:#fff; }
+section.card {
+  background:#fff; border-radius:16px; padding:18px 22px; margin:18px 0;
+  box-shadow:0 4px 18px rgba(0,0,0,.18); border-left:6px solid var(--accent);
+}
+section.card h2 {
+  margin:0 0 12px; font-size:1.28rem; color:var(--accent);
+  display:flex; align-items:center; gap:10px;
+}
+section.card h3 { font-size:1.05rem; color:#334155; margin:16px 0 6px; }
+section.trampas {
+  border-left:6px solid #f59e0b; background:#fffbeb;
+}
+section.trampas h2 { color:#b45309; }
+ul, ol { margin:8px 0 8px; padding-left:24px; }
+li { margin:4px 0; }
+table {
+  border-collapse:collapse; width:100%; margin:14px 0; font-size:.92rem;
+  border-radius:10px; overflow:hidden; box-shadow:0 2px 8px rgba(0,0,0,.10);
+}
+th { background:var(--accent); color:#fff; text-align:left; padding:9px 12px; }
+td { padding:8px 12px; border-top:1px solid #e2e8f0; vertical-align:top; }
+tr:nth-child(even) td { background:#f8fafc; }
+code { background:#eef2ff; color:#3730a3; padding:1px 6px; border-radius:5px;
+  font-family:'Fira Code',Consolas,monospace; font-size:.88em; }
+pre { background:#1e293b; color:#e2e8f0; padding:14px; border-radius:10px; overflow:auto; }
+pre code { background:none; color:inherit; padding:0; }
+strong { color:#0f172a; }
+blockquote { border-left:4px solid var(--accent2); margin:10px 0; padding:6px 16px;
+  background:#f1f5f9; border-radius:0 8px 8px 0; color:#475569; }
+.vf-true { background:#16a34a; color:#fff; padding:1px 8px; border-radius:20px;
+  font-weight:700; font-size:.8rem; letter-spacing:.3px; }
+.vf-false { background:#dc2626; color:#fff; padding:1px 8px; border-radius:20px;
+  font-weight:700; font-size:.8rem; letter-spacing:.3px; }
+a { color:var(--accent); }
+hr { border:none; border-top:1px dashed #cbd5e1; margin:22px 0; }
+.home-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(230px,1fr));
+  gap:16px; margin-top:10px; }
+.home-grid a { text-decoration:none; }
+.tile { background:#fff; border-radius:16px; padding:20px; box-shadow:0 4px 16px rgba(0,0,0,.18);
+  border-top:5px solid var(--accent); transition:transform .12s,box-shadow .12s; height:100%; }
+.tile:hover { transform:translateY(-4px); box-shadow:0 10px 28px rgba(0,0,0,.30); }
+.tile .ico { font-size:2rem; }
+.tile .t { font-weight:700; color:#1e293b; margin:8px 0 4px; font-size:1.05rem; }
+.tile .d { color:#64748b; font-size:.85rem; }
+.badge { display:inline-block; background:#fef3c7; color:#b45309; font-size:.72rem;
+  font-weight:700; padding:2px 8px; border-radius:20px; margin-top:8px; }
+@media print { body{background:#fff;} section.card{box-shadow:none;border:1px solid #e2e8f0;}
+  header.hero{box-shadow:none;} .topbar{display:none;} }
+</style></head>
+<body><div class="topbar"><a href="index.html">⟵ Índice de infogramas</a></div>
+<header class="hero"><h1><span>🎯</span>🎯 Repaso Parcial SO — Índice + Cheatsheet Maestro</h1>
+<div class="sub">Repaso parcial · Sistemas Operativos UNLP</div></header>
+<div class="wrap"><section class="card intro"><blockquote>
+<p><strong>Alcance:</strong> Prácticas 1–5 · Teorías 1–10. Estilo del parcial: preguntas conceptuales cortas, V/F con justificación y multiple-choice (a veces "A y C", "ninguna", "todas").</p>
+</blockquote></section>
+<section class="card"><h2><span>🎯</span> 📂 Infogramas</h2>
+<ol>
+<li><a href="01_kernel_y_compilacion.md">01 – Kernel y compilación</a></li>
+<li><a href="02_modulos_drivers_syscalls.md">02 – Módulos, drivers y syscalls</a></li>
+<li><a href="03_threads.md">03 – Threads (ULT/KLT)</a></li>
+<li><a href="04_virtualizacion.md">04 – Virtualización</a></li>
+<li><a href="05_cgroups_namespaces.md">05 – cgroups y namespaces</a></li>
+<li><a href="06_docker.md">06 – Docker</a></li>
+<li><a href="07_seguridad_y_permisos.md">07 – Seguridad y permisos</a></li>
+<li><a href="08_filesystems_raid_lvm.md">08 – File Systems, RAID y LVM</a> ⭐ <em>muy preguntado</em></li>
+<li><a href="09_multiprocesadores.md">09 – Multiprocesadores</a></li>
+<li><a href="10_deadlocks.md">10 – Deadlocks</a></li>
+</ol>
+<hr />
+</section>
+<section class="card"><h2><span>🎯</span> ⚡ Cheatsheet — respuestas de alto rendimiento (lo que más cae)</h2>
+<h3>Kernel</h3>
+<ul>
+<li><strong>Funciones del kernel (5):</strong> memoria principal · CPU · procesos · E/S · comunicación/concurrencia.</li>
+<li><strong>Monolítico-híbrido</strong> = todo linkeado en una imagen <strong>PERO</strong> carga/descarga módulos en runtime.</li>
+<li><strong>Portable</strong> porque su <strong>código C se modifica fácil</strong> para otras arquitecturas (NO porque el binario corra en cualquiera).</li>
+<li><strong>7 pasos compilación:</strong> 1 obtener fuente → 2 preparar árbol → 3 configurar → 4 construir + instalar módulos → 5 reubicar kernel + crear initrd → 6 gestor de arranque (GRUB) → 7 reiniciar y probar.</li>
+<li>Reconfigurar GRUB = <strong>actualizar el menú</strong> con el nuevo kernel (no reinstala el binario del gestor).</li>
+<li><strong>initramfs:</strong> FS temporal en RAM con módulos/drivers para montar el root real; <strong>puede no ser necesario</strong> si todo es built-in.</li>
+</ul>
+<h3>Módulos / Drivers / Syscalls</h3>
+<ul>
+<li><strong>Módulo:</strong> cargable/descargable en runtime (insmod/rmmod/modprobe/modinfo), en <strong>/lib/modules</strong>, corre en <strong>modo kernel/supervisor</strong>. NO implementa syscalls dinámicas.</li>
+<li><strong>Driver = se implementa como un MÓDULO</strong> (no servicio, no syscall, no kthread).</li>
+<li><code>register_chrdev()</code> → registra char device, <strong>solo en espacio kernel</strong>, asocia <strong>major + file_operations</strong>.</li>
+<li><strong>Major</strong> = identifica el <strong>driver</strong>; <strong>Minor</strong> = identifica el <strong>dispositivo</strong> concreto.</li>
+<li><strong>/dev:</strong> char (<code>c</code>, byte a byte) vs block (<code>b</code>, bloques, acceso aleatorio).</li>
+<li><strong>/proc:</strong> no ocupa disco, archivos tamaño 0, interfaz al kernel; <strong>módulos cargables también</strong> pueden crear entradas (no solo built-in).</li>
+<li><strong>Syscall:</strong> se define <strong>en el kernel</strong> (no en libc, no en módulos), <strong>identificada por un número</strong>, adjuntada <strong>estática en compilación</strong>, agregada en la <strong>tabla de syscalls + número único</strong>. <strong>libc = wrapper</strong>. <strong>strace</strong> las monitorea.</li>
+<li><strong>3 file descriptors:</strong> 0=stdin, 1=stdout, 2=stderr.</li>
+</ul>
+<h3>Threads</h3>
+<ul>
+<li><strong>ULT</strong> → planifica la <strong>biblioteca</strong> (usuario); kernel ve 1 proceso; <strong>sin paralelismo real</strong>.</li>
+<li><strong>KLT</strong> → planifica el <strong>kernel</strong>; <strong>sí paralelismo real</strong> (varios cores).</li>
+<li><strong>fork sin exec:</strong> hijo = copia del padre, mismo programa, <strong>PID distinto</strong>, hereda descriptores.</li>
+</ul>
+<h3>Virtualización</h3>
+<ul>
+<li><strong>Hypervisor Tipo 1</strong> = bare-metal (sobre HW). <strong>Tipo 2</strong> = sobre un SO anfitrión.</li>
+<li><strong>Paravirtualización</strong> = <strong>se modifica el kernel del guest</strong> (mejor rendimiento) → no sirve para Windows cerrado.</li>
+<li><strong>Binary translation</strong> = guest NO modificado.</li>
+<li><strong>LXC/containers</strong> = <strong>mismo kernel</strong> que el host, sin hypervisor.</li>
+</ul>
+<h3>cgroups / namespaces</h3>
+<ul>
+<li><strong>cgroups</strong> = <strong>limitan Y priorizan</strong> recursos, jerárquicos. (limitar CPU 80% → controlador cpu + cuota).</li>
+<li>Proceso por <strong>fork</strong> queda en el <strong>mismo cgroup</strong> del padre. No se modifica el proceso para meterlo en un cgroup.</li>
+<li><strong>v1:</strong> múltiples jerarquías (1 por controlador), proceso en 1 cgroup por jerarquía. <strong>v2:</strong> jerarquía única, procesos solo en <strong>hojas</strong> (salvo root).</li>
+<li><strong>PID namespace</strong> → mismo proceso tiene PID 1 dentro del container y PID real en el host.</li>
+</ul>
+<h3>Docker</h3>
+<ul>
+<li><strong>Imagen</strong> = molde solo-lectura (no se ejecuta) → varios contenedores. <strong>Contenedor</strong> = instancia en ejecución.</li>
+<li>Docker usa del kernel: <strong>chroot + namespaces + cgroups</strong>. Sin hypervisor.</li>
+<li><strong>Union FS:</strong> capas read-only (imagen) + 1 capa escribible (container); solo la última se modifica.</li>
+<li><strong>Dockerfile</strong> construye <strong>1 imagen</strong>; <strong>compose</strong> orquesta <strong>varios contenedores</strong> (declarativo).</li>
+<li><strong>Persistencia:</strong> <strong>volumes</strong> (gestionados por Docker, portables) vs <strong>bind mounts</strong> (ruta del host elegida por el usuario).</li>
+</ul>
+<h3>Seguridad / permisos</h3>
+<ul>
+<li><strong>ASLR</strong> = aleatoriza el espacio de memoria. Linux lo da para <strong>usuario Y kernel (KASLR)</strong>.</li>
+<li><strong>UMASK</strong> = permisos por defecto al crear. <strong>setuid/setgid/sticky</strong> = permisos especiales.</li>
+<li><strong>sticky bit</strong> en dir → solo el dueño del archivo (o root) borra/renombra (ej /tmp).</li>
+<li><strong>/etc/shadow</strong> = solo root.</li>
+</ul>
+<h3>File Systems / RAID / LVM ⭐</h3>
+<ul>
+<li><strong>Inodo</strong> = metadatos (NO el <strong>nombre</strong>, que está en el directorio).</li>
+<li><strong>Hard link</strong> comparte inodo (NO consume inodo nuevo); <strong>symlink</strong> consume inodo y se rompe si borrás el original.</li>
+<li><strong>XFS</strong> = no se puede <strong>achicar</strong> (solo crecer); inodos dinámicos.</li>
+<li><strong>BTRFS</strong> = Copy-on-Write, subvolúmenes (solo tipo BTRFS).</li>
+<li><strong>Journaling</strong> = log para recuperación (NO "todas las operaciones sobre un archivo").</li>
+<li><strong>RAID 0</strong> striping sin redundancia · <strong>RAID 1</strong> mirror (sin striping/paridad) · <strong>RAID 5</strong> striping + paridad distribuida, tolera <strong>1 fallo</strong>, útil <strong>(N−1)</strong> discos (5×1TB → <strong>4TB</strong>).</li>
+<li><strong>¿RAID sin striping?</strong> → <strong>RAID 1</strong>.</li>
+<li><strong>LVM:</strong> PV→VG→LV; extiende FS por varias particiones/discos; tamaño LV = múltiplo del extent; <strong>achicar = primero FS, luego LV</strong> (extender al revés); <strong>snapshots = CoW</strong>, crecen con las modificaciones del original.</li>
+</ul>
+<h3>Deadlocks</h3>
+<ul>
+<li><strong>4 condiciones (Coffman, las 4 a la vez):</strong> exclusión mutua · retención y espera · no apropiación · espera circular.</li>
+<li>Manejo: prevención · evitación (<strong>banquero</strong>) · detección+recuperación · avestruz.</li>
+</ul>
+<hr />
+<p><em>Generado para repaso intensivo. Verificá siempre contra la teoría oficial ante cualquier duda.</em></p></section></div>
+</body></html>

@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>El flush en Hibernate — sincronización contexto ⇄ base</title>
+<style>
+  :root{
+    --bg:#0d1117; --card:#161b26; --card2:#1c2230;
+    --mem:#818cf8; --flush:#f59e0b; --sql:#2dd4bf; --db:#38bdf8; --commit:#34d399; --red:#f87171;
+    --text:#e6edf3; --muted:#8b949e; --line:#30363d;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;background:radial-gradient(1200px 600px at 50% -10%,#1c2230 0%,var(--bg) 60%);color:var(--text);line-height:1.55;padding:34px 18px 70px;}
+  .wrap{max-width:1060px;margin:0 auto;}
+  header{text-align:center;margin-bottom:20px;}
+  header h1{font-size:1.85rem;font-weight:800;letter-spacing:-.5px;}
+  .grad{background:linear-gradient(90deg,var(--flush),var(--db));-webkit-background-clip:text;background-clip:text;color:transparent;}
+  header p{color:var(--muted);margin-top:6px;font-size:.95rem;}
+  h2.sec{font-size:1.1rem;margin:36px 0 14px;color:var(--text);border-left:4px solid var(--flush);padding-left:12px;}
+  code,pre{font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace;}
+  pre{font-size:.76rem;white-space:pre;overflow-x:auto;line-height:1.5;}
+  .k{color:#c4a8ff;} .a{color:var(--flush);} .str{color:var(--commit);} .c{color:var(--muted);} .t{color:var(--db);} .red{color:var(--red);}
+
+  /* definition */
+  .def{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+  .dcard{background:linear-gradient(160deg,var(--card2),var(--card));border:1px solid var(--line);border-top-width:3px;border-radius:13px;padding:15px 17px;box-shadow:0 8px 24px rgba(0,0,0,.3);}
+  .dcard.flush{border-top-color:var(--flush);} .dcard.commit{border-top-color:var(--commit);}
+  .dcard h3{font-size:1rem;display:flex;align-items:center;gap:8px;}
+  .dcard p{font-size:.8rem;color:var(--muted);margin-top:8px;}
+  .dcard .big{font-size:.78rem;margin-top:8px;border-radius:8px;padding:8px 10px;background:rgba(255,255,255,.04);}
+  .dcard.flush .big{color:var(--flush);} .dcard.commit .big{color:var(--commit);}
+
+  /* layer movement */
+  .move{max-width:640px;margin:0 auto;}
+  .lbox{border:1px solid var(--line);border-left-width:4px;border-radius:12px;padding:13px 16px;background:var(--card);}
+  .lbox h3{font-size:.92rem;display:flex;align-items:center;gap:8px;}
+  .lbox p{font-size:.77rem;color:var(--muted);margin-top:3px;}
+  .lbox code{font-size:.73rem;color:var(--text);}
+  .l-mem{border-left-color:var(--mem);} .l-sql{border-left-color:var(--sql);} .l-db{border-left-color:var(--db);} .l-commit{border-left-color:var(--commit);}
+  .arrow-step{display:flex;flex-direction:column;align-items:center;padding:7px 0;}
+  .arrow-step .lbl{font-size:.73rem;font-weight:700;border-radius:20px;padding:4px 14px;}
+  .arrow-step .big{font-size:1.3rem;line-height:1;margin-top:2px;color:var(--line);}
+  .lbl-flush{background:rgba(245,158,11,.14);color:var(--flush);border:1px solid rgba(245,158,11,.4);}
+  .lbl-jdbc{background:rgba(56,189,248,.1);color:var(--db);border:1px solid rgba(56,189,248,.3);}
+  .lbl-commit{background:rgba(52,211,153,.12);color:var(--commit);border:1px solid rgba(52,211,153,.4);}
+
+  /* when grid */
+  .when{display:grid;grid-template-columns:repeat(3,1fr);gap:13px;}
+  .wcard{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px 15px;border-top:3px solid var(--flush);}
+  .wcard h4{font-size:.88rem;display:flex;align-items:center;gap:8px;}
+  .wcard .ic{width:28px;height:28px;border-radius:8px;background:rgba(245,158,11,.14);display:flex;align-items:center;justify-content:center;font-size:.95rem;}
+  .wcard p{font-size:.76rem;color:var(--muted);margin-top:8px;}
+  .wcard code{font-size:.72rem;color:var(--text);}
+
+  /* internal: dirty checking */
+  .dirty{max-width:760px;margin:0 auto;}
+  .dstep{display:flex;gap:12px;align-items:flex-start;margin-bottom:0;}
+  .dstep .n{width:24px;height:24px;border-radius:50%;background:var(--flush);color:var(--bg);font-weight:800;font-size:.74rem;display:flex;align-items:center;justify-content:center;flex:0 0 auto;margin-top:9px;}
+  .dstep .c2{flex:1;border:1px solid var(--line);border-radius:10px;padding:9px 13px;background:var(--card);}
+  .dstep .c2 b{font-size:.82rem;} .dstep .c2 p{font-size:.75rem;color:var(--muted);margin-top:2px;}
+  .dconn{height:12px;width:2px;background:var(--line);margin:2px 0 2px 23px;}
+
+  /* timeline example */
+  .tl{max-width:780px;margin:0 auto;border:1px solid var(--line);border-radius:12px;overflow:hidden;}
+  .tl .row{display:flex;gap:0;border-bottom:1px solid var(--line);}
+  .tl .row:last-child{border-bottom:none;}
+  .tl .when-col{width:130px;flex:0 0 auto;padding:11px 13px;font-size:.72rem;font-weight:700;border-right:1px solid var(--line);display:flex;align-items:center;}
+  .tl .what-col{flex:1;padding:11px 14px;font-size:.76rem;}
+  .tl .what-col code{font-size:.73rem;}
+  .w-mem{background:rgba(129,140,248,.08);color:var(--mem);}
+  .w-flush{background:rgba(245,158,11,.1);color:var(--flush);}
+  .w-commit{background:rgba(52,211,153,.1);color:var(--commit);}
+  .state{font-size:.66rem;font-weight:800;text-transform:uppercase;letter-spacing:.5px;border-radius:5px;padding:2px 7px;color:var(--bg);}
+
+  .note{max-width:840px;margin:28px auto 0;font-size:.85rem;color:var(--text);background:rgba(245,158,11,.07);border:1px dashed rgba(245,158,11,.45);border-radius:12px;padding:15px 19px;}
+  .note b{color:var(--flush);}
+  @media(max-width:760px){.def,.when{grid-template-columns:1fr;}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>El <span class="grad">flush</span> en Hibernate</h1>
+    <p>Cuándo y cómo los cambios en memoria viajan a la base de datos</p>
+  </header>
+
+  <!-- 1: FLUSH vs COMMIT -->
+  <h2 class="sec">1 · Qué es (y qué NO es) — flush ≠ commit</h2>
+  <div class="def">
+    <div class="dcard flush">
+      <h3>🔄 FLUSH</h3>
+      <p>Es el momento en que Hibernate <b>sincroniza el contexto de persistencia con la base</b>: traduce los cambios hechos en memoria a sentencias <b>SQL</b> (<code>INSERT/UPDATE/DELETE</code>) y las <b>envía</b> a la base.</p>
+      <div class="big">▸ Manda el SQL, pero <b>dentro</b> de la transacción — todavía se puede hacer rollback.</div>
+    </div>
+    <div class="dcard commit">
+      <h3>✅ COMMIT</h3>
+      <p>Es el cierre de la transacción: hace que <b>todo lo enviado se vuelva permanente</b> en la base. El commit <b>dispara un flush</b> antes de confirmar.</p>
+      <div class="big">▸ Confirma definitivamente. Después del commit ya no hay vuelta atrás.</div>
+    </div>
+  </div>
+  <p style="text-align:center;color:var(--muted);font-size:.82rem;margin-top:12px;">
+    <b style="color:var(--flush)">flush</b> = "escribí el SQL ahora" &nbsp;·&nbsp; <b style="color:var(--commit)">commit</b> = "hacelo permanente". Puede haber <b>varios flush</b> dentro de una transacción, pero <b>un solo commit</b> al final.
+  </p>
+
+  <!-- 2: MOVIMIENTO ENTRE CAPAS -->
+  <h2 class="sec">2 · El movimiento entre capas</h2>
+  <div class="move">
+    <div class="lbox l-mem">
+      <h3>🧠 Memoria — contexto de persistencia</h3>
+      <p>Modificás objetos managed: <code>service.setPrice(150)</code>. El cambio vive <b>solo en RAM</b>. <b>No hay SQL todavía.</b></p>
+    </div>
+    <div class="arrow-step"><span class="lbl lbl-flush">▼ FLUSH — dirty checking genera el SQL</span><span class="big">↓</span></div>
+    <div class="lbox l-sql">
+      <h3>📝 SQL generado</h3>
+      <p>Hibernate compara cada entidad con su snapshot y arma las sentencias: <code class="t">UPDATE service SET price=150 WHERE id=5</code></p>
+    </div>
+    <div class="arrow-step"><span class="lbl lbl-jdbc">▼ JDBC — envía las sentencias</span><span class="big">↓</span></div>
+    <div class="lbox l-db">
+      <h3>🗄️ Base de datos (dentro de la transacción)</h3>
+      <p>El SQL se ejecuta, pero el cambio <b>aún no es permanente</b>: vive dentro de la transacción abierta y podría revertirse con un rollback.</p>
+    </div>
+    <div class="arrow-step"><span class="lbl lbl-commit">▼ COMMIT</span><span class="big">↓</span></div>
+    <div class="lbox l-commit">
+      <h3>🔒 Cambios permanentes</h3>
+      <p>Al hacer commit, todo lo enviado por el flush queda confirmado en la base de forma definitiva.</p>
+    </div>
+  </div>
+
+  <!-- 3: CUÁNDO OCURRE -->
+  <h2 class="sec">3 · ¿Cuándo ocurre el flush? (FlushMode)</h2>
+  <div class="when">
+    <div class="wcard">
+      <h4><span class="ic">✅</span> Al hacer commit</h4>
+      <p>El caso típico. Antes de confirmar la transacción, Hibernate hace flush automáticamente para que la base tenga todos los cambios. <b>Es lo más común.</b></p>
+    </div>
+    <div class="wcard">
+      <h4><span class="ic">🔍</span> Antes de una query</h4>
+      <p>Si vas a ejecutar una consulta (HQL) que <b>podría verse afectada por cambios pendientes</b>, Hibernate hace flush antes para que la consulta lea datos consistentes. <code>(FlushMode.AUTO, el default)</code></p>
+    </div>
+    <div class="wcard">
+      <h4><span class="ic">✋</span> Manual</h4>
+      <p>Podés forzarlo con <code>session.flush()</code>. Útil en <b>procesos batch</b>: hacer flush + clear cada N entidades para liberar memoria sin esperar al commit.</p>
+    </div>
+  </div>
+  <p style="text-align:center;color:var(--muted);font-size:.8rem;margin-top:11px;">
+    El comportamiento lo define el <b>FlushMode</b>: <code>AUTO</code> (default: commit + antes de queries afectadas), <code>COMMIT</code> (solo al commit), <code>MANUAL</code> (solo si llamás <code>flush()</code>).
+  </p>
+
+  <!-- 4: QUÉ HACE INTERNAMENTE -->
+  <h2 class="sec">4 · ¿Qué hace por dentro? (dirty checking)</h2>
+  <div class="dirty">
+    <div class="dstep"><div class="n">1</div><div class="c2"><b>Recorre las entidades managed</b><p>Toma cada entidad que está en el contexto de persistencia (caché L1).</p></div></div>
+    <div class="dconn"></div>
+    <div class="dstep"><div class="n">2</div><div class="c2"><b>Compara contra el snapshot</b><p>Para cada una, compara su estado actual con la "foto" que guardó al cargarla. Si difiere, la marca como <b>dirty</b> (sucia).</p></div></div>
+    <div class="dconn"></div>
+    <div class="dstep"><div class="n">3</div><div class="c2"><b>Genera el SQL en orden</b><p>Emite <code class="t">INSERT</code> (entidades nuevas), <code class="t">UPDATE</code> (las dirty) y <code class="t">DELETE</code> (las removed), respetando dependencias de FK.</p></div></div>
+    <div class="dconn"></div>
+    <div class="dstep"><div class="n">4</div><div class="c2"><b>Envía las sentencias a la base</b><p>Vía JDBC (pudiendo agruparlas en batch). El contexto queda sincronizado con la base.</p></div></div>
+  </div>
+
+  <!-- 5: EJEMPLO PASO A PASO -->
+  <h2 class="sec">5 · Ejemplo paso a paso (actualizar precio + leer)</h2>
+  <div class="tl">
+    <div class="row"><div class="when-col w-mem">begin tx</div><div class="what-col"><code>session.beginTransaction()</code> — se abre la unidad de trabajo.</div></div>
+    <div class="row"><div class="when-col w-mem">leer</div><div class="what-col"><code>Service s = repo.findById(5);</code> → <span class="state" style="background:var(--commit)">MANAGED</span> · Hibernate guarda el <b>snapshot</b> <code>{price:100}</code>.</div></div>
+    <div class="row"><div class="when-col w-mem">modificar</div><div class="what-col"><code>s.setPrice(150);</code> → cambia <b>solo en memoria</b>. <span style="color:var(--red)">No hay SQL todavía.</span></div></div>
+    <div class="row"><div class="when-col w-flush">FLUSH</div><div class="what-col">Antes del commit (o de una query afectada): dirty checking detecta <code>150 ≠ 100</code> → genera y envía <code class="t">UPDATE service SET price=150 WHERE id=5</code>.</div></div>
+    <div class="row"><div class="when-col w-commit">commit</div><div class="what-col"><code>tx.commit()</code> → el <code>UPDATE</code> ya enviado se vuelve <b>permanente</b>. La sesión se cierra y <code>s</code> pasa a <span class="state" style="background:var(--flush)">DETACHED</span>.</div></div>
+  </div>
+  <p style="text-align:center;color:var(--muted);font-size:.79rem;margin-top:11px;">
+    Nunca se llamó a <code>save()</code> ni <code>update()</code>: el flush + dirty checking detectaron el cambio solos, porque <code>s</code> estaba <b>managed</b>.
+  </p>
+
+  <div class="note">
+    <b>La idea central:</b> el <b style="color:var(--flush)">flush</b> es el puente que lleva los cambios que hiciste sobre <b style="color:var(--mem)">objetos en memoria</b> hacia la <b style="color:var(--db)">base de datos</b>, traduciéndolos a SQL mediante <b>dirty checking</b>. No lo confundas con el <b style="color:var(--commit)">commit</b>: el flush <b>manda</b> el SQL (todavía reversible dentro de la transacción), el commit lo <b>hace permanente</b>. Por eso modificar una entidad managed "se guarda solo" — el flush, disparado al commit o antes de una query, se encarga de sincronizar sin que escribas un <code>save()</code>.
+  </div>
+
+</div>
+</body>
+</html>

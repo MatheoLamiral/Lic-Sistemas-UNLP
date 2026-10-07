@@ -1,0 +1,347 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mapeo de relaciones JPA — tablas y anotaciones</title>
+<style>
+  :root{
+    --bg:#0d1117; --card:#161b26; --card2:#1c2230;
+    --owner:#34d399; --inverse:#f59e0b; --fk:#38bdf8; --jt:#a78bfa;
+    --text:#e6edf3; --muted:#8b949e; --line:#30363d;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;background:radial-gradient(1200px 600px at 50% -10%,#1c2230 0%,var(--bg) 60%);color:var(--text);line-height:1.55;padding:34px 18px 70px;}
+  .wrap{max-width:1120px;margin:0 auto;}
+  header{text-align:center;margin-bottom:14px;}
+  header h1{font-size:1.85rem;font-weight:800;letter-spacing:-.5px;}
+  .grad{background:linear-gradient(90deg,var(--owner),var(--jt));-webkit-background-clip:text;background-clip:text;color:transparent;}
+  header p{color:var(--muted);margin-top:6px;font-size:.95rem;}
+  h2.sec{font-size:1.15rem;margin:38px 0 8px;color:var(--text);border-left:4px solid var(--fk);padding-left:12px;}
+  h2.sec .pin{font-size:.72rem;color:var(--muted);font-weight:500;display:block;margin-top:2px;}
+  code,pre{font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace;}
+
+  /* legend */
+  .legend{display:flex;gap:16px;justify-content:center;flex-wrap:wrap;margin:8px 0 20px;font-size:.8rem;color:var(--muted);}
+  .legend span{display:inline-flex;align-items:center;gap:7px;}
+  .dot{width:11px;height:11px;border-radius:3px;display:inline-block;}
+
+  /* concept cards */
+  .concepts{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;}
+  .ccard{background:linear-gradient(160deg,var(--card2),var(--card));border:1px solid var(--line);border-top-width:3px;border-radius:12px;padding:13px 15px;}
+  .ccard h3{font-size:.92rem;}
+  .ccard p{font-size:.76rem;color:var(--muted);margin-top:6px;}
+  .ccard.owner{border-top-color:var(--owner);} .ccard.inv{border-top-color:var(--inverse);}
+  .ccard.fk{border-top-color:var(--fk);} .ccard.rule{border-top-color:var(--jt);}
+
+  /* relation block */
+  .rel{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:12px;align-items:start;}
+  .pane{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px 16px;box-shadow:0 8px 24px rgba(0,0,0,.28);}
+  .pane .ph{font-size:.72rem;text-transform:uppercase;letter-spacing:1px;color:var(--muted);font-weight:700;margin-bottom:9px;}
+  pre{font-size:.74rem;white-space:pre;overflow-x:auto;line-height:1.5;}
+  .k{color:#c4a8ff;} .a{color:var(--inverse);} .str{color:var(--owner);} .c{color:var(--muted);} .ty{color:var(--fk);}
+
+  /* db tables */
+  .dbt{margin-bottom:14px;}
+  .dbt .cap{font-size:.74rem;font-weight:700;margin-bottom:5px;display:flex;align-items:center;gap:7px;}
+  .dbt .cap .b{width:10px;height:10px;border-radius:2px;}
+  table.t{width:100%;border-collapse:collapse;font-size:.73rem;font-family:ui-monospace,monospace;}
+  table.t th{background:#11202e;color:var(--fk);padding:5px 8px;border:1px solid var(--line);text-align:left;font-weight:700;}
+  table.t td{padding:5px 8px;border:1px solid var(--line);color:var(--text);}
+  table.t th.fk,table.t td.fk{background:rgba(56,189,248,.13);color:var(--fk);}
+  table.t th.pk{color:var(--owner);}
+  .cap.tbl-owner .b{background:var(--owner);} .cap.tbl-inv .b{background:var(--inverse);} .cap.tbl-jt .b{background:var(--jt);}
+  .tnote{font-size:.7rem;color:var(--muted);margin-top:6px;}
+  .tnote b{color:var(--fk);}
+
+  .keymap{background:rgba(167,139,250,.07);border:1px dashed rgba(167,139,250,.4);border-radius:10px;padding:10px 14px;margin-top:10px;font-size:.78rem;}
+  .keymap b{color:var(--jt);}
+
+  /* variants */
+  .variant-tag{display:inline-block;font-size:.64rem;font-weight:800;text-transform:uppercase;letter-spacing:.5px;background:var(--inverse);color:var(--bg);border-radius:5px;padding:2px 8px;margin-left:8px;}
+
+  /* glossary */
+  table.gl{width:100%;border-collapse:collapse;font-size:.8rem;margin-top:8px;}
+  table.gl th{background:rgba(56,189,248,.1);color:var(--fk);padding:9px;border:1px solid var(--line);text-align:left;}
+  table.gl td{padding:9px;border:1px solid var(--line);vertical-align:top;}
+  table.gl td code{color:var(--inverse);}
+  table.gl td b{color:var(--text);}
+
+  /* trace box */
+  .trace{margin-top:14px;background:rgba(56,189,248,.06);border:1px solid rgba(56,189,248,.3);border-radius:12px;padding:14px 17px;}
+  .trace .tth{font-size:.82rem;font-weight:800;color:var(--fk);margin-bottom:10px;display:flex;align-items:center;gap:7px;}
+  .trace ul{list-style:none;display:flex;flex-direction:column;gap:9px;}
+  .trace li{font-size:.79rem;color:var(--muted);line-height:1.5;}
+  .trace code{font-family:ui-monospace,monospace;font-size:.74rem;background:rgba(255,255,255,.05);padding:1px 6px;border-radius:5px;color:var(--text);}
+  .trace .ref{color:var(--inverse);background:rgba(245,158,11,.1);}
+  .trace .tgt{color:var(--owner);background:rgba(52,211,153,.1);}
+  .trace .col{color:var(--fk);background:rgba(56,189,248,.1);}
+  .trace .ar{color:var(--fk);font-weight:800;padding:0 3px;}
+
+  .note{max-width:900px;margin:30px auto 0;font-size:.85rem;color:var(--text);background:rgba(52,211,153,.07);border:1px dashed rgba(52,211,153,.45);border-radius:12px;padding:16px 20px;}
+  .note b{color:var(--owner);}
+  @media(max-width:780px){.rel{grid-template-columns:1fr;}.concepts{grid-template-columns:1fr 1fr;}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>Mapeo de <span class="grad">relaciones JPA</span></h1>
+    <p>Qué tablas crea cada relación, dónde va la FK y qué hace cada anotación</p>
+  </header>
+
+  <div class="legend">
+    <span><i class="dot" style="background:var(--owner)"></i> lado dueño / PK</span>
+    <span><i class="dot" style="background:var(--inverse)"></i> lado inverso (mappedBy)</span>
+    <span><i class="dot" style="background:var(--fk)"></i> clave foránea (FK)</span>
+    <span><i class="dot" style="background:var(--jt)"></i> tabla intermedia</span>
+  </div>
+
+  <!-- CONCEPTOS -->
+  <h2 class="sec">0 · Conceptos que se repiten en todas</h2>
+  <div class="concepts">
+    <div class="ccard owner">
+      <h3>🔑 Lado dueño (owner)</h3>
+      <p>El que <b>tiene la FK</b> (o define la tabla intermedia). Es el que <b>manda en la base</b>: lo que se escribe en él se refleja en el esquema.</p>
+    </div>
+    <div class="ccard inv">
+      <h3>🪞 Lado inverso</h3>
+      <p>Lleva <code style="color:var(--inverse)">mappedBy</code>. Es solo un <b>espejo</b> para poder navegar en Java; <b>no genera columnas</b> nuevas.</p>
+    </div>
+    <div class="ccard fk">
+      <h3>📍 ¿Dónde va la FK?</h3>
+      <p>Siempre del lado <b>"muchos"</b> (`@ManyToOne`). En 1:1 va en cualquiera de los dos. En N:M no hay FK en las entidades: va una <b>tabla aparte</b>.</p>
+    </div>
+    <div class="ccard rule">
+      <h3>⚖️ Regla de oro</h3>
+      <p><code style="color:var(--jt)">mappedBy</code> no crea ni borra columnas: solo dice <b>cuál lado NO es el dueño</b>, para no duplicar la estructura.</p>
+    </div>
+  </div>
+
+  <!-- ONE TO ONE -->
+  <h2 class="sec">1 · @OneToOne <span class="pin">un Purchase tiene exactamente una Review · la FK va en uno de los dos (con UNIQUE)</span></h2>
+  <div class="rel">
+    <div class="pane">
+      <div class="ph">☕ Java</div>
+<pre><span class="c">// LADO DUEÑO — acá va la FK</span>
+<span class="a">@Entity</span>
+<span class="k">class</span> <span class="ty">Purchase</span> {
+  <span class="a">@Id</span> <span class="k">private</span> Long id;
+
+  <span class="a">@OneToOne</span>
+  <span class="a">@JoinColumn</span>(name=<span class="str">"review_id"</span>)  <span class="c">// col FK</span>
+  <span class="k">private</span> Review review;
+}
+
+<span class="c">// LADO INVERSO — solo espejo</span>
+<span class="a">@Entity</span>
+<span class="k">class</span> <span class="ty">Review</span> {
+  <span class="a">@Id</span> <span class="k">private</span> Long id;
+
+  <span class="a">@OneToOne</span>(mappedBy=<span class="str">"review"</span>)
+  <span class="k">private</span> Purchase purchase;
+}</pre>
+    </div>
+    <div class="pane">
+      <div class="ph">🗄️ Tablas resultantes</div>
+      <div class="dbt">
+        <div class="cap tbl-owner"><span class="b"></span> purchase <span style="color:var(--muted);font-weight:400">(dueño)</span></div>
+        <table class="t"><tr><th class="pk">id 🔑</th><th>code</th><th class="fk">review_id 🔗</th></tr>
+        <tr><td>1</td><td>"ABC"</td><td class="fk">7</td></tr></table>
+      </div>
+      <div class="dbt">
+        <div class="cap tbl-inv"><span class="b"></span> review <span style="color:var(--muted);font-weight:400">(sin columnas extra)</span></div>
+        <table class="t"><tr><th class="pk">id 🔑</th><th>rating</th><th>comment</th></tr>
+        <tr><td>7</td><td>5</td><td>"Excelente"</td></tr></table>
+      </div>
+      <div class="tnote">La <b>FK <code>review_id</code></b> vive en <code>purchase</code> y suele llevar <b>UNIQUE</b> (1:1). El lado <code>Review</code> con <code>mappedBy</code> no agrega nada al esquema.</div>
+    </div>
+  </div>
+
+  <div class="trace">
+    <div class="tth">🔍 A qué apunta cada referencia</div>
+    <ul>
+      <li><code class="ref">@JoinColumn(name="review_id")</code> <span class="ar">→</span> crea la columna <code class="col">review_id</code> en la tabla <code class="tgt">purchase</code>. Es la <b>FK</b> que guarda el <code>id</code> de la Review asociada (apunta a <code>review.id</code>).</li>
+      <li><code class="ref">mappedBy="review"</code> (escrito en <code>Review</code>) <span class="ar">→</span> apunta al <b>atributo</b> <code class="tgt">review</code> de la clase <code class="tgt">Purchase</code> (el que tiene el <code>@JoinColumn</code>). Le dice a JPA: "<i>la dueña de esta relación es Purchase; no generes nada de mi lado, reusá esa misma relación</i>". Por eso <code>review</code> no agrega columnas.</li>
+    </ul>
+  </div>
+
+  <!-- MANY TO ONE / ONE TO MANY -->
+  <h2 class="sec">2 · @ManyToOne + @OneToMany (bidireccional) <span class="pin">la más común · muchos ItemService → una Purchase · la FK va en el lado "muchos"</span></h2>
+  <div class="rel">
+    <div class="pane">
+      <div class="ph">☕ Java</div>
+<pre><span class="c">// LADO "MUCHOS" = DUEÑO (tiene la FK)</span>
+<span class="a">@Entity</span>
+<span class="k">class</span> <span class="ty">ItemService</span> {
+  <span class="a">@Id</span> <span class="k">private</span> Long id;
+
+  <span class="a">@ManyToOne</span>(fetch=FetchType.LAZY)
+  <span class="a">@JoinColumn</span>(name=<span class="str">"purchase_id"</span>)
+  <span class="k">private</span> Purchase purchase;   <span class="c">// FK</span>
+}
+
+<span class="c">// LADO "UNO" = INVERSO (mappedBy)</span>
+<span class="a">@Entity</span>
+<span class="k">class</span> <span class="ty">Purchase</span> {
+  <span class="a">@Id</span> <span class="k">private</span> Long id;
+
+  <span class="a">@OneToMany</span>(mappedBy=<span class="str">"purchase"</span>,
+    cascade=CascadeType.ALL, orphanRemoval=<span class="k">true</span>)
+  <span class="k">private</span> List&lt;ItemService&gt; items;
+}</pre>
+    </div>
+    <div class="pane">
+      <div class="ph">🗄️ Tablas resultantes</div>
+      <div class="dbt">
+        <div class="cap tbl-inv"><span class="b"></span> purchase <span style="color:var(--muted);font-weight:400">(lado "uno" · sin columnas extra)</span></div>
+        <table class="t"><tr><th class="pk">id 🔑</th><th>code</th></tr>
+        <tr><td>1</td><td>"ABC"</td></tr></table>
+      </div>
+      <div class="dbt">
+        <div class="cap tbl-owner"><span class="b"></span> item_service <span style="color:var(--muted);font-weight:400">(lado "muchos" · dueño)</span></div>
+        <table class="t"><tr><th class="pk">id 🔑</th><th>quantity</th><th class="fk">purchase_id 🔗</th></tr>
+        <tr><td>10</td><td>2</td><td class="fk">1</td></tr>
+        <tr><td>11</td><td>1</td><td class="fk">1</td></tr></table>
+      </div>
+      <div class="tnote">Varias filas de <code>item_service</code> apuntan a la misma <b><code>purchase_id</code></b>. Por eso la FK va siempre en el lado <b>"muchos"</b>: es el único que puede tener una sola referencia por fila.</div>
+    </div>
+  </div>
+
+  <div class="trace">
+    <div class="tth">🔍 A qué apunta cada referencia</div>
+    <ul>
+      <li><code class="ref">@JoinColumn(name="purchase_id")</code> (en <code>ItemService</code>) <span class="ar">→</span> crea la columna <code class="col">purchase_id</code> en la tabla <code class="tgt">item_service</code>. Es la <b>FK</b> que apunta a <code>purchase.id</code>: cada ítem "sabe" a qué compra pertenece.</li>
+      <li><code class="ref">mappedBy="purchase"</code> (en <code>Purchase</code>) <span class="ar">→</span> apunta al <b>atributo</b> <code class="tgt">purchase</code> de la clase <code class="tgt">ItemService</code> (el que tiene el <code>@ManyToOne</code> + <code>@JoinColumn</code>). Significa: "<i>el dueño de la relación es ese atributo; yo (la colección de Purchase) soy solo el espejo para navegar</i>". Por eso <code>purchase</code> no agrega columnas a su tabla.</li>
+    </ul>
+  </div>
+
+  <!-- ONE TO MANY UNIDIRECCIONAL -->
+  <h2 class="sec">3 · @OneToMany unidireccional (sin @ManyToOne del otro lado) <span class="pin">dos variantes según uses @JoinColumn o no</span></h2>
+  <div class="rel">
+    <div class="pane">
+      <div class="ph">☕ Java — variante A <span class="variant-tag">recomendada</span></div>
+<pre><span class="a">@Entity</span>
+<span class="k">class</span> <span class="ty">Purchase</span> {
+  <span class="a">@OneToMany</span>
+  <span class="a">@JoinColumn</span>(name=<span class="str">"purchase_id"</span>)
+  <span class="k">private</span> List&lt;ItemService&gt; items;
+}
+<span class="c">// ItemService NO tiene referencia a Purchase</span></pre>
+      <div class="ph" style="margin-top:14px;">☕ Java — variante B <span class="variant-tag" style="background:var(--muted)">por defecto</span></div>
+<pre><span class="a">@Entity</span>
+<span class="k">class</span> <span class="ty">Purchase</span> {
+  <span class="a">@OneToMany</span>   <span class="c">// sin @JoinColumn</span>
+  <span class="k">private</span> List&lt;ItemService&gt; items;
+}</pre>
+    </div>
+    <div class="pane">
+      <div class="ph">🗄️ Tablas resultantes</div>
+      <div class="dbt">
+        <div class="cap tbl-owner"><span class="b"></span> Variante A — FK en item_service</div>
+        <table class="t"><tr><th class="pk">id 🔑</th><th>quantity</th><th class="fk">purchase_id 🔗</th></tr>
+        <tr><td>10</td><td>2</td><td class="fk">1</td></tr></table>
+        <div class="tnote">Con <b><code>@JoinColumn</code></b> la FK va en <code>item_service</code>, como en el caso 2 pero <b>sin</b> referencia inversa en Java.</div>
+      </div>
+      <div class="dbt">
+        <div class="cap tbl-jt"><span class="b"></span> Variante B — tabla intermedia (¡ojo!)</div>
+        <table class="t"><tr><th class="fk">purchase_id 🔗</th><th class="fk">items_id 🔗</th></tr>
+        <tr><td class="fk">1</td><td class="fk">10</td></tr></table>
+        <div class="tnote">Sin <code>@JoinColumn</code>, JPA crea una <b>tabla intermedia</b> (<code>purchase_items</code>) aunque sea 1:N. Es menos eficiente → por eso se prefiere la variante A.</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="trace">
+    <div class="tth">🔍 A qué apunta cada referencia</div>
+    <ul>
+      <li><b>Variante A</b> — <code class="ref">@JoinColumn(name="purchase_id")</code> <span class="ar">→</span> crea la columna <code class="col">purchase_id</code> en la tabla <code class="tgt">item_service</code>, aunque <code>ItemService</code> <b>no tenga ningún atributo</b> hacia <code>Purchase</code>. La relación se navega en un solo sentido (Purchase → items), pero la FK igual vive en el lado "muchos".</li>
+      <li><b>Variante B</b> — al <b>no</b> poner <code class="ref">@JoinColumn</code>, JPA no sabe dónde poner la FK, así que crea una <b>tabla intermedia</b> por defecto llamada <code class="col">purchase_items</code> con dos columnas: <code>purchase_id</code> (apunta a Purchase) e <code>items_id</code> (apunta a ItemService). Funciona, pero agrega una tabla de más para una relación 1:N → por eso conviene la variante A.</li>
+    </ul>
+  </div>
+
+  <!-- MANY TO MANY -->
+  <h2 class="sec">4 · @ManyToMany <span class="pin">Route ↔ DriverUser · NO hay FK en las entidades → siempre una tabla intermedia</span></h2>
+  <div class="rel">
+    <div class="pane">
+      <div class="ph">☕ Java</div>
+<pre><span class="c">// LADO DUEÑO — define la tabla intermedia</span>
+<span class="a">@Entity</span>
+<span class="k">class</span> <span class="ty">Route</span> {
+  <span class="a">@ManyToMany</span>
+  <span class="a">@JoinTable</span>(
+    name=<span class="str">"route_driver"</span>,                <span class="c">// tabla intermedia</span>
+    joinColumns=<span class="a">@JoinColumn</span>(name=<span class="str">"route_id"</span>),
+    inverseJoinColumns=<span class="a">@JoinColumn</span>(name=<span class="str">"driver_id"</span>))
+  <span class="k">private</span> List&lt;DriverUser&gt; drivers;
+}
+
+<span class="c">// LADO INVERSO — mappedBy</span>
+<span class="a">@Entity</span>
+<span class="k">class</span> <span class="ty">DriverUser</span> {
+  <span class="a">@ManyToMany</span>(mappedBy=<span class="str">"drivers"</span>)
+  <span class="k">private</span> List&lt;Route&gt; routes;
+}</pre>
+      <div class="keymap">
+        <b>joinColumns</b> = FK hacia el <b>lado dueño</b> (Route).<br>
+        <b>inverseJoinColumns</b> = FK hacia el <b>otro lado</b> (DriverUser).<br>
+        El nombre lo elegís vos; si omitís <code>@JoinTable</code>, JPA arma uno por defecto.
+      </div>
+    </div>
+    <div class="pane">
+      <div class="ph">🗄️ Tablas resultantes</div>
+      <div class="dbt">
+        <div class="cap tbl-owner"><span class="b"></span> route</div>
+        <table class="t"><tr><th class="pk">id 🔑</th><th>name</th></tr><tr><td>5</td><td>"City Tour"</td></tr></table>
+      </div>
+      <div class="dbt">
+        <div class="cap tbl-jt"><span class="b"></span> route_driver <span style="color:var(--muted);font-weight:400">(tabla intermedia)</span></div>
+        <table class="t"><tr><th class="fk">route_id 🔗</th><th class="fk">driver_id 🔗</th></tr>
+        <tr><td class="fk">5</td><td class="fk">2</td></tr>
+        <tr><td class="fk">5</td><td class="fk">8</td></tr>
+        <tr><td class="fk">6</td><td class="fk">2</td></tr></table>
+      </div>
+      <div class="dbt">
+        <div class="cap tbl-inv"><span class="b"></span> driver_user</div>
+        <table class="t"><tr><th class="pk">id 🔑</th><th>name</th></tr><tr><td>2</td><td>"Juan"</td></tr></table>
+      </div>
+      <div class="tnote">Cada fila de <b>route_driver</b> = un vínculo. La ruta 5 tiene 2 conductores (2 y 8); el conductor 2 está en 2 rutas (5 y 6). Su PK es la pareja <b>(route_id, driver_id)</b>.</div>
+    </div>
+  </div>
+
+  <div class="trace">
+    <div class="tth">🔍 A qué apunta cada referencia</div>
+    <ul>
+      <li><code class="ref">@JoinTable(name="route_driver")</code> <span class="ar">→</span> crea la <b>tabla intermedia</b> <code class="col">route_driver</code> (no toca las tablas <code>route</code> ni <code>driver_user</code>).</li>
+      <li><code class="ref">joinColumns=@JoinColumn(name="route_id")</code> <span class="ar">→</span> crea la columna <code class="col">route_id</code> en <code>route_driver</code>; es la FK que apunta a la PK del <b>lado dueño</b>, <code class="tgt">Route.id</code>. ("join" = el lado donde está escrito el <code>@JoinTable</code>.)</li>
+      <li><code class="ref">inverseJoinColumns=@JoinColumn(name="driver_id")</code> <span class="ar">→</span> crea la columna <code class="col">driver_id</code> en <code>route_driver</code>; FK que apunta a la PK del <b>otro lado</b>, <code class="tgt">DriverUser.id</code>. ("inverse" = el lado opuesto al dueño.)</li>
+      <li><code class="ref">mappedBy="drivers"</code> (en <code>DriverUser</code>) <span class="ar">→</span> apunta al <b>atributo</b> <code class="tgt">drivers</code> de la clase <code class="tgt">Route</code> (el que tiene el <code>@JoinTable</code>). Por eso <code>DriverUser</code> <b>no crea una segunda tabla</b>: reusa la misma <code>route_driver</code>.</li>
+    </ul>
+  </div>
+
+  <!-- GLOSARIO -->
+  <h2 class="sec">5 · Glosario de todas las anotaciones/atributos</h2>
+  <table class="gl">
+    <tr><th>Anotación / atributo</th><th>Dónde va</th><th>Qué hace</th></tr>
+    <tr><td><code>@OneToOne</code> / <code>@OneToMany</code> / <code>@ManyToOne</code> / <code>@ManyToMany</code></td><td>sobre el atributo de relación</td><td>Declaran la <b>cardinalidad</b> de la relación.</td></tr>
+    <tr><td><code>mappedBy</code></td><td>en el <b>lado inverso</b></td><td>Indica que ese lado <b>no es el dueño</b>; su valor es el nombre del atributo dueño en la otra clase. Evita estructuras duplicadas. <b>No crea columnas.</b></td></tr>
+    <tr><td><code>@JoinColumn</code></td><td>en el <b>lado dueño</b> (con FK)</td><td>Define el nombre (y opciones) de la <b>columna FK</b>. Ej: <code>@JoinColumn(name="purchase_id", nullable=false)</code>.</td></tr>
+    <tr><td><code>@JoinTable</code></td><td>en el lado dueño de un <code>@ManyToMany</code> (o 1:N unidireccional)</td><td>Define la <b>tabla intermedia</b>: su nombre y sus dos columnas FK.</td></tr>
+    <tr><td><code>joinColumns</code></td><td>dentro de <code>@JoinTable</code></td><td>FK de la tabla intermedia hacia el <b>lado dueño</b> (el que tiene el <code>@JoinTable</code>).</td></tr>
+    <tr><td><code>inverseJoinColumns</code></td><td>dentro de <code>@JoinTable</code></td><td>FK de la tabla intermedia hacia el <b>otro lado</b> (el inverso).</td></tr>
+    <tr><td><code>referencedColumnName</code></td><td>dentro de <code>@JoinColumn</code></td><td>A qué columna de la otra tabla apunta la FK (por defecto, su <b>PK</b>). Solo se usa si no querés referenciar la PK.</td></tr>
+    <tr><td><code>fetch</code> (<code>EAGER</code>/<code>LAZY</code>)</td><td>en cualquier relación</td><td>Cuándo se cargan los asociados. Default: <b>LAZY</b> en *ToMany, <b>EAGER</b> en *ToOne.</td></tr>
+    <tr><td><code>cascade</code></td><td>en cualquier relación</td><td>Qué operaciones se propagan a los asociados (<code>PERSIST</code>, <code>REMOVE</code>, <code>ALL</code>…). Default: ninguna.</td></tr>
+    <tr><td><code>orphanRemoval</code></td><td>solo <code>@OneToMany</code> / <code>@OneToOne</code></td><td>Borra el hijo si se lo quita de la colección/relación (composición). <b>No existe en @ManyToMany.</b></td></tr>
+  </table>
+
+  <div class="note">
+    <b>El mapa mental, en 3 reglas:</b>
+    <b>(1)</b> La <b style="color:var(--fk)">FK</b> vive del lado <b>"muchos"</b> (<code>@ManyToOne</code> + <code>@JoinColumn</code>); en 1:1 en cualquiera; en N:M no hay FK en las entidades → va una <b style="color:var(--jt)">tabla intermedia</b> (<code>@JoinTable</code>).
+    <b>(2)</b> El <b>lado dueño</b> es el que define esa estructura; el <b style="color:var(--inverse)">inverso</b> lleva <code>mappedBy</code> y es solo un espejo para navegar en Java.
+    <b>(3)</b> <code>joinColumns</code> apunta al dueño, <code>inverseJoinColumns</code> al otro lado. Todo lo demás (<code>fetch</code>, <code>cascade</code>, <code>orphanRemoval</code>) ajusta el comportamiento, no la forma de las tablas.
+  </div>
+
+</div>
+</body>
+</html>

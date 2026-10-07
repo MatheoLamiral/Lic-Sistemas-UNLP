@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mapeo de jerarquías JPA — SINGLE_TABLE, TABLE_PER_CLASS, JOINED</title>
+<style>
+  :root{
+    --bg:#0d1117; --card:#161b26; --card2:#1c2230;
+    --single:#34d399; --tpc:#f59e0b; --joined:#818cf8;
+    --fk:#38bdf8; --disc:#f472b6; --null:#6b7280;
+    --text:#e6edf3; --muted:#8b949e; --line:#30363d;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;background:radial-gradient(1200px 600px at 50% -10%,#1c2230 0%,var(--bg) 60%);color:var(--text);line-height:1.55;padding:34px 18px 70px;}
+  .wrap{max-width:1120px;margin:0 auto;}
+  header{text-align:center;margin-bottom:14px;}
+  header h1{font-size:1.8rem;font-weight:800;letter-spacing:-.5px;}
+  .grad{background:linear-gradient(90deg,var(--single),var(--joined));-webkit-background-clip:text;background-clip:text;color:transparent;}
+  header p{color:var(--muted);margin-top:6px;font-size:.95rem;}
+  h2.sec{font-size:1.18rem;margin:38px 0 6px;padding-left:12px;border-left:4px solid;}
+  h2.s1{border-color:var(--single);} h2.s2{border-color:var(--tpc);} h2.s3{border-color:var(--joined);} h2.s0{border-color:var(--fk);} h2.s4{border-color:var(--disc);}
+  h2.sec .pin{display:block;font-size:.74rem;color:var(--muted);font-weight:500;margin-top:3px;}
+  code,pre{font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace;}
+  pre{font-size:.74rem;white-space:pre;overflow-x:auto;line-height:1.5;}
+  .k{color:#c4a8ff;} .a{color:var(--tpc);} .str{color:var(--single);} .c{color:var(--muted);} .ty{color:var(--fk);}
+
+  /* hierarchy diagram */
+  .hier{display:flex;flex-direction:column;align-items:center;gap:0;margin:14px auto;max-width:560px;}
+  .hbox{border:1.5px solid var(--line);border-radius:10px;padding:9px 14px;background:var(--card);text-align:center;min-width:180px;}
+  .hbox b{font-size:.9rem;} .hbox p{font-size:.7rem;color:var(--muted);font-family:ui-monospace,monospace;}
+  .hbox.base{border-color:var(--fk);}
+  .hline{width:2px;height:16px;background:var(--line);}
+  .hsplit{display:flex;gap:40px;position:relative;}
+  .hsplit::before{content:"";position:absolute;top:-16px;left:25%;right:25%;height:2px;background:var(--line);}
+  .hchild{display:flex;flex-direction:column;align-items:center;}
+  .hchild .hline{height:16px;}
+
+  /* strategy block */
+  .blk{display:grid;grid-template-columns:0.85fr 1.15fr;gap:16px;margin-top:12px;align-items:start;}
+  .pane{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px 16px;box-shadow:0 8px 24px rgba(0,0,0,.28);}
+  .pane .ph{font-size:.72rem;text-transform:uppercase;letter-spacing:1px;color:var(--muted);font-weight:700;margin-bottom:9px;}
+
+  table.t{width:100%;border-collapse:collapse;font-size:.71rem;font-family:ui-monospace,monospace;margin-bottom:6px;}
+  table.t caption{font-size:.74rem;font-weight:700;text-align:left;margin-bottom:4px;padding-left:2px;}
+  table.t th{background:#11202e;color:var(--fk);padding:4px 7px;border:1px solid var(--line);text-align:left;font-weight:700;white-space:nowrap;}
+  table.t td{padding:4px 7px;border:1px solid var(--line);}
+  table.t .disc{background:rgba(244,114,182,.14);color:var(--disc);}
+  table.t .nullc{color:var(--null);font-style:italic;}
+  table.t .fkc{background:rgba(56,189,248,.13);color:var(--fk);}
+  table.t .pk{color:var(--single);}
+  .tcap-s{color:var(--single);} .tcap-t{color:var(--tpc);} .tcap-j{color:var(--joined);}
+  .tnote{font-size:.7rem;color:var(--muted);margin-top:2px;}
+
+  .proscons{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px;}
+  .pc{border-radius:9px;padding:10px 12px;font-size:.76rem;}
+  .pc.pro{background:rgba(52,211,153,.08);border:1px solid rgba(52,211,153,.3);}
+  .pc.con{background:rgba(248,113,113,.08);border:1px solid rgba(248,113,113,.3);}
+  .pc h4{font-size:.75rem;margin-bottom:6px;} .pc.pro h4{color:var(--single);} .pc.con h4{color:#f87171;}
+  .pc ul{list-style:none;display:flex;flex-direction:column;gap:4px;}
+  .pc li{padding-left:14px;position:relative;color:var(--muted);}
+  .pc.pro li::before{content:"✓";position:absolute;left:0;color:var(--single);}
+  .pc.con li::before{content:"✗";position:absolute;left:0;color:#f87171;}
+
+  .restr{margin-top:11px;background:rgba(244,114,182,.07);border:1px solid rgba(244,114,182,.35);border-radius:10px;padding:10px 13px;font-size:.78rem;}
+  .restr b{color:var(--disc);}
+  .when{margin-top:9px;font-size:.79rem;background:rgba(56,189,248,.07);border-left:3px solid var(--fk);border-radius:6px;padding:8px 12px;}
+  .when b{color:var(--fk);}
+
+  table.cmp{width:100%;border-collapse:collapse;font-size:.78rem;margin-top:8px;}
+  table.cmp th{background:rgba(56,189,248,.1);color:var(--fk);padding:9px;border:1px solid var(--line);text-align:left;}
+  table.cmp td{padding:9px;border:1px solid var(--line);vertical-align:top;}
+  table.cmp td b{color:var(--text);}
+  .yes{color:var(--single);font-weight:700;} .no{color:#f87171;font-weight:700;} .mid{color:var(--tpc);font-weight:700;}
+
+  .note{max-width:920px;margin:30px auto 0;font-size:.85rem;color:var(--text);background:rgba(129,140,248,.07);border:1px dashed rgba(129,140,248,.45);border-radius:12px;padding:16px 20px;}
+  .note b{color:var(--joined);}
+  @media(max-width:780px){.blk{grid-template-columns:1fr;}.proscons{grid-template-columns:1fr;}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>Mapeo de <span class="grad">jerarquías</span> de herencia</h1>
+    <p>Cómo representar <code>User → DriverUser / TourGuideUser</code> en tablas relacionales</p>
+  </header>
+
+  <!-- 0: CONTEXTO -->
+  <h2 class="sec s0">0 · El problema y la jerarquía de ejemplo<span class="pin">El modelo relacional NO soporta herencia → JPA ofrece 3 estrategias para "aplanarla"</span></h2>
+  <div class="hier">
+    <div class="hbox base"><b>User</b><p>id · username · name</p></div>
+    <div class="hline"></div>
+    <div class="hsplit">
+      <div class="hchild"><div class="hline"></div><div class="hbox"><b>DriverUser</b><p>+ expedient</p></div></div>
+      <div class="hchild"><div class="hline"></div><div class="hbox"><b>TourGuideUser</b><p>+ education</p></div></div>
+    </div>
+  </div>
+  <p style="text-align:center;color:var(--muted);font-size:.82rem;">Se configura con <code style="color:var(--tpc)">@Inheritance(strategy = InheritanceType.XXX)</code> sobre la clase raíz <code>User</code>.</p>
+
+  <!-- 1: SINGLE_TABLE -->
+  <h2 class="sec s1">1 · SINGLE_TABLE <span class="pin">una sola tabla para toda la jerarquía + columna discriminadora · (es la estrategia por defecto)</span></h2>
+  <div class="blk">
+    <div class="pane">
+      <div class="ph">☕ Java</div>
+<pre><span class="a">@Entity</span>
+<span class="a">@Inheritance</span>(strategy =
+   InheritanceType.<span class="str">SINGLE_TABLE</span>)
+<span class="a">@DiscriminatorColumn</span>(name=<span class="str">"user_type"</span>)
+<span class="k">class</span> <span class="ty">User</span> { Long id; String name; }
+
+<span class="a">@Entity</span>
+<span class="a">@DiscriminatorValue</span>(<span class="str">"DRIVER"</span>)
+<span class="k">class</span> <span class="ty">DriverUser</span> <span class="k">extends</span> User {
+  String expedient;
+}
+
+<span class="a">@Entity</span>
+<span class="a">@DiscriminatorValue</span>(<span class="str">"GUIDE"</span>)
+<span class="k">class</span> <span class="ty">TourGuideUser</span> <span class="k">extends</span> User {
+  String education;
+}</pre>
+    </div>
+    <div class="pane">
+      <div class="ph">🗄️ Tabla resultante (una sola)</div>
+      <table class="t">
+        <caption class="tcap-s">user</caption>
+        <tr><th class="pk">id</th><th class="disc">user_type</th><th>name</th><th>expedient</th><th>education</th></tr>
+        <tr><td>1</td><td class="disc">DRIVER</td><td>Juan</td><td>EXP-12</td><td class="nullc">NULL</td></tr>
+        <tr><td>2</td><td class="disc">GUIDE</td><td>Ana</td><td class="nullc">NULL</td><td>Lic. Turismo</td></tr>
+        <tr><td>3</td><td class="disc">DRIVER</td><td>Leo</td><td>EXP-44</td><td class="nullc">NULL</td></tr>
+      </table>
+      <div class="tnote">La columna <b style="color:var(--disc)">user_type</b> (discriminadora) dice de qué clase es cada fila. Cada fila tiene <b style="color:var(--null)">NULL</b> en las columnas que no le corresponden.</div>
+      <div class="proscons">
+        <div class="pc pro"><h4>Ventajas</h4><ul><li>La más rápida (sin JOINs)</li><li>Consultas polimórficas triviales</li><li>Simple, una sola tabla</li></ul></div>
+        <div class="pc con"><h4>Desventajas</h4><ul><li>Muchos NULLs (espacio desperdiciado)</li><li>Tabla ancha y dispersa</li></ul></div>
+      </div>
+      <div class="restr">⛔ <b>Restricción clave:</b> las columnas de las subclases <b>deben ser NULLABLE</b>. No podés poner <code>NOT NULL</code> en <code>expedient</code> ni <code>education</code>, porque las filas de la otra subclase las tendrán vacías. (La validación de obligatoriedad queda en la app, no en el esquema.)</div>
+      <div class="when">✅ <b>Conviene cuando:</b> priorizás <b>rendimiento</b> y hacés muchas <b>consultas polimórficas</b> (es la más eficiente para consultar toda la jerarquía junta), y las subclases agregan <b>pocos</b> campos propios. Es la opción <b>por defecto</b>. <br>↳ Si necesitás <b>mantener restricciones</b> (<code>NOT NULL</code>, etc.) sobre los hijos, usá <b>JOINED</b> en su lugar.</div>
+    </div>
+  </div>
+
+  <!-- 2: TABLE_PER_CLASS -->
+  <h2 class="sec s2">2 · TABLE_PER_CLASS <span class="pin">una tabla por clase concreta, con TODAS las columnas (las comunes se repiten)</span></h2>
+  <div class="blk">
+    <div class="pane">
+      <div class="ph">☕ Java</div>
+<pre><span class="a">@Entity</span>
+<span class="a">@Inheritance</span>(strategy =
+   InheritanceType.<span class="str">TABLE_PER_CLASS</span>)
+<span class="k">class</span> <span class="ty">User</span> { Long id; String name; }
+
+<span class="a">@Entity</span>
+<span class="k">class</span> <span class="ty">DriverUser</span> <span class="k">extends</span> User {
+  String expedient;
+}
+
+<span class="a">@Entity</span>
+<span class="k">class</span> <span class="ty">TourGuideUser</span> <span class="k">extends</span> User {
+  String education;
+}
+<span class="c">// sin discriminador</span></pre>
+    </div>
+    <div class="pane">
+      <div class="ph">🗄️ Tablas resultantes (una por clase concreta)</div>
+      <table class="t">
+        <caption class="tcap-t">driver_user</caption>
+        <tr><th class="pk">id</th><th>name</th><th>expedient</th></tr>
+        <tr><td>1</td><td>Juan</td><td>EXP-12</td></tr>
+      </table>
+      <table class="t">
+        <caption class="tcap-t">tour_guide_user</caption>
+        <tr><th class="pk">id</th><th>name</th><th>education</th></tr>
+        <tr><td>2</td><td>Ana</td><td>Lic. Turismo</td></tr>
+      </table>
+      <div class="tnote">Las columnas comunes (<code>id</code>, <code>name</code>) se <b>repiten</b> en cada tabla. No hay tabla para <code>User</code> ni discriminador.</div>
+      <div class="proscons">
+        <div class="pc pro"><h4>Ventajas</h4><ul><li>Sin NULLs (cada tabla es limpia)</li><li>Cada clase concreta = su tabla</li><li>Sin columna discriminadora</li></ul></div>
+        <div class="pc con"><h4>Desventajas</h4><ul><li>Columnas comunes duplicadas</li><li>Consulta polimórfica = <b>UNION</b> de todas las tablas (lenta)</li><li>Cambiar un campo común toca todas las tablas</li></ul></div>
+      </div>
+      <div class="restr">⛔ <b>Restricción clave:</b> <b>no se puede usar <code>GenerationType.IDENTITY</code></b> para el id. Como los ids deben ser únicos en <b>toda</b> la jerarquía (para las consultas polimórficas con UNION), un autoincremental por tabla chocaría. Hay que usar <code>SEQUENCE</code> o <code>TABLE</code>.</div>
+      <div class="when">✅ <b>Conviene cuando:</b> hacés <b>muchas consultas sobre los hijos por separado</b> y <b>no te interesan las polimórficas</b> (que acá serían un <code>UNION</code> lento). Tablas limpias sin NULLs. En la práctica es la <b>menos usada</b>.</div>
+    </div>
+  </div>
+
+  <!-- 3: JOINED -->
+  <h2 class="sec s3">3 · JOINED <span class="pin">una tabla por clase, pero normalizada: la base tiene lo común, las hijas solo lo propio + FK al padre</span></h2>
+  <div class="blk">
+    <div class="pane">
+      <div class="ph">☕ Java</div>
+<pre><span class="a">@Entity</span>
+<span class="a">@Inheritance</span>(strategy =
+   InheritanceType.<span class="str">JOINED</span>)
+<span class="k">class</span> <span class="ty">User</span> { Long id; String name; }
+
+<span class="a">@Entity</span>
+<span class="k">class</span> <span class="ty">DriverUser</span> <span class="k">extends</span> User {
+  String expedient;   <span class="c">// puede ser NOT NULL</span>
+}
+
+<span class="a">@Entity</span>
+<span class="k">class</span> <span class="ty">TourGuideUser</span> <span class="k">extends</span> User {
+  String education;
+}</pre>
+    </div>
+    <div class="pane">
+      <div class="ph">🗄️ Tablas resultantes (normalizadas, unidas por FK)</div>
+      <table class="t">
+        <caption class="tcap-j">user <span style="color:var(--muted);font-weight:400">(datos comunes)</span></caption>
+        <tr><th class="pk">id</th><th>name</th></tr>
+        <tr><td>1</td><td>Juan</td></tr>
+        <tr><td>2</td><td>Ana</td></tr>
+      </table>
+      <table class="t">
+        <caption class="tcap-j">driver_user</caption>
+        <tr><th class="fkc">id 🔗</th><th>expedient</th></tr>
+        <tr><td class="fkc">1</td><td>EXP-12</td></tr>
+      </table>
+      <table class="t">
+        <caption class="tcap-j">tour_guide_user</caption>
+        <tr><th class="fkc">id 🔗</th><th>education</th></tr>
+        <tr><td class="fkc">2</td><td>Lic. Turismo</td></tr>
+      </table>
+      <div class="tnote">El <code>id</code> de cada tabla hija es a la vez <b>PK y FK</b> hacia <code>user.id</code>. Para leer un <code>DriverUser</code> completo se hace <b>JOIN</b> entre <code>user</code> y <code>driver_user</code>.</div>
+      <div class="proscons">
+        <div class="pc pro"><h4>Ventajas</h4><ul><li>Normalizado: sin NULLs ni duplicación</li><li>Permite <code>NOT NULL</code> en campos de subclase</li><li>Esquema limpio y prolijo</li></ul></div>
+        <div class="pc con"><h4>Desventajas</h4><ul><li>Leer una subclase requiere <b>JOIN</b></li><li>Insertar toca <b>2 tablas</b></li><li>Consultas polimórficas = varios JOINs (más lento que SINGLE_TABLE)</li></ul></div>
+      </div>
+      <div class="restr">ℹ️ <b>Sin restricción dura</b> como las otras, pero el costo es el <b>rendimiento</b>: cada lectura/inserción de una subclase implica unir o tocar la tabla padre y la hija.</div>
+      <div class="when">✅ <b>Conviene cuando:</b> necesitás <b>mantener restricciones fuertes en todo el esquema</b> (<code>NOT NULL</code> y constraints <b>tanto en el padre como en los hijos</b>) y un modelo <b>normalizado</b>, aun a costa de los JOINs. Ideal si las subclases tienen <b>muchos</b> campos propios.</div>
+    </div>
+  </div>
+
+  <!-- 4: COMPARACIÓN -->
+  <h2 class="sec s4">4 · Comparación rápida</h2>
+  <table class="cmp">
+    <tr><th>Criterio</th><th style="color:var(--single)">SINGLE_TABLE</th><th style="color:var(--tpc)">TABLE_PER_CLASS</th><th style="color:var(--joined)">JOINED</th></tr>
+    <tr><td><b>Tablas</b></td><td>1 (toda la jerarquía)</td><td>1 por clase concreta</td><td>1 base + 1 por subclase</td></tr>
+    <tr><td><b>Discriminador</b></td><td class="yes">Sí (obligatorio)</td><td class="no">No</td><td>Opcional</td></tr>
+    <tr><td><b>NULLs</b></td><td class="no">Muchos</td><td class="yes">Ninguno</td><td class="yes">Ninguno</td></tr>
+    <tr><td><b>Duplicación</b></td><td class="yes">No</td><td class="no">Sí (columnas comunes)</td><td class="yes">No</td></tr>
+    <tr><td><b>Rendimiento (lectura)</b></td><td class="yes">El mejor (sin JOIN)</td><td class="mid">UNION en polimórficas</td><td class="mid">JOINs</td></tr>
+    <tr><td><b><code>NOT NULL</code> en subclases</b></td><td class="no">No permite</td><td class="yes">Sí</td><td class="yes">Sí</td></tr>
+    <tr><td><b><code>IDENTITY</code> para el id</b></td><td class="yes">Sí</td><td class="no">No permitido</td><td class="yes">Sí</td></tr>
+    <tr><td><b>Uso típico</b></td><td>Default / pocos campos extra</td><td>Raro</td><td>Esquema normalizado</td></tr>
+  </table>
+
+  <div class="note">
+    <b>Cómo elegir, en una línea cada una:</b>
+    <b style="color:var(--single)">SINGLE_TABLE</b> → rapidez y simplicidad, aceptando NULLs y sin poder exigir <code>NOT NULL</code> en subclases (el default).
+    <b style="color:var(--tpc)">TABLE_PER_CLASS</b> → tablas limpias e independientes, pero pagás duplicación, UNIONs y perdés <code>IDENTITY</code>.
+    <b style="color:var(--joined)">JOINED</b> → el más normalizado y prolijo (permite <code>NOT NULL</code>), a costa de JOINs en cada acceso.
+    <br><br>
+    En tu TP la jerarquía <code>User</code> usa <b style="color:var(--single)">SINGLE_TABLE</b>: pocas columnas extra (<code>expedient</code>, <code>education</code>), prioriza rendimiento, y la columna discriminadora <code>user_type</code> distingue cada tipo.
+  </div>
+
+</div>
+</body>
+</html>

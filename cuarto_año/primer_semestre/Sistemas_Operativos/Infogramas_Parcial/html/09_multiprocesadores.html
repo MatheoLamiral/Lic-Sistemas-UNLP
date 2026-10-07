@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="es"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Infograma de Repaso: Multiprocesadores</title>
+<style>
+:root { --accent:#4f46e5; --accent2:#818cf8; }
+* { box-sizing:border-box; }
+body {
+  font-family:'Segoe UI',system-ui,-apple-system,sans-serif;
+  margin:0; background:#0f172a; color:#1e293b; line-height:1.55;
+}
+.wrap { max-width:1100px; margin:0 auto; padding:0 16px 60px; }
+header.hero {
+  background:linear-gradient(135deg,var(--accent),var(--accent2));
+  color:#fff; padding:38px 28px; border-radius:0 0 24px 24px;
+  box-shadow:0 8px 30px rgba(0,0,0,.35); margin-bottom:26px;
+}
+header.hero h1 { margin:0; font-size:2.0rem; display:flex; align-items:center; gap:14px; }
+header.hero .sub { opacity:.92; margin-top:8px; font-size:.95rem; }
+.topbar { background:#0f172a; padding:10px 16px; }
+.topbar a { color:#cbd5e1; text-decoration:none; font-size:.88rem; font-weight:600; }
+.topbar a:hover { color:#fff; }
+section.card {
+  background:#fff; border-radius:16px; padding:18px 22px; margin:18px 0;
+  box-shadow:0 4px 18px rgba(0,0,0,.18); border-left:6px solid var(--accent);
+}
+section.card h2 {
+  margin:0 0 12px; font-size:1.28rem; color:var(--accent);
+  display:flex; align-items:center; gap:10px;
+}
+section.card h3 { font-size:1.05rem; color:#334155; margin:16px 0 6px; }
+section.trampas {
+  border-left:6px solid #f59e0b; background:#fffbeb;
+}
+section.trampas h2 { color:#b45309; }
+ul, ol { margin:8px 0 8px; padding-left:24px; }
+li { margin:4px 0; }
+table {
+  border-collapse:collapse; width:100%; margin:14px 0; font-size:.92rem;
+  border-radius:10px; overflow:hidden; box-shadow:0 2px 8px rgba(0,0,0,.10);
+}
+th { background:var(--accent); color:#fff; text-align:left; padding:9px 12px; }
+td { padding:8px 12px; border-top:1px solid #e2e8f0; vertical-align:top; }
+tr:nth-child(even) td { background:#f8fafc; }
+code { background:#eef2ff; color:#3730a3; padding:1px 6px; border-radius:5px;
+  font-family:'Fira Code',Consolas,monospace; font-size:.88em; }
+pre { background:#1e293b; color:#e2e8f0; padding:14px; border-radius:10px; overflow:auto; }
+pre code { background:none; color:inherit; padding:0; }
+strong { color:#0f172a; }
+blockquote { border-left:4px solid var(--accent2); margin:10px 0; padding:6px 16px;
+  background:#f1f5f9; border-radius:0 8px 8px 0; color:#475569; }
+.vf-true { background:#16a34a; color:#fff; padding:1px 8px; border-radius:20px;
+  font-weight:700; font-size:.8rem; letter-spacing:.3px; }
+.vf-false { background:#dc2626; color:#fff; padding:1px 8px; border-radius:20px;
+  font-weight:700; font-size:.8rem; letter-spacing:.3px; }
+a { color:var(--accent); }
+hr { border:none; border-top:1px dashed #cbd5e1; margin:22px 0; }
+.home-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(230px,1fr));
+  gap:16px; margin-top:10px; }
+.home-grid a { text-decoration:none; }
+.tile { background:#fff; border-radius:16px; padding:20px; box-shadow:0 4px 16px rgba(0,0,0,.18);
+  border-top:5px solid var(--accent); transition:transform .12s,box-shadow .12s; height:100%; }
+.tile:hover { transform:translateY(-4px); box-shadow:0 10px 28px rgba(0,0,0,.30); }
+.tile .ico { font-size:2rem; }
+.tile .t { font-weight:700; color:#1e293b; margin:8px 0 4px; font-size:1.05rem; }
+.tile .d { color:#64748b; font-size:.85rem; }
+.badge { display:inline-block; background:#fef3c7; color:#b45309; font-size:.72rem;
+  font-weight:700; padding:2px 8px; border-radius:20px; margin-top:8px; }
+@media print { body{background:#fff;} section.card{box-shadow:none;border:1px solid #e2e8f0;}
+  header.hero{box-shadow:none;} .topbar{display:none;} }
+</style></head>
+<body><div class="topbar"><a href="index.html">⟵ Índice de infogramas</a></div>
+<header class="hero"><h1><span>⚙️</span>Infograma de Repaso: Multiprocesadores</h1>
+<div class="sub">Repaso parcial · Sistemas Operativos UNLP</div></header>
+<div class="wrap"><section class="card"><h2><span>⚙️</span> Origen y motivación</h2>
+<ul>
+<li>La industria siempre buscó <strong>más poder de cómputo</strong>. La solución histórica: subir la <strong>velocidad de reloj</strong>.</li>
+<li>Hoy subir el clock es físicamente complejo:</li>
+<li>Ninguna señal va más rápido que la <strong>luz</strong> (~20 cm/nseg en cobre/fibra).</li>
+<li><strong>Disipación de calor</strong> (problema fundamental) y <strong>consumo eléctrico</strong>.</li>
+<li><strong>Solución actual:</strong> cómputo <strong>paralelo y/o distribuido</strong> → varias CPU a velocidad "normal" que en conjunto dan la potencia. → <strong>más cores</strong>, no más Hz.</li>
+</ul>
+<hr />
+</section>
+<section class="card"><h2><span>⚙️</span> Esquemas de arquitectura (mayor → menor acoplamiento)</h2>
+<table>
+<thead>
+<tr>
+<th>Esquema</th>
+<th>Memoria</th>
+<th>Comunicación</th>
+<th>Retardo</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Multiprocesador (memoria COMPARTIDA)</strong></td>
+<td>Un único espacio de direcciones, por <strong>BUS</strong></td>
+<td>A través de la memoria compartida</td>
+<td><strong>2–10 nseg</strong></td>
+</tr>
+<tr>
+<td><strong>Multicomputadora (memoria DISTRIBUIDA)</strong></td>
+<td>Cada CPU tiene memoria local</td>
+<td><strong>Pasaje de mensajes</strong> (interconexión alta velocidad)</td>
+<td><strong>10–50 μseg</strong></td>
+</tr>
+<tr>
+<td><strong>Sistema distribuido</strong></td>
+<td>Cada nodo es una PC completa</td>
+<td>Pasaje de mensajes por <strong>red</strong></td>
+<td><strong>10–100 mseg</strong></td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li><strong>Multicomputadoras (clusters):</strong> fáciles de fabricar, difíciles de programar. <strong>Fuertemente acopladas</strong> (una tarea empieza y termina en la misma CPU).</li>
+<li><strong>Sistemas distribuidos:</strong> computadoras completas y heterogéneas (distinto SO/HW) conectadas por red.</li>
+<li><strong>Salto clave:</strong> de nseg (compartida) a mseg (distribuido) → factor de <strong>millones</strong>.</li>
+</ul>
+<hr />
+</section>
+<section class="card"><h2><span>⚙️</span> Memoria compartida: UMA vs NUMA</h2>
+<p>A nivel HW cada procesador direcciona toda la memoria. Según la <strong>velocidad de acceso</strong>:</p>
+<table>
+<thead>
+<tr>
+<th></th>
+<th><strong>UMA</strong> (Uniform Memory Access)</th>
+<th><strong>NUMA</strong> (Non-Uniform Memory Access)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Tiempo de acceso</strong></td>
+<td><strong>Igual</strong> para todas las CPU</td>
+<td><strong>Depende</strong>: local rápido / remoto lento</td>
+</tr>
+<tr>
+<td><strong>Espacio de direcciones</strong></td>
+<td>Único</td>
+<td>Único (visible a todas)</td>
+</tr>
+<tr>
+<td><strong>Acceso remoto</strong></td>
+<td>—</td>
+<td>Con <strong>LOAD/STORE</strong>, requiere bus compartido</td>
+</tr>
+<tr>
+<td><strong>Escalabilidad</strong></td>
+<td>Baja (caro, poco escalable)</td>
+<td>Alta (escala en n° de CPU)</td>
+</tr>
+<tr>
+<td><strong>Rendimiento/costo</strong></td>
+<td>Mayor rendimiento, más caro</td>
+<td>Menor rendimiento a igual clock, más barato</td>
+</tr>
+<tr>
+<td><strong>Ejemplo típico</strong></td>
+<td><strong>SMP por bus</strong></td>
+<td>Grandes sistemas multi-nodo</td>
+</tr>
+</tbody>
+</table>
+<h3>UMA en detalle</h3>
+<ul>
+<li><strong>Basado en bus:</strong> un único bus; al sumar CPU el <strong>ancho de banda del bus</strong> es el cuello de botella → CPU ociosa.</li>
+<li><strong>Con cache:</strong> reduce accesos al bus. Bloque <strong>RO</strong> en varias caches; bloque <strong>RW</strong> en una sola. Necesita <strong>protocolo de coherencia de cache</strong>.</li>
+<li><strong>Cache + memoria local:</strong> memoria privada por bus dedicado; la compartida solo para variables compartidas (requiere ayuda del <strong>compilador</strong>).</li>
+<li><strong>Escalar más allá del bus</strong> (límite ~16–32 CPU):</li>
+<li><strong>Crossbar (barras cruzadas):</strong> n CPU × n bancos, hasta n conexiones; <strong>contención</strong> si 2 CPU van al mismo módulo; muchos switches (caro).</li>
+<li><strong>Redes multietapa:</strong> menos switches, pero <strong>más bloqueos</strong>. Mensaje = Módulo + Dirección + CódigoOp(READ/WRITE) + Valor.</li>
+</ul>
+<h3>NUMA en detalle</h3>
+<ul>
+<li><strong>NC-NUMA:</strong> sin cache. <strong>CC-NUMA:</strong> con cache (clave mantener coherencia).</li>
+<li><strong>CC-NUMA grande → multiprocesador basado en directorios:</strong> BD en HW que indica dónde está cada línea y su estado (limpia/sucia). Dirección = <strong>nodo + línea + desplazamiento</strong>.</li>
+</ul>
+<h3>Coherencia de cache (problema central)</h3>
+<ul>
+<li>Dato cacheado en varias CPU → al escribir, una CPU manda mensaje al bus:</li>
+<li>Copias <strong>limpias</strong> en otras caches → se <strong>descartan</strong>.</li>
+<li>Copia <strong>sucia</strong> → se escribe a memoria e informa antes de modificar.</li>
+</ul>
+<hr />
+</section>
+<section class="card"><h2><span>⚙️</span> Chips multinúcleo</h2>
+<p>Más transistores por chip → opciones: más cache (poca mejora), más clock (sigue 1 solo hilo), o <strong>más cores</strong> (comparten cache/memoria → <strong>paralelismo real</strong>). El SW debe diseñarse según el HW.</p>
+<hr />
+</section>
+<section class="card"><h2><span>⚙️</span> Tipos de SO multiprocesador</h2>
+<ol>
+<li><strong>Cada CPU con su SO</strong> (poco usado): memoria dividida estáticamente; procesos atados a 1 CPU. Problemas: <strong>desbalance</strong>, no comparte páginas, cache de disco <strong>inconsistente</strong>.</li>
+<li><strong>Maestro–Esclavo:</strong> 1 sola copia del SO; todas las syscalls van a la CPU <strong>maestra</strong>. Resuelve balanceo/páginas, pero el maestro es <strong>cuello de botella</strong> con muchas CPU.</li>
+<li><strong>SMP (Multiprocesadores Simétricos):</strong> 1 copia del SO, <strong>cualquier CPU</strong> lo ejecuta; la syscall la corre la CPU que la invocó. Sin cuello de botella. Problema: varias CPU en el SO a la vez / eligen mismo proceso o página.</li>
+</ol>
+<table>
+<thead>
+<tr>
+<th>Solución SMP</th>
+<th>Descripción</th>
+<th>Valoración</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Lock global</strong></td>
+<td>Todo el SO = 1 sección crítica, una CPU a la vez</td>
+<td>Se comporta como maestro-esclavo; mala performance</td>
+</tr>
+<tr>
+<td><strong>Lock por estructura</strong></td>
+<td>Varias secciones críticas, cada una con su mutex</td>
+<td>Mejor rendimiento, <strong>el más usado</strong>; riesgo de <strong>deadlocks</strong></td>
+</tr>
+</tbody>
+</table>
+<hr />
+</section>
+<section class="card"><h2><span>⚙️</span> Sincronización en multiprocesador</h2>
+<ul>
+<li>En <strong>uniprocesador</strong> basta con <strong>deshabilitar interrupciones</strong> para tocar tablas del kernel.</li>
+<li>En <strong>multiprocesador NO alcanza</strong>: otra CPU puede generar interrupciones → se necesita <strong>protocolo de mutex</strong>.</li>
+<li><strong>TSL (Test and Set Lock):</strong> lee palabra y escribe 1 (lock). En multiprocesador <strong>no es indivisible</strong> → 2 CPU podrían leer 0 y entrar juntas. <strong>Solución:</strong> TSL <strong>bloquea el bus</strong> (requiere soporte HW); genera carga por <strong>espera activa (spinlock)</strong>.</li>
+<li>Mejoras: variable de lock propia en cache de cada CPU; CPU que no obtiene lock va a una <strong>lista y espera en su propio lock</strong>; agregar <strong>delays</strong> entre intentos de TSL.</li>
+</ul>
+<hr />
+</section>
+<section class="card"><h2><span>⚙️</span> Planificación en multiprocesador</h2>
+<p>Se decide <strong>qué</strong> hilo y <strong>en qué CPU</strong>. Se analizan <strong>KLT</strong> (hilos de kernel).</p>
+<h3>Hilos independientes (tiempo compartido)</h3>
+<ul>
+<li><strong>Cola única de listos:</strong> simple, eficiente, da <strong>balanceo de carga</strong>. Desventaja: <strong>contención</strong> sobre la estructura única.</li>
+<li><strong>Espera activa:</strong> si un hilo con spinlock pierde el quantum antes de liberar, las otras CPU quedan ociosas → flag por proceso (no se expulsa, Zahorjan 1991).</li>
+<li><strong>Afinidad de CPU:</strong> ejecutar el hilo en la CPU donde ya corrió (datos en cache). <strong>Planificación de 2 niveles:</strong> hilo asignado a una CPU al crearse; <strong>cola por-CPU</strong>; si una CPU queda ociosa se reparten. Minimiza contención (ya no hay cola única).</li>
+</ul>
+<h3>Hilos que trabajan en conjunto</h3>
+<ul>
+<li>Se planifican juntos en varias CPU. Si se multiprograman independientemente, no corren sincrónicos (ej: A0/A1 tardan 200 ms en vez de 100).</li>
+<li><strong>Gang scheduling (pandillas):</strong> hilos relacionados = pandilla; corren <strong>simultáneamente</strong> en distintas CPU; inician/terminan el intervalo juntos → mensajes más rápidos.</li>
+</ul>
+<hr />
+</section>
+<section class="card"><h2><span>⚙️</span> Multicomputadoras (clusters) y memoria distribuida</h2>
+<ul>
+<li>CPU fuertemente acopladas, <strong>sin memoria compartida</strong>. PCs con interfaz de red de alto rendimiento.</li>
+<li>Red: <strong>Ethernet</strong> (10–400 Gbps), <strong>Infiniband</strong> (120 Gbps). <strong>HBA</strong> para storage (FibreChannel).</li>
+<li>Topologías: estrella, anillo, malla/mesh, hipercubo, <strong>Full Mesh</strong>.</li>
+<li><strong>Conmutación:</strong> <em>store-and-forward</em> (buffer hasta armar paquete, latencia) vs <em>circuitos</em> (ruta fija, más rápida, sin control de flujo).</li>
+<li><strong>Problema: copiado excesivo de paquetes</strong> RAM↔placa. Soluciones: interfaz en <strong>espacio de usuario</strong> (sin kernel) o <strong>canales DMA / procesadores de red</strong> (lo actual).</li>
+<li><strong>Comunicación:</strong> <code>send</code>/<code>receive</code> (con bloqueo, sin bloqueo+copia, sin bloqueo+interrupción) o <strong>RPC</strong> (invoca procedimiento remoto, transparente).</li>
+<li><strong>Balanceo de carga:</strong> cada nodo tiene sus procesos; enfoque por <strong>grafo</strong> (minimizar aristas/tráfico entre subgrafos) o <strong>distribuido</strong> (reubica si está sobrecargado).</li>
+</ul>
+<hr />
+</section>
+<section class="card"><h2><span>⚙️</span> Sistemas distribuidos</h2>
+<ul>
+<li>"Conjunto de computadoras independientes que el usuario ve como un único sistema coherente" (Tanenbaum).</li>
+<li>Como multicomputadora pero <strong>menor acoplamiento</strong>: nodos por todo el mundo, PCs completas, distinto SO/HW/FS.</li>
+<li><strong>Middleware:</strong> capa <strong>por encima del SO</strong> que aporta uniformidad, resuelve heterogeneidad y da interfaz/servicios comunes.</li>
+</ul>
+<hr />
+</section>
+<section class="card trampas"><h2><span>⚙️</span> ⚠️ Conceptos clave / posibles preguntas</h2>
+<ul>
+<li><strong>Definir UMA vs NUMA</strong> (acceso uniforme vs dependiente de local/remoto) y <strong>NC-NUMA vs CC-NUMA</strong>.</li>
+<li><strong>Memoria COMPARTIDA vs DISTRIBUIDA</strong>: comunicación (memoria vs mensajes), acoplamiento, retardos (nseg vs μseg/mseg).</li>
+<li><strong>SMP</strong>: definición, ventaja (sin cuello de botella) vs maestro-esclavo, y solución lock global vs lock por estructura.</li>
+<li><strong>Coherencia de cache</strong>: por qué surge y cómo se resuelve (RO/RW, copias limpias/sucias, directorios en CC-NUMA).</li>
+<li><strong>TSL/spinlock</strong>: por qué deshabilitar interrupciones no alcanza en multiprocesador; bloqueo del bus.</li>
+<li><strong>Afinidad de CPU</strong>, cola global vs <strong>cola por-CPU</strong>, <strong>gang scheduling</strong>.</li>
+<li><strong>Por qué se pasó a más cores</strong> (límite de calor/clock, velocidad de la luz).</li>
+<li><strong>Middleware</strong> en sistemas distribuidos.</li>
+</ul></section></div>
+</body></html>

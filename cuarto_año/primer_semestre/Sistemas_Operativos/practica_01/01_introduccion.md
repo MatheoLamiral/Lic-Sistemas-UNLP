@@ -74,7 +74,7 @@ Porque `make` tiene reglas implícitas predefinidas que sabe aplicar automática
 
 ### Ejercicio 4: ¿Qué es el kernel de GNU/Linux? ¿Cuáles son sus funciones principales dentro del Sistema Operativo?
 
-Es el núcleo del sistema operativo, un programa fundamental que se encarga de ejecutar otros programas y gestionar los dispositivos de hardware, logrando que el software y el hardware puedan trabajar juntos de manera coordinada. De hecho, en un sentido estricto, el kernel es el Sistema Operativo en sí mismo
+El kernel de GNU/Linux es el **núcleo del sistema operativo**. Es una **porción de código que reside en memoria principal**, se ejecuta en **modo privilegiado** y actúa como **intermediario entre el hardware y las aplicaciones**, a las que ofrece una interfaz controlada mediante system calls. De hecho, en un sentido estricto, el **kernel es el Sistema Operativo en sí mismo**
 
 El kernel implementa los servicios más críticos y esenciales. Sus funciones principales son:
 - **Administración de la memoria principal**: asigna, gestiona y protege el espacio de memoria que necesita cada programa para funcionar correctamente.
