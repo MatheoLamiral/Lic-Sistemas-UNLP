@@ -1,0 +1,61 @@
+# Cambios locales sobre https://gitlab.com/unlp-so/codigo-para-practicas (commit 3575a79)
+# Aplicar con: git apply codigo-catedra-affinity.patch (desde la raíz de ese repo)
+
+diff --git a/practica6/affinity.c b/practica6/affinity.c
+index a1baf49..ef6bc9c 100644
+--- a/practica6/affinity.c
++++ b/practica6/affinity.c
+@@ -5,7 +5,7 @@
+ #include <sched.h>
+ 
+ #define THREADS 100
+-#define ITERATIONS 1000000
++#define ITERATIONS 100000
+ 
+ // Mutex for synchronizing printf output
+ pthread_mutex_t print_lock = PTHREAD_MUTEX_INITIALIZER;
+@@ -45,7 +45,7 @@ void *worker(void *rank_p)
+     for (int i = 0; i < ITERATIONS; i++)
+     {
+         // Do some computation
+-        for (int j = 0; j < 1000; i++)
++        for (int j = 0; j < 1000; j++)
+         {
+             // do nothing, just simulate work
+         }
+@@ -83,4 +83,4 @@ int main()
+         pthread_join(threads[i], NULL);
+     }
+     return 0;
+-}
+\ No newline at end of file
++}
+diff --git a/practica6/affinity_half_and_half.c b/practica6/affinity_half_and_half.c
+index d2f4c45..e98b540 100644
+--- a/practica6/affinity_half_and_half.c
++++ b/practica6/affinity_half_and_half.c
+@@ -7,7 +7,7 @@
+ #include <sys/sysinfo.h> // For get_nprocs()
+ 
+ #define THREADS 100
+-#define ITERATIONS 1000000
++#define ITERATIONS 100000
+ 
+ // Mutex for synchronizing printf output
+ pthread_mutex_t print_lock = PTHREAD_MUTEX_INITIALIZER;
+@@ -62,7 +62,7 @@ void *worker(void *rank_p)
+     for (int i = 0; i < ITERATIONS; i++)
+     {
+         // Do some computation
+-        for (int j = 0; j < 1000; i++)
++        for (int j = 0; j < 1000; j++)
+         {
+             // do nothing, just simulate work
+         }
+@@ -101,4 +101,4 @@ int main()
+         pthread_join(threads[i], NULL);
+     }
+     return 0;
+-}
+\ No newline at end of file
++}
